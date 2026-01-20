@@ -1,33 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 export default function ExploreScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Explore</Text>
-      <View style={styles.separator} />
-      <Text style={styles.content}>Discover new destinations and experiences</Text>
+    <View className="flex-1 items-center justify-center bg-white">
+      <Text className="text-xl font-bold">Explore</Text>
+      <View className="h-px w-4/5 bg-gray-300 my-8" />
+      <Text className="text-base text-gray-600">Discover new destinations and experiences</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
-  content: {
-    fontSize: 16,
-    color: '#666',
-  },
-});
