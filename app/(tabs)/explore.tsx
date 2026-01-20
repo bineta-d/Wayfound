@@ -1,12 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function TripsScreen() {
+export default function ExploreScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Trips</Text>
+      <Text style={styles.title}>Explore</Text>
       <View style={styles.separator} />
-      <Text style={styles.content}>Manage your trips here</Text>
+      <Text style={styles.content}>Discover new destinations and experiences</Text>
     </View>
   );
 }

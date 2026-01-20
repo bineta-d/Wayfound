@@ -1,7 +1,7 @@
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -22,12 +22,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
@@ -48,17 +46,29 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="trips"
+        name="explore"
         options={{
-          title: 'Trips',
-          tabBarIcon: ({ color }) => <TabBarIcon name="plane" color={color} />,
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <TabBarIcon name="compass" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="map-pin"
+        name="create"
         options={{
-          title: 'Collab',
-          tabBarIcon: ({ color }) => <TabBarIcon name="fa-people-group" color={color} />,
+          title: '',
+          tabBarIcon: ({ color }) => (
+            <View style={[styles.createTabIcon, { backgroundColor: color }]}>
+              <FontAwesome name="plus" size={20} color="white" />
+            </View>
+          ),
+          tabBarLabel: () => null,
+        }}
+      />
+      <Tabs.Screen
+        name="collaborate"
+        options={{
+          title: 'Collaborate',
+          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -71,3 +81,14 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  createTabIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+});
