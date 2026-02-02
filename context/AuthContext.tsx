@@ -21,11 +21,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log('🔍 AuthContext: Initializing auth state...');
+    console.log('🔍 AuthContext: Checking for existing session...');
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🔍 AuthContext: Initial session check:', session ? 'Session found' : 'No session');
-      console.log('🔍 AuthContext: User:', session?.user?.email || 'No user');
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('🔍 AuthContext: Session check completed');
+      console.log('🔍 AuthContext: Session exists:', !!session);
+      console.log('🔍 AuthContext: Session error:', error);
+      console.log('🔍 AuthContext: User email:', session?.user?.email || 'No user');
+      console.log('🔍 AuthContext: Session expires at:', session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'No expiry');
+
+      if (session) {
+        const now = Math.floor(Date.now() / 1000);
+        const isExpired = session.expires_at && session.expires_at < now;
+        console.log('🔍 AuthContext: Current timestamp:', now);
+        console.log('🔍 AuthContext: Session expired:', isExpired);
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -37,6 +49,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔍 AuthContext: Auth state changed:', event);
         console.log('🔍 AuthContext: Session after change:', session ? 'Active' : 'None');
         console.log('🔍 AuthContext: User after change:', session?.user?.email || 'No user');
+        console.log('🔍 AuthContext: Event type:', event);
+
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('🔍 AuthContext: Token was refreshed');
+        }
+
+        if (event === 'SIGNED_OUT') {
+          console.log('🔍 AuthContext: User was signed out');
+        }
 
         setSession(session);
         setUser(session?.user ?? null);
@@ -44,7 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('🔍 AuthContext: Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
