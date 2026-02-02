@@ -5,10 +5,13 @@ import { View, Text } from 'react-native';
 export default function Index() {
     const { user, loading } = useAuth();
 
-    console.log('🔍 Index: Loading:', loading);
+    console.log('🔍 Index: Component rendering');
+    console.log('🔍 Index: Loading state:', loading);
     console.log('🔍 Index: User authenticated:', !!user);
+    console.log('🔍 Index: User email:', user?.email || 'None');
 
     if (loading) {
+        console.log('🔍 Index: Showing loading screen');
         return (
             <View className="flex-1 items-center justify-center bg-white">
                 <Text>Loading...</Text>
@@ -17,7 +20,7 @@ export default function Index() {
     }
 
     if (!user) {
-        console.log('🔍 Index: No user, redirecting to login');
+        console.log('🔍 Index: No user found, redirecting to login');
         return <Redirect href="/(auth)/login" />;
     }
 

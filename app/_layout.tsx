@@ -53,12 +53,14 @@ function RootLayoutNav() {
 function AuthStack() {
   const { user, loading } = useAuth();
 
-  console.log('🔍 AuthStack: Loading:', loading);
+  console.log('🔍 AuthStack: Component rendering');
+  console.log('🔍 AuthStack: Loading state:', loading);
   console.log('🔍 AuthStack: User authenticated:', !!user);
   console.log('🔍 AuthStack: User email:', user?.email || 'None');
+  console.log('🔍 AuthStack: Current route will be:', loading ? 'Loading' : (user ? 'Main App' : 'Login'));
 
   if (loading) {
-    console.log('🔍 AuthStack: Still loading auth state...');
+    console.log('🔍 AuthStack: Showing loading state');
     return null; // or a loading spinner
   }
 
