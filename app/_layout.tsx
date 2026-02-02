@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import "../global.css";
 
 export {
@@ -41,14 +42,52 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <AuthProvider>
+      <ThemeProvider value={DefaultTheme}>
+        <AuthStack />
+      </ThemeProvider>
+    </AuthProvider>
+  );
+}
+
+function AuthStack() {
+  const { user, loading } = useAuth();
+
+  console.log('🔍 AuthStack: Loading:', loading);
+  console.log('🔍 AuthStack: User authenticated:', !!user);
+  console.log('🔍 AuthStack: User email:', user?.email || 'None');
+
+  if (loading) {
+    console.log('🔍 AuthStack: Still loading auth state...');
+    return null; // or a loading spinner
+  }
+
+  if (!user) {
+    console.log('🔍 AuthStack: No user found, redirecting to login');
+    return (
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="trip" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Redirect href="/(auth)/login" />
       </Stack>
+    );
+  }
+
+  console.log('🔍 AuthStack: User authenticated, showing main app');
+  return (
+    <Stack>
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="trip" options={{ headerShown: false }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="screens/editProfile"
+        options={{
+          title: 'Edit Profile',
+          headerShown: true,
+          headerBackTitle: ''
+        }}
+      />
       <Redirect href="/(tabs)/home" />
-    </ThemeProvider>
+    </Stack>
   );
 }
