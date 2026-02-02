@@ -1,12 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, Image, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 export default function SettingsScreen() {
     const { user, signOut } = useAuth();
     const router = useRouter();
+    const [userProfile, setUserProfile] = useState<any>(null);
+
+    useEffect(() => {
+        fetchUserProfile();
+    }, [user]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchUserProfile();
+        }, [user])
+    );
+
+    const fetchUserProfile = async () => {
+        if (!user) return;
+
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (!error && data) {
+                setUserProfile(data);
+            }
+        } catch (error) {
+            console.error('Error fetching user profile:', error);
+        }
+    };
 
     const handleLogout = () => {
         Alert.alert(
@@ -32,9 +62,76 @@ export default function SettingsScreen() {
         );
     };
 
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Delete Account',
+            'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Delete Account',
+                    style: 'destructive',
+                    onPress: async () => {
+                        console.log('🔍 Settings: Deleting user account...');
+                        await deleteAccount();
+                    },
+                },
+            ]
+        );
+    };
+
+    const deleteAccount = async () => {
+        try {
+            if (!user) return;
+
+            // Delete user profile from users table
+            const { error: profileError } = await supabase
+                .from('users')
+                .delete()
+                .eq('id', user.id);
+
+            if (profileError) {
+                console.log('🔍 Settings: Profile deletion failed:', profileError.message);
+                Alert.alert('Error', 'Failed to delete profile data');
+                return;
+            }
+
+            // Delete profile picture from storage if it exists
+            const { error: storageError } = await supabase.storage
+                .from('profiles')
+                .remove([`${user.id}/profile`]);
+
+            if (storageError) {
+                console.log('🔍 Settings: Profile picture deletion failed:', storageError.message);
+                // Continue even if storage deletion fails
+            }
+
+            // Sign out the user first
+            await signOut();
+
+            // Then delete the auth user using the client-side method
+            const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+
+            if (authError) {
+                console.log('🔍 Settings: Auth user deletion failed:', authError.message);
+                // If admin deletion fails, user is still signed out which is acceptable
+                Alert.alert('Account Deletion', 'Your account has been deactivated. You may need to contact support for complete removal.');
+            } else {
+                console.log('🔍 Settings: Account deleted successfully');
+                Alert.alert('Success', 'Your account has been deleted successfully.');
+            }
+
+        } catch (error) {
+            console.log('🔍 Settings: Account deletion error:', error);
+            Alert.alert('Error', 'An unexpected error occurred while deleting your account.');
+        }
+    };
+
     const handleEditProfile = () => {
-        // TODO: Navigate to edit profile screen
-        console.log('🔍 Settings: Edit profile pressed');
+        router.push('/screens/editProfile');
     };
 
     const settingsItems = [
@@ -53,9 +150,9 @@ export default function SettingsScreen() {
                 <View className="items-center">
                     {/* Avatar */}
                     <View className="w-20 h-20 bg-gray-200 rounded-full items-center justify-center mb-3">
-                        {user?.user_metadata?.avatar_url ? (
+                        {userProfile?.avatar_url ? (
                             <Image
-                                source={{ uri: user.user_metadata.avatar_url }}
+                                source={{ uri: userProfile.avatar_url }}
                                 className="w-20 h-20 rounded-full"
                             />
                         ) : (
@@ -99,9 +196,17 @@ export default function SettingsScreen() {
             <View className="px-6 mt-6">
                 <TouchableOpacity
                     onPress={handleLogout}
-                    className="bg-red-500 py-3 rounded-lg items-center"
+                    className="bg-red-500 py-3 rounded-lg items-center mb-3"
                 >
                     <Text className="text-white font-semibold text-base">Log Out</Text>
+                </TouchableOpacity>
+
+                {/* Delete Account Button */}
+                <TouchableOpacity
+                    onPress={handleDeleteAccount}
+                    className="bg-gray-800 py-3 rounded-lg items-center"
+                >
+                    <Text className="text-white font-semibold text-base">Delete Account</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

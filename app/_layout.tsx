@@ -79,6 +79,14 @@ function AuthStack() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="trip" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="screens/editProfile"
+        options={{
+          title: 'Edit Profile',
+          headerShown: true,
+          headerBackTitle: ''
+        }}
+      />
       <Redirect href="/(tabs)/home" />
     </Stack>
   );

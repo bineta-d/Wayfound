@@ -1,7 +1,8 @@
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function SignupScreen() {
     const router = useRouter();
@@ -13,7 +14,22 @@ export default function SignupScreen() {
         dob: '',
         avatarUrl: '',
     });
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            setSelectedImage(result.assets[0].uri);
+            setFormData(prev => ({ ...prev, avatarUrl: result.assets[0].uri }));
+        }
+    };
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -86,6 +102,7 @@ export default function SignupScreen() {
             <Text className="text-2xl font-bold mb-8">Create Account</Text>
 
             <View className="w-full max-w-sm">
+                <Text className="text-gray-700 text-base font-semibold mb-2">Full Name</Text>
                 <TextInput
                     className="w-full border border-gray-300 rounded-lg p-4 mb-4"
                     placeholder="Full Name"
@@ -94,6 +111,7 @@ export default function SignupScreen() {
                     autoCapitalize="words"
                 />
 
+                <Text className="text-gray-700 text-base font-semibold mb-2">Email</Text>
                 <TextInput
                     className="w-full border border-gray-300 rounded-lg p-4 mb-4"
                     placeholder="Email"
@@ -103,6 +121,7 @@ export default function SignupScreen() {
                     autoCapitalize="none"
                 />
 
+                <Text className="text-gray-700 text-base font-semibold mb-2">Date of Birth (MM-DD-YYYY)</Text>
                 <TextInput
                     className="w-full border border-gray-300 rounded-lg p-4 mb-4"
                     placeholder="Date of Birth (MM-DD-YYYY)"
@@ -110,14 +129,23 @@ export default function SignupScreen() {
                     onChangeText={(value) => handleInputChange('dob', value)}
                 />
 
-                <TextInput
+                <Text className="text-gray-700 text-base font-semibold mb-2">Profile Picture (Optional)</Text>
+                <TouchableOpacity
                     className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-                    placeholder="Avatar URL (optional)"
-                    value={formData.avatarUrl}
-                    onChangeText={(value) => handleInputChange('avatarUrl', value)}
-                    autoCapitalize="none"
-                />
+                    onPress={pickImage}
+                >
+                    <Text className="text-center text-gray-600">Profile Picture (Optional)</Text>
+                    {selectedImage ? (
+                        <Image
+                            source={{ uri: selectedImage }}
+                            className="w-20 h-20 rounded-full mx-auto mt-2"
+                        />
+                    ) : (
+                        <Text className="text-center text-gray-400 mt-2">Tap to select image</Text>
+                    )}
+                </TouchableOpacity>
 
+                <Text className="text-gray-700 text-base font-semibold mb-2">Password</Text>
                 <TextInput
                     className="w-full border border-gray-300 rounded-lg p-4 mb-6"
                     placeholder="Password"

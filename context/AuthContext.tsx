@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { uploadProfilePicture } from '../lib/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -82,7 +83,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: { message: 'Failed to create user account' } };
       }
 
-      console.log('🔍 AuthContext: Auth user created, creating user profile...');
+      console.log('🔍 AuthContext: Auth user created, uploading profile picture...');
+
+      // Upload profile picture if provided
+      let avatarUrl = null;
+      if (userData.avatar_url && userData.avatar_url.startsWith('file://')) {
+        avatarUrl = await uploadProfilePicture(authData.user.id, userData.avatar_url);
+        if (!avatarUrl) {
+          console.log('🔍 AuthContext: Profile picture upload failed, continuing without it');
+        } else {
+          console.log('🔍 AuthContext: Profile picture uploaded successfully');
+        }
+      } else {
+        avatarUrl = userData.avatar_url;
+      }
 
       // Create user profile using the database function
       const { data: profileResult, error: profileError } = await supabase.rpc('create_user_with_profile', {
@@ -90,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         p_email: email,
         p_full_name: userData.full_name,
         p_dob: userData.dob,
-        p_avatar_url: userData.avatar_url || null
+        p_avatar_url: avatarUrl
       });
 
       if (profileError || !profileResult) {

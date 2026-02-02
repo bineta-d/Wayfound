@@ -40,6 +40,7 @@ export default function LoginScreen() {
             <Text className="text-2xl font-bold mb-8">Welcome Back</Text>
 
             <View className="w-full max-w-sm">
+                <Text className="text-gray-700 text-base font-semibold mb-2">Email</Text>
                 <TextInput
                     className="w-full border border-gray-300 rounded-lg p-4 mb-4"
                     placeholder="Email"
@@ -49,6 +50,7 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                 />
 
+                <Text className="text-gray-700 text-base font-semibold mb-2">Password</Text>
                 <TextInput
                     className="w-full border border-gray-300 rounded-lg p-4 mb-6"
                     placeholder="Password"
