@@ -87,7 +87,9 @@ export default function SettingsScreen() {
         try {
             if (!user) return;
 
-            // Delete user profile from users table
+            console.log('🔍 Settings: Starting account deletion for user:', user.id);
+
+            // First, delete user profile from users table
             const { error: profileError } = await supabase
                 .from('users')
                 .delete()
@@ -98,6 +100,7 @@ export default function SettingsScreen() {
                 Alert.alert('Error', 'Failed to delete profile data');
                 return;
             }
+            console.log('🔍 Settings: Profile deleted successfully from users table');
 
             // Delete profile picture from storage if it exists
             const { error: storageError } = await supabase.storage
@@ -107,22 +110,31 @@ export default function SettingsScreen() {
             if (storageError) {
                 console.log('🔍 Settings: Profile picture deletion failed:', storageError.message);
                 // Continue even if storage deletion fails
+            } else {
+                console.log('🔍 Settings: Profile picture deleted successfully');
             }
 
-            // Sign out the user first
-            await signOut();
-
-            // Then delete the auth user using the client-side method
-            const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+            // Now delete the auth user using the SQL function (which handles both tables)
+            const { error: authError } = await supabase.rpc('admin_delete_user', {
+                user_id: user.id
+            });
 
             if (authError) {
                 console.log('🔍 Settings: Auth user deletion failed:', authError.message);
-                // If admin deletion fails, user is still signed out which is acceptable
-                Alert.alert('Account Deletion', 'Your account has been deactivated. You may need to contact support for complete removal.');
+                Alert.alert('Error', 'Failed to delete authentication data. Please contact support.');
+                return;
             } else {
-                console.log('🔍 Settings: Account deleted successfully');
-                Alert.alert('Success', 'Your account has been deleted successfully.');
+                console.log('🔍 Settings: Auth user deleted successfully');
             }
+
+            // Sign out the user
+            await signOut();
+
+            console.log('🔍 Settings: Account deletion completed successfully');
+            Alert.alert('Success', 'Your account has been deleted successfully.');
+
+            // Manually redirect to login page
+            router.replace('/(auth)/login');
 
         } catch (error) {
             console.log('🔍 Settings: Account deletion error:', error);
