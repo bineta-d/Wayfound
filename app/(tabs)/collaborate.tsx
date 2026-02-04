@@ -21,7 +21,11 @@ export default function CollaborateScreen() {
         if (!user) return;
 
         try {
+            console.log('🔍 Collaborate: Starting to load shared trips...');
             const trips = await getSharedTrips(user);
+            console.log('🔍 Collaborate: Received trips:', trips);
+            console.log('🔍 Collaborate: Trips type:', typeof trips);
+            console.log('🔍 Collaborate: Trips length:', trips?.length || 0);
             setSharedTrips(trips);
         } catch (error) {
             console.error('Error loading shared trips:', error);
@@ -57,23 +61,42 @@ export default function CollaborateScreen() {
                 </View>
 
                 <View className="px-6 py-4">
+                    {(() => {
+                        console.log('🔍 Collaborate Render: sharedTrips.length =', sharedTrips.length);
+                        return null;
+                    })()}
                     {sharedTrips.length === 0 ? (
-                        <View className="bg-white rounded-lg p-6 items-center">
-                            <Text className="text-gray-500 text-center mb-4">No shared trips yet</Text>
-                            <Text className="text-gray-400 text-center text-sm">
-                                When someone adds you to a trip, it will appear here
-                            </Text>
-                        </View>
+                        <>
+                            {(() => {
+                                console.log('🔍 Collaborate Render: Showing No shared trips message');
+                                return null;
+                            })()}
+                            <View className="bg-white rounded-lg p-6 items-center">
+                                <Text className="text-gray-500 text-center mb-4">No shared trips yet</Text>
+                                <Text className="text-gray-400 text-center text-sm">
+                                    When someone adds you to a trip, it will appear here
+                                </Text>
+                            </View>
+                        </>
                     ) : (
-                        sharedTrips.map((trip) => (
-                            <TripCard
-                                key={trip.id}
-                                title={trip.title}
-                                destination={trip.destination}
-                                date={`${trip.start_date} - ${trip.end_date}`}
-                                onPress={() => handleTripPress(trip)}
-                            />
-                        ))
+                        <>
+                            {(() => {
+                                console.log('🔍 Collaborate Render: Rendering', sharedTrips.length, 'trip cards');
+                                return null;
+                            })()}
+                            {sharedTrips.map((trip) => {
+                                console.log('🔍 Collaborate Render: Rendering trip:', trip);
+                                return (
+                                    <TripCard
+                                        key={trip.id}
+                                        title={trip.title}
+                                        destination={trip.destination}
+                                        date={`${trip.start_date} - ${trip.end_date}`}
+                                        onPress={() => handleTripPress(trip)}
+                                    />
+                                );
+                            })}
+                        </>
                     )}
                 </View>
             </ScrollView>

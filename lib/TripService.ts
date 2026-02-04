@@ -178,33 +178,93 @@ export const getTripsByLocation = async (location: string): Promise<Trip[]> => {
 // get shared trips (trips where user is a member but not owner)
 export const getSharedTrips = async (user: SupabaseUser) => {
     try {
-        // get trips where user is a member but not the owner
-        const { data, error } = await supabase
-            .from('trip_members')
-            .select(`
-                trip_id,
-                role,
-                trips!inner(
-                    id,
-                    title,
-                    destination,
-                    start_date,
-                    end_date,
-                    owner_id,
-                    created_at
-                )
-            `)
-            .eq('user_id', user.id)
-            .neq('trips.owner_id', user.id)
-            .order('trips.created_at', { ascending: false });
+        console.log('🔍 Getting shared trips for user:');
+        console.log('  - User ID:', user.id);
+        console.log('  - User Email:', user.email);
 
-        if (error) {
-            throw error;
+        // Get all trips first (user can access their own trips)
+        const { data: userTrips, error: userTripsError } = await supabase
+            .from('trips')
+            .select('*')
+            .eq('owner_id', user.id);
+
+        if (userTripsError) {
+            console.error('🔍 User trips error:', userTripsError);
+            throw userTripsError;
         }
 
-        // extract trip data and flatten the structure
-        const trips = data?.map((member: any) => member.trips).flat() || [];
-        return trips;
+        console.log('🔍 User owns these trips:', userTrips?.map(t => ({ id: t.id, title: t.title })));
+
+        // get user's trip memberships
+        const { data: memberships, error: membershipError } = await supabase
+            .from('trip_members')
+            .select('trip_id')
+            .eq('user_id', user.id)
+            .eq('role', 'member');
+
+        if (membershipError) {
+            console.error('🔍 Membership error:', membershipError);
+            throw membershipError;
+        }
+
+        console.log('🔍 User is member of these trip_ids:', memberships);
+
+        if (!memberships || memberships.length === 0) {
+            console.log('🔍 No memberships found');
+            return [];
+        }
+
+        // Filter out trips the user owns and remove duplicates
+        const ownedTripIds = userTrips?.map(t => t.id) || [];
+        const allSharedTripIds = memberships.map(m => m.trip_id);
+        const uniqueSharedTripIds = [...new Set(allSharedTripIds)]; // Remove duplicates
+        const sharedTripIds = uniqueSharedTripIds.filter(tripId => !ownedTripIds.includes(tripId));
+
+        console.log('🔍 All shared trip IDs:', allSharedTripIds);
+        console.log('🔍 Unique shared trip IDs:', uniqueSharedTripIds);
+        console.log('🔍 Shared trip IDs (excluding owned):', sharedTripIds);
+
+        if (sharedTripIds.length === 0) {
+            console.log('🔍 No shared trips after filtering');
+            return [];
+        }
+
+        // Get real trip data using a database function or RPC call
+        // For now, let's try a different approach - get trip details from a known trip owner
+        console.log('🔍 Getting real trip data...');
+
+        // Try to get trip data by checking each trip individually
+        const sharedTrips = [];
+        for (const tripId of sharedTripIds) {
+            console.log('🔍 Checking trip:', tripId);
+
+            // try to get trip data 
+            const { data: tripData, error: tripError } = await supabase
+                .from('trips')
+                .select('*')
+                .eq('id', tripId)
+                .single();
+
+            if (tripError) {
+                console.log('🔍 Could not access trip data for:', tripId, tripError);
+                // placeholder if failed
+                sharedTrips.push({
+                    id: tripId,
+                    title: 'Shared Trip (Access Restricted)',
+                    destination: 'Trip details hidden',
+                    start_date: '2026-01-01',
+                    end_date: '2026-01-02',
+                    owner_id: 'restricted',
+                    created_at: new Date().toISOString()
+                });
+            } else {
+                console.log('🔍 Got trip data:', tripData);
+                sharedTrips.push(tripData);
+            }
+        }
+
+        console.log('🔍 Final shared trips:', sharedTrips);
+        return sharedTrips;
     } catch (error) {
         console.error('Error getting shared trips:', error);
         throw error;
