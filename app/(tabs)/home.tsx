@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { getUserTrips } from '../../lib/TripService';
 import { Trip } from '../../lib/types';
+import TripCard from '../../components/TripCard';
+import { Stack } from 'expo-router';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -38,48 +40,48 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-gray-600">Loading trips...</Text>
-      </View>
+      <>
+        <Stack.Screen options={{ title: "Home", headerShown: true }} />
+        <View className="flex-1 items-center justify-center bg-white">
+          <Text className="text-gray-600">Loading trips...</Text>
+        </View>
+      </>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      <View className="bg-white px-6 pt-12 pb-6">
-        <Text className="text-2xl font-bold text-gray-800">Your Trips</Text>
-        <Text className="text-gray-600 mt-2">Manage your travel plans</Text>
-      </View>
+    <>
+      <Stack.Screen options={{ title: "Home", headerShown: true }} />
+      <ScrollView className="flex-1 bg-gray-50">
+        <View className="bg-white px-6 pt-12 pb-6">
+          <Text className="text-2xl font-bold text-gray-800">Your Trips</Text>
+          <Text className="text-gray-600 mt-2">Manage your travel plans</Text>
+        </View>
 
-      <View className="px-6 py-4">
-        {trips.length === 0 ? (
-          <View className="bg-white rounded-lg p-6 items-center">
-            <Text className="text-gray-500 text-center mb-4">No trips yet</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/create')}
-              className="bg-blue-500 px-6 py-3 rounded-lg"
-            >
-              <Text className="text-white font-semibold">Create Your First Trip</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          trips.map((trip) => (
-            <TouchableOpacity
-              key={trip.id}
-              onPress={() => handleTripPress(trip)}
-              className="bg-white rounded-lg p-4 mb-3 shadow-sm"
-            >
-              <Text className="text-lg font-semibold text-gray-800">{trip.title}</Text>
-              <Text className="text-gray-600 mt-1">{trip.destination}</Text>
-              <View className="flex-row mt-2">
-                <Text className="text-sm text-gray-500">
-                  {trip.start_date} - {trip.end_date}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
-    </ScrollView>
+        <View className="px-6 py-4">
+          {trips.length === 0 ? (
+            <View className="bg-white rounded-lg p-6 items-center">
+              <Text className="text-gray-500 text-center mb-4">No trips yet</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/create')}
+                className="bg-blue-500 px-6 py-3 rounded-lg"
+              >
+                <Text className="text-white font-semibold">Create Your First Trip</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            trips.map((trip) => (
+              <TripCard
+                key={trip.id}
+                title={trip.title}
+                destination={trip.destination}
+                date={`${trip.start_date} - ${trip.end_date}`}
+                onPress={() => handleTripPress(trip)}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </>
   );
 }

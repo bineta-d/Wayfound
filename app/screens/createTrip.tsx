@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, Alert, SafeAreaView, ScrollVie
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { createTrip, createTripMembers } from '../../lib/TripService';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 export default function CreateTripScreen() {
     const { user } = useAuth();
@@ -16,6 +18,10 @@ export default function CreateTripScreen() {
     });
 
     const [members, setMembers] = useState<{ name: string, email: string }[]>([]);
+    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+    const [startDate, setStartDate] = useState(new Date());
+    const [endDate, setEndDate] = useState(new Date());
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -38,6 +44,21 @@ export default function CreateTripScreen() {
 
     const removeMemberField = (index: number) => {
         setMembers(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleDateChange = (event: any, selectedDate: Date | undefined, type: 'start' | 'end') => {
+        if (event.type === 'set' && selectedDate) {
+            const dateString = selectedDate.toISOString().split('T')[0];
+            if (type === 'start') {
+                setStartDate(selectedDate);
+                handleInputChange('start_date', dateString);
+            } else {
+                setEndDate(selectedDate);
+                handleInputChange('end_date', dateString);
+            }
+        }
+        setShowStartDatePicker(false);
+        setShowEndDatePicker(false);
     };
 
     const handleCreateTrip = async () => {
@@ -66,6 +87,7 @@ export default function CreateTripScreen() {
             const validMembers = members.filter(m => m.name && m.email);
             if (validMembers.length > 0 && tripData && tripData[0]) {
                 await createTripMembers(tripData[0].id, validMembers);
+                console.log(`Added ${validMembers.length} members to trip`);
             }
 
             Alert.alert('Success', 'Trip created successfully');
@@ -95,28 +117,77 @@ export default function CreateTripScreen() {
                 />
 
                 <Text className="text-gray-700 text-base font-semibold mb-2">Destination</Text>
-                <TextInput
-                    className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-                    placeholder="Enter destination"
-                    value={formData.destination}
-                    onChangeText={(value) => handleInputChange('destination', value)}
+                <GooglePlacesAutocomplete
+                    placeholder='Search for a city or destination'
+                    onPress={(data, details = null) => {
+                        handleInputChange('destination', data.description);
+                    }}
+                    query={{
+                        key: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+                        language: 'en',
+                        types: '(cities)',
+                    }}
+                    styles={{
+                        textInput: {
+                            height: 48,
+                            borderWidth: 1,
+                            borderColor: '#d1d5db',
+                            borderRadius: 8,
+                            paddingHorizontal: 16,
+                            marginBottom: 16,
+                            fontSize: 16,
+                        },
+                        container: {
+                            flex: 0,
+                        },
+                    }}
+                    textInputProps={{
+                        placeholderTextColor: '#9ca3af',
+                    }}
+                    fetchDetails={true}
+                    onTimeout={() => console.log('Google Places timeout')}
+                    onFail={(error) => console.error('Google Places error:', error)}
+                    minLength={2}
+                    debounce={300}
                 />
 
                 <Text className="text-gray-700 text-base font-semibold mb-2">Start Date</Text>
-                <TextInput
+                <TouchableOpacity
                     className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-                    placeholder="YYYY-MM-DD"
-                    value={formData.start_date}
-                    onChangeText={(value) => handleInputChange('start_date', value)}
-                />
+                    onPress={() => setShowStartDatePicker(true)}
+                >
+                    <Text className="text-gray-800">
+                        {formData.start_date || 'Select start date'}
+                    </Text>
+                </TouchableOpacity>
+
+                {showStartDatePicker && (
+                    <DateTimePicker
+                        value={startDate}
+                        mode="date"
+                        display="default"
+                        onChange={(event, date) => handleDateChange(event, date, 'start')}
+                    />
+                )}
 
                 <Text className="text-gray-700 text-base font-semibold mb-2">End Date</Text>
-                <TextInput
+                <TouchableOpacity
                     className="w-full border border-gray-300 rounded-lg p-4 mb-6"
-                    placeholder="YYYY-MM-DD"
-                    value={formData.end_date}
-                    onChangeText={(value) => handleInputChange('end_date', value)}
-                />
+                    onPress={() => setShowEndDatePicker(true)}
+                >
+                    <Text className="text-gray-800">
+                        {formData.end_date || 'Select end date'}
+                    </Text>
+                </TouchableOpacity>
+
+                {showEndDatePicker && (
+                    <DateTimePicker
+                        value={endDate}
+                        mode="date"
+                        display="default"
+                        onChange={(event, date) => handleDateChange(event, date, 'end')}
+                    />
+                )}
 
                 <TouchableOpacity
                     onPress={handleCreateTrip}

@@ -26,7 +26,7 @@ export const createTrip = async (title: string, destination: string, start_date:
 export const getUserTrips = async (user: SupabaseUser) => {
     try {
         const { data, error } = await supabase.from
-            ('trips').select('*').eq('owner_id', user.id)
+            ('trips').select('*').eq('owner_id', user.id).order('created_at', { ascending: false })
         if (error) {
             throw error
             console.log("❌ Trips not found: " + error)
@@ -42,21 +42,46 @@ export const getUserTrips = async (user: SupabaseUser) => {
 // create trip members
 export const createTripMembers = async (trip_id: string, members: { name: string, email: string }[]) => {
     try {
-        const { data, error } = await supabase
-            .from('trip_members')
-            .insert(
-                members.map(member => ({
-                    trip_id: trip_id,
-                    user_id: member.email, // For now using email as user_id, should be updated to actual user_id after user lookup
-                    role: 'member'
-                }))
-            );
+        const memberData = [];
 
-        if (error) {
-            throw error;
+        for (const member of members) {
+            // Check if user exists with this email
+            const { data: existingUser, error: userError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', member.email)
+                .single();
+
+            let userId;
+            if (existingUser && !userError) {
+                // User exists, use their UUID
+                userId = existingUser.id;
+
+                memberData.push({
+                    trip_id: trip_id,
+                    user_id: userId,
+                    role: 'member'
+                });
+            } else {
+                // to do:   store pending invitations
+                console.log(`User with email ${member.email} not found. Skipping member addition.`);
+            }
         }
 
-        return data;
+        // Only insert if we have valid members
+        if (memberData.length > 0) {
+            const { data, error } = await supabase
+                .from('trip_members')
+                .insert(memberData);
+
+            if (error) {
+                throw error;
+            }
+
+            return data;
+        } else {
+            return [];
+        }
     } catch (error) {
         console.error('Error creating trip members:', error);
         throw error;
@@ -146,6 +171,42 @@ export const getTripsByLocation = async (location: string): Promise<Trip[]> => {
         return data || [];
     } catch (error) {
         console.error('Error getting trips by location:', error);
+        throw error;
+    }
+};
+
+// get shared trips (trips where user is a member but not owner)
+export const getSharedTrips = async (user: SupabaseUser) => {
+    try {
+        // get trips where user is a member but not the owner
+        const { data, error } = await supabase
+            .from('trip_members')
+            .select(`
+                trip_id,
+                role,
+                trips!inner(
+                    id,
+                    title,
+                    destination,
+                    start_date,
+                    end_date,
+                    owner_id,
+                    created_at
+                )
+            `)
+            .eq('user_id', user.id)
+            .neq('trips.owner_id', user.id)
+            .order('trips.created_at', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        // extract trip data and flatten the structure
+        const trips = data?.map((member: any) => member.trips).flat() || [];
+        return trips;
+    } catch (error) {
+        console.error('Error getting shared trips:', error);
         throw error;
     }
 };
