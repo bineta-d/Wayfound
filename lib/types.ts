@@ -1,5 +1,5 @@
 
-interface Trip {
+export interface Trip {
     id: string
     owner_id: string,
     title: string,
@@ -11,7 +11,7 @@ interface Trip {
 }
 
 
-interface Trip_member {
+export interface Trip_member {
     id: string,
     trip_id: string,
     user_id: string,
