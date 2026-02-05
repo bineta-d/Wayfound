@@ -1,4 +1,4 @@
-
+// db types
 export interface Trip {
     id: string
     owner_id: string,
