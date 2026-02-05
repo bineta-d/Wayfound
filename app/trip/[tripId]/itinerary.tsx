@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 interface ItineraryScreenProps {
     tripId: string;
@@ -8,6 +10,8 @@ interface ItineraryScreenProps {
 }
 
 export default function ItineraryScreen({ tripId, startDate, endDate }: ItineraryScreenProps) {
+    const router = useRouter();
+
     const generateDayHeaders = () => {
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -26,6 +30,10 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
     };
 
     const days = generateDayHeaders();
+
+    const handleDayPress = (dayNumber: number) => {
+        router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+    };
 
     return (
         <View className="bg-white px-6 py-6 mb-2">
@@ -49,23 +57,30 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
             {/* Daily Itinerary Sections */}
             <ScrollView showsVerticalScrollIndicator={false}>
                 {days.map((day) => (
-                    <View key={day.date.toISOString()} className="mb-6">
+                    <TouchableOpacity
+                        key={day.date.toISOString()}
+                        className="mb-6"
+                        onPress={() => handleDayPress(day.dayNumber)}
+                    >
                         <View className="bg-gray-50 rounded-lg p-4">
-                            <Text className="text-lg font-semibold text-gray-800 mb-2">
-                                Day {day.dayNumber} - {day.date.toLocaleDateString('en-US', {
-                                    weekday: 'long'
-                                })} {day.date.toLocaleDateString('en-US', {
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
-                            </Text>
+                            <View className="flex-row justify-between items-center mb-2">
+                                <Text className="text-lg font-semibold text-gray-800">
+                                    Day {day.dayNumber} - {day.date.toLocaleDateString('en-US', {
+                                        weekday: 'long'
+                                    })} {day.date.toLocaleDateString('en-US', {
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                            </View>
                             <View className="bg-white rounded-lg p-4 border border-gray-200 min-h-[100px]">
                                 <Text className="text-gray-500 text-center">
-                                    Activities for this day will appear here
+                                    Tap to add activities
                                 </Text>
                             </View>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </ScrollView>
         </View>
