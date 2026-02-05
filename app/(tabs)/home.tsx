@@ -34,8 +34,7 @@ export default function HomeScreen() {
   };
 
   const handleTripPress = (trip: Trip) => {
-    // Navigate to trip details (to be implemented)
-    console.log('Trip pressed:', trip);
+    router.push(`/trip/${trip.id}`);
   };
 
   if (loading) {

@@ -214,7 +214,7 @@ export const getSharedTrips = async (user: SupabaseUser) => {
             return [];
         }
 
-        // Filter out trips the user owns and remove duplicates
+        // filter out trips the user owns and remove duplicates
         const ownedTripIds = userTrips?.map(t => t.id) || [];
         const allSharedTripIds = memberships.map(m => m.trip_id);
         const uniqueSharedTripIds = [...new Set(allSharedTripIds)]; // Remove duplicates
@@ -229,11 +229,10 @@ export const getSharedTrips = async (user: SupabaseUser) => {
             return [];
         }
 
-        // Get real trip data using a database function or RPC call
-        // For now, let's try a different approach - get trip details from a known trip owner
+
         console.log('🔍 Getting real trip data...');
 
-        // Try to get trip data by checking each trip individually
+        // try to get trip data by checking each trip individually
         const sharedTrips = [];
         for (const tripId of sharedTripIds) {
             console.log('🔍 Checking trip:', tripId);
@@ -276,13 +275,29 @@ export const getTripMembers = async (trip_id: string): Promise<any[]> => {
     try {
         const { data, error } = await supabase
             .from('trip_members')
-            .select('*')
-            .eq('trip_id', trip_id);
+            .select(`
+                id,
+                trip_id,
+                user_id,
+                name,
+                email,
+                role,
+                users (
+                    id,
+                    full_name,
+                    email,
+                    avatar_url
+                )
+            `)
+            .eq('trip_id', trip_id)
+            .order('role', { ascending: false })
+            .order('name', { ascending: true });
 
         if (error) {
             throw error;
         }
 
+        console.log('🔍 Trip members data:', data);
         return data || [];
     } catch (error) {
         console.error('Error getting trip members:', error);

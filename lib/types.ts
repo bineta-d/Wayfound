@@ -18,12 +18,14 @@ export interface Trip_member {
     name?: string,
     email?: string,
     role: string;
+    users?: User;
 }
 
 export interface User {
     id: string,
     full_name: string,
     email: string,
+    avatar_url?: string,
     created_at: string,
     dob: string,
     age: string,
