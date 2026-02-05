@@ -1,23 +1,52 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { getTripById } from "../../../lib/TripService";
+import { Trip } from "../../../lib/types";
 
 export default function DayDetailScreen() {
   const { tripId, day } = useLocalSearchParams();
   const router = useRouter();
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (tripId) {
+      getTripById(tripId as string)
+        .then((data) => setTrip(data))
+        .finally(() => setLoading(false));
+    }
+  }, [tripId]);
+
+  // Calculate the date for the selected day
+  let dayNumber = parseInt(day as string, 10) || 1;
+  let dayDate: Date | null = null;
+  if (trip && trip.start_date) {
+    const start = new Date(trip.start_date);
+    dayDate = new Date(start);
+    dayDate.setDate(start.getDate() + (dayNumber - 1));
+  }
 
   return (
     <ScrollView className="flex-1 bg-gray-50">
       {/* Trip Header */}
       <View className="bg-white px-6 py-6 mb-2">
+        {dayDate && (
+          <Text className="text-2xl font-bold text-gray-800 mb-2">
+            Day {dayNumber} -{" "}
+            {dayDate.toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </Text>
+        )}
         <View className="flex-row items-center mb-2">
           <Text className="text-gray-600 mr-2">📍</Text>
-          <Text className="text-gray-700 text-lg">Destination</Text>
-        </View>
-        <View className="flex-row items-center">
-          <Text className="text-gray-600 mr-2">📅</Text>
-          <Text className="text-gray-700">Day {day} - Date</Text>
+          <Text className="text-gray-700 text-lg">
+            {trip ? trip.destination : ""}
+          </Text>
         </View>
       </View>
 
