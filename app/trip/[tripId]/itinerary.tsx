@@ -1,16 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
+//New imports
+import { generateTripPlan } from '@/lib/ai';
+
 
 interface ItineraryScreenProps {
     tripId: string;
     startDate: string;
     endDate: string;
+    destination: string;
 }
 
-export default function ItineraryScreen({ tripId, startDate, endDate }: ItineraryScreenProps) {
+export default function ItineraryScreen({ tripId, startDate, endDate, destination }: ItineraryScreenProps) {
     const router = useRouter();
+    const [aiItinerary, setAiItinerary] = useState<string[]>([]);
+    const [loadingAI, setLoadingAI] = useState(false);
+
 
     const generateDayHeaders = () => {
         const start = new Date(startDate);
@@ -49,10 +57,38 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
             {/* Generate Itinerary Button */}
             <TouchableOpacity
                 className="bg-blue-500 px-4 py-3 rounded-lg mb-6 items-center"
-                onPress={() => console.log('Generate itinerary pressed')}
+                onPress={async () => {
+                    try {
+                        setLoadingAI(true);
+
+                        const result = await generateTripPlan({
+                            destination: destination,
+                            duration: days.length,
+                            budget: 1500,
+                            preferences: ["food", "culture", "exploring"],
+                        });
+
+                        console.log("AI RESULT:", result);
+
+                        setAiItinerary(result.itinerary);
+                        setLoadingAI(false);
+
+                    } catch (err) {
+                        console.log("AI ERROR:", err);
+                        setLoadingAI(false);
+                    }
+                }}
+
             >
                 <Text className="text-white font-semibold">Generate Itinerary</Text>
             </TouchableOpacity>
+
+            {loadingAI && (
+                <Text className="text-blue-500 mb-4 font-semibold">
+                    🤖 Generating AI itinerary...
+                </Text>
+            )}
+
 
             {/* Daily Itinerary Sections */}
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -75,9 +111,15 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
                                 <Ionicons name="chevron-forward" size={20} color="#6B7280" />
                             </View>
                             <View className="bg-white rounded-lg p-4 border border-gray-200 min-h-[100px]">
-                                <Text className="text-gray-500 text-center">
-                                    Tap to add activities
-                                </Text>
+                                {aiItinerary[day.dayNumber - 1] ? (
+                                    <Text className="text-gray-800">
+                                        {aiItinerary[day.dayNumber - 1]}
+                                    </Text>
+                                ) : (
+                                    <Text className="text-gray-500 text-center">
+                                        Tap to add activities
+                                    </Text>
+                                )}
                             </View>
                         </View>
                     </TouchableOpacity>
