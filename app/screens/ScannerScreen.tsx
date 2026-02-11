@@ -1,34 +1,75 @@
-import { extractTextFromImage } from '@zhanziyang/expo-text-extractor';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Button, Image, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { Alert, Button, Image, SafeAreaView, ScrollView, Text, View } from 'react-native';
+
+// 1. Import your database key
+import { supabase } from '../../lib/supabase';
+
+// 2. We are commenting this out for now so it doesn't crash Expo Go!
+// import { extractTextFromImage } from '@zhanziyang/expo-text-extractor';
 
 export default function ScannerScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [extractedText, setExtractedText] = useState<string>('Awaiting image...');
+  const [statusText, setStatusText] = useState<string>('Awaiting image...');
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 1,
+      quality: 0.5, 
     });
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setImageUri(uri);
       
-      // -- THE AI MAGIC HAPPENS HERE --
+      setStatusText('Preparing to upload to cloud...');
+      
+      // Call our new Supabase upload function!
+      uploadToSupabase(uri);
+
+      /* --- SLEEPING SCANNER CODE --- 
       try {
         setExtractedText('Scanning...');
-        // This tells the native phone processor to read the image
         const texts = await extractTextFromImage(uri);
-        // The texts come back as an array of lines, so we join them with a line break
         setExtractedText(texts.join('\n'));
       } catch (error) {
         console.error(error);
         setExtractedText('Failed to read text. (See terminal for error)');
       }
+      ------------------------------ */
+    }
+  };
+
+  const uploadToSupabase = async (uri: string) => {
+    try {
+      setStatusText('Uploading to Supabase...');
+      
+      // Step A: Turn the image into a raw format the database understands
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Step B: Create a unique file name using the current time
+      const fileName = `screenshot_${Date.now()}.jpg`;
+
+      // Step C: Send it to your new bucket!
+      const { data, error } = await supabase.storage
+        .from('trip-uploads')
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg',
+        });
+
+      if (error) {
+        console.error("Supabase Error:", error);
+        setStatusText('Upload failed! Check terminal.');
+      } else {
+        setStatusText('✅ Successfully uploaded to cloud!');
+        Alert.alert("Success!", "File sent to Supabase!");
+      }
+
+    } catch (error) {
+      console.error("Upload Error:", error);
+      setStatusText('Upload failed! Check terminal.');
     }
   };
 
@@ -55,12 +96,11 @@ export default function ScannerScreen() {
         onPress={pickImage} 
       />
 
-      {/* This new box will show what the AI reads! */}
       <View className="flex-1 w-full mt-6 mb-8">
-        <Text className="font-bold text-gray-700 mb-2">Extracted Text:</Text>
+        <Text className="font-bold text-gray-700 mb-2">Cloud Status:</Text>
         <ScrollView className="bg-gray-100 p-4 rounded-xl border border-gray-200">
           <Text className="text-sm text-gray-800">
-            {extractedText}
+            {statusText}
           </Text>
         </ScrollView>
       </View>
