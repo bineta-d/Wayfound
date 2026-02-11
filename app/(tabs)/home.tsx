@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import TripCard from '../../components/TripCard';
 import { useAuth } from '../../context/AuthContext';
 import { getUserTrips } from '../../lib/TripService';
 import { Trip } from '../../lib/types';
-import TripCard from '../../components/TripCard';
-import { Stack } from 'expo-router';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -55,6 +54,10 @@ export default function HomeScreen() {
         <View className="bg-white px-6 pt-12 pb-6">
           <Text className="text-2xl font-bold text-gray-800">Your Trips</Text>
           <Text className="text-gray-600 mt-2">Manage your travel plans</Text>
+          <Button 
+  title="Test Scanner" 
+  onPress={() => router.push('/screens/ScannerScreen')} 
+/>
         </View>
 
         <View className="px-6 py-4">
