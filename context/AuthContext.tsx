@@ -91,61 +91,108 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('🔍 AuthContext: Attempting sign up for:', email);
 
     try {
-      // First, create the auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      // Check if this is a Google sign-up
+      if (userData.google_id_token) {
+        console.log('🔍 AuthContext: Google sign up detected');
 
-      if (authError) {
-        console.log('🔍 AuthContext: Sign up failed:', authError.message);
-        return { error: authError };
-      }
+        // Sign in with Google ID token
+        const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: userData.google_id_token,
+        });
 
-      if (!authData.user?.id) {
-        console.log('🔍 AuthContext: No user ID returned from auth');
-        return { error: { message: 'Failed to create user account' } };
-      }
+        if (authError) {
+          console.log('🔍 AuthContext: Google sign up failed:', authError.message);
+          return { error: authError };
+        }
 
-      console.log('🔍 AuthContext: Auth user created, uploading profile picture...');
+        if (!authData.user?.id) {
+          console.log('🔍 AuthContext: No user ID returned from Google auth');
+          return { error: { message: 'Failed to create Google account' } };
+        }
 
-      // Upload profile picture if provided
-      let avatarUrl = null;
-      if (userData.avatar_url && userData.avatar_url.startsWith('file://')) {
-        avatarUrl = await uploadProfilePicture(authData.user.id, userData.avatar_url);
-        if (!avatarUrl) {
-          console.log('🔍 AuthContext: Profile picture upload failed, continuing without it');
+        console.log('🔍 AuthContext: Google auth successful, creating profile...');
+
+        // Create user profile using the database function
+        const { data: profileResult, error: profileError } = await supabase.rpc('create_user_with_profile', {
+          p_user_id: authData.user.id,
+          p_email: email,
+          p_full_name: userData.full_name,
+          p_dob: null, // Google sign up doesn't require DOB
+          p_avatar_url: userData.avatar_url
+        });
+
+        if (profileError || !profileResult) {
+          console.log('🔍 AuthContext: Profile creation failed:', profileError?.message || 'Unknown error');
+          return {
+            error: {
+              message: profileError?.message || 'Failed to create user profile. Please ensure the database is properly configured.'
+            }
+          };
         } else {
-          console.log('🔍 AuthContext: Profile picture uploaded successfully');
+          console.log('🔍 AuthContext: Google profile created successfully');
+          return { error: null };
         }
       } else {
-        avatarUrl = userData.avatar_url;
-      }
+        // Regular email/password sign up
+        console.log('🔍 AuthContext: Regular email sign up detected');
 
-      // Create user profile using the database function
-      const { data: profileResult, error: profileError } = await supabase.rpc('create_user_with_profile', {
-        p_user_id: authData.user.id,
-        p_email: email,
-        p_full_name: userData.full_name,
-        p_dob: userData.dob,
-        p_avatar_url: avatarUrl
-      });
+        // First, create the auth user
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
 
-      if (profileError || !profileResult) {
-        console.log('🔍 AuthContext: Profile creation failed:', profileError?.message || 'Unknown error');
-        console.log('🔍 AuthContext: Rolling back - deleting auth user...');
+        if (authError) {
+          console.log('🔍 AuthContext: Sign up failed:', authError.message);
+          return { error: authError };
+        }
 
-        // Rollback: delete the auth user since profile creation failed
-        await supabase.auth.signOut();
+        if (!authData.user?.id) {
+          console.log('🔍 AuthContext: No user ID returned from auth');
+          return { error: { message: 'Failed to create user account' } };
+        }
 
-        return {
-          error: {
-            message: profileError?.message || 'Failed to create user profile. Please ensure the database is properly configured.'
+        console.log('🔍 AuthContext: Auth user created, uploading profile picture...');
+
+        // Upload profile picture if provided
+        let avatarUrl = null;
+        if (userData.avatar_url && userData.avatar_url.startsWith('file://')) {
+          avatarUrl = await uploadProfilePicture(authData.user.id, userData.avatar_url);
+          if (!avatarUrl) {
+            console.log('🔍 AuthContext: Profile picture upload failed, continuing without it');
+          } else {
+            console.log('🔍 AuthContext: Profile picture uploaded successfully');
           }
-        };
-      } else {
-        console.log('🔍 AuthContext: Profile created successfully');
-        return { error: null };
+        } else {
+          avatarUrl = userData.avatar_url;
+        }
+
+        // Create user profile using the database function
+        const { data: profileResult, error: profileError } = await supabase.rpc('create_user_with_profile', {
+          p_user_id: authData.user.id,
+          p_email: email,
+          p_full_name: userData.full_name,
+          p_dob: userData.dob,
+          p_avatar_url: avatarUrl
+        });
+
+        if (profileError || !profileResult) {
+          console.log('🔍 AuthContext: Profile creation failed:', profileError?.message || 'Unknown error');
+          console.log('🔍 AuthContext: Rolling back - deleting auth user...');
+
+          // Rollback: delete the auth user since profile creation failed
+          await supabase.auth.signOut();
+
+          return {
+            error: {
+              message: profileError?.message || 'Failed to create user profile. Please ensure the database is properly configured.'
+            }
+          };
+        } else {
+          console.log('🔍 AuthContext: Profile created successfully');
+          return { error: null };
+        }
       }
     } catch (error) {
       console.log('🔍 AuthContext: Unexpected error during signup:', error);
