@@ -132,3 +132,133 @@ npm run web        # Run on web
 3. Test changes before committing
 4. Create pull requests for review
 5. Keep code clean and documented
+
+## 🎨 Design System – Color Guide
+
+Wayfound uses a bold, modern purple-based palette combined with energetic accent tones.  
+The color system ensures consistency across screens and reinforces the brand identity of exploration, innovation, and collaboration.
+
+---
+
+### Primary Colors (Brand Identity)
+
+| Name | Hex |
+|------|------|
+| Midnight Indigo | `#1B0F3B` |
+| Royal Purple | `#3A1FA8` |
+| Electric Violet | `#5B3DF5` |
+
+**Usage**
+- Navigation bars  
+- Headers and hero sections  
+- Brand gradients  
+- Major visual emphasis areas  
+- Selected tab indicators  
+
+**Primary Gradient Standard**
+
+```text
+#1B0F3B → #3A1FA8 → #5B3DF5
+```
+
+---
+
+### Accent Colors (Call-to-Action)
+
+| Name | Hex |
+|------|------|
+| Crimson Magenta | `#D81E5B` |
+| Hot Coral | `#FF4D4D` |
+
+**Usage**
+- Primary CTA buttons  
+- Important highlights  
+- Active states  
+- Notification badges  
+- Error indicators (Hot Coral)  
+
+Accent colors should not be used as full-screen backgrounds.
+
+---
+
+### Glow Accents (Interactive Effects)
+
+| Name | Hex |
+|------|------|
+| Neon Lilac | `#B58CFF` |
+| Soft Pink Glow | `#F3A6C8` |
+
+**Usage**
+- Hover effects  
+- Focus states  
+- Subtle shadow glows  
+- Selected cards  
+- Animated UI emphasis  
+
+Glow accents should be used sparingly.
+
+---
+
+### Neutral Colors (Structure & Typography)
+
+| Name | Hex |
+|------|------|
+| Background | `#F5F6FA` |
+| Surface | `#FFFFFF` |
+| Text Primary | `#2A2E34` |
+| Text Secondary | `#67717B` |
+| Divider | `#D5D9DD` |
+
+**Usage**
+- App background: `#F5F6FA`  
+- Cards and modals: `#FFFFFF`  
+- Primary text: `#2A2E34`  
+- Secondary text: `#67717B`  
+- Dividers and borders: `#D5D9DD`  
+
+---
+
+## 📦 Component Usage Guidelines
+
+### 🔘 Buttons
+
+**Primary Button**
+- Background: `#D81E5B`  
+- Text: `#FFFFFF`  
+- Focus glow: `#B58CFF`  
+
+**Secondary Button**
+- Background: `#FFFFFF`  
+- Border & Text: `#3A1FA8`  
+- Hover tint: `#F3A6C8`  
+
+**Disabled Button**
+- Background: `#D5D9DD`  
+- Text: `#67717B`  
+
+---
+
+### 🧭 Navigation Bar
+
+- Background: `#1B0F3B`  
+- Active tab: `#5B3DF5`  
+- Icons/Text: `#FFFFFF`  
+
+---
+
+### 🧾 Cards
+
+- Background: `#FFFFFF`  
+- Title text: `#2A2E34`  
+- Subtitle text: `#67717B`  
+- Selected border: `#B58CFF`  
+
+---
+
+## 🚫 Usage Rules
+
+- Do not use glow colors as full backgrounds.  
+- Do not mix multiple accent colors in a single component.  
+- Maintain sufficient contrast for accessibility.  
+- Primary brand colors should be used for structural elements (headers, navigation).
+
