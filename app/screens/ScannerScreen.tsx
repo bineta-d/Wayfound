@@ -2,11 +2,10 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Alert, Button, Image, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
-// 1. Import your database key
+// Import database key
 import { supabase } from '../../lib/supabase';
-
-// 2. We are commenting this out for now so it doesn't crash Expo Go!
-// import { extractTextFromImage } from '@zhanziyang/expo-text-extractor';
+// Import text translator
+import { decode } from 'base64-arraybuffer';
 
 export default function ScannerScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -16,46 +15,36 @@ export default function ScannerScreen() {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.5, 
+      quality: 0.5,
+      base64: true, // <-- NEW: Tells the phone to give us the raw text data of the image
     });
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      setImageUri(uri);
+      const base64Data = result.assets[0].base64; // <-- Grab that raw data
       
+      setImageUri(uri);
       setStatusText('Preparing to upload to cloud...');
       
-      // Call our new Supabase upload function!
-      uploadToSupabase(uri);
-
-      /* --- SLEEPING SCANNER CODE --- 
-      try {
-        setExtractedText('Scanning...');
-        const texts = await extractTextFromImage(uri);
-        setExtractedText(texts.join('\n'));
-      } catch (error) {
-        console.error(error);
-        setExtractedText('Failed to read text. (See terminal for error)');
+      // Send the raw data to Supabase
+      if (base64Data) {
+        uploadToSupabase(base64Data);
+      } else {
+        setStatusText('Error: Could not read image data.');
       }
-      ------------------------------ */
     }
   };
 
-  const uploadToSupabase = async (uri: string) => {
+  const uploadToSupabase = async (base64Data: string) => {
     try {
       setStatusText('Uploading to Supabase...');
       
-      // Step A: Turn the image into a raw format the database understands
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      // Step B: Create a unique file name using the current time
       const fileName = `screenshot_${Date.now()}.jpg`;
 
-      // Step C: Send it to your new bucket!
+      // Use our new 'decode' tool to translate the data into a real file
       const { data, error } = await supabase.storage
         .from('trip-uploads')
-        .upload(fileName, blob, {
+        .upload(fileName, decode(base64Data), {
           contentType: 'image/jpeg',
         });
 
