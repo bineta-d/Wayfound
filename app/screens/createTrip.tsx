@@ -123,7 +123,7 @@ export default function CreateTripScreen() {
                         handleInputChange('destination', data.description);
                     }}
                     query={{
-                        key: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+                        key: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
                         language: 'en',
                         types: '(cities)',
                     }}
