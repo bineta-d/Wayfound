@@ -19,7 +19,7 @@ export default function DayDetailScreen() {
     }
   }, [tripId]);
 
-  // Calculate the date for the selected day
+  // calculate the date for the selected day
   let dayNumber = parseInt(day as string, 10) || 1;
   let dayDate: Date | null = null;
   if (trip && trip.start_date) {
