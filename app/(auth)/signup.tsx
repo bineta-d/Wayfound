@@ -110,10 +110,19 @@ export default function SignupScreen() {
         setGoogleLoading(true);
 
         try {
+            // Ensure any existing auth session is cleared
+            WebBrowser.maybeCompleteAuthSession();
+
+            // Use the app's configured scheme for deep linking
+            const appScheme = Constants.expoConfig?.scheme as string;
+            const redirectUrl = `${appScheme}://auth/callback`;
+            console.log('🔍 Google SignUp: App scheme:', appScheme);
+            console.log('🔍 Google SignUp: Redirect URL:', redirectUrl);
+
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: 'https://lzhdfmvshtlxrdhlbrqh.supabase.co/auth/v1/callback',
+                    redirectTo: redirectUrl,
                 },
             });
 
@@ -123,10 +132,23 @@ export default function SignupScreen() {
             } else if (data?.url) {
                 console.log('🔍 Google SignUp: OAuth flow initiated', data);
 
-                // Open the OAuth URL in a web browser
-                const result = await WebBrowser.openBrowserAsync(data.url);
+                const result = await WebBrowser.openAuthSessionAsync(
+                    data.url,
+                    redirectUrl
+                );
 
-                console.log('🔍 Google SignUp: Browser opened');
+                console.log('🔍 Google SignUp: Auth session result:', result);
+
+                if (result.type === 'success') {
+                    console.log('🔍 Google SignUp: Authentication successful');
+                    // The auth state change will be handled by AuthContext
+                } else if (result.type === 'cancel') {
+                    console.log('🔍 Google SignUp: User cancelled');
+                    Alert.alert('Cancelled', 'Google sign up was cancelled');
+                } else {
+                    console.log('🔍 Google SignUp: Authentication failed:', result);
+                    Alert.alert('Error', 'Google sign up failed');
+                }
             } else {
                 console.log('🔍 Google SignUp: No URL returned');
                 Alert.alert('Error', 'Failed to initiate Google sign up');
