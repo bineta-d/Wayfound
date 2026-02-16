@@ -120,6 +120,7 @@ export default function TripOverviewScreen() {
           tripId={tripId as string}
           startDate={trip.start_date}
           endDate={trip.end_date}
+          destination={trip.destination}
         />
 
         {/* Bookings Section */}
