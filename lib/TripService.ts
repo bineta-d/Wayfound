@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext'
 import Alert from 'react-native'
-import { User, Trip } from './types'
+import { User, Trip, TripActivity } from './types'
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 
@@ -319,6 +319,128 @@ export const removeTripMember = async (trip_id: string, user_id: string): Promis
         }
     } catch (error) {
         console.error('Error removing trip member:', error);
+        throw error;
+    }
+};
+
+
+/**
+ * -----------------------------
+ * Trip Activities (User Story #6)
+ * Uses existing tables:
+ *  - itinerary_days(trip_id, day_date)
+ *  - activities(itinerary_day_id, location_name, latitude, longitude, ...)
+ * -----------------------------
+ */
+
+export interface Activity {
+    id: string,
+    itinerary_day_id: string,
+    title: string | null,
+    description: string | null,
+    location_name: string | null,
+    latitude: number | null,
+    longitude: number | null,
+    start_time: string | null, // 'HH:MM:SS'
+    end_time: string | null,   // 'HH:MM:SS'
+    created_at?: string
+}
+
+const getOrCreateItineraryDayId = async (trip_id: string, day_date: string): Promise<string> => {
+    // 1) Try to get existing day
+    const { data: existingDay, error: selectError } = await supabase
+        .from('itinerary_days')
+        .select('id')
+        .eq('trip_id', trip_id)
+        .eq('day_date', day_date)
+        .maybeSingle();
+
+    if (selectError) {
+        throw selectError;
+    }
+
+    if (existingDay?.id) {
+        return existingDay.id;
+    }
+
+    // 2) Create day if it doesn't exist
+    const { data: newDay, error: insertError } = await supabase
+        .from('itinerary_days')
+        .insert({ trip_id, day_date })
+        .select('id')
+        .single();
+
+    if (insertError) {
+        throw insertError;
+    }
+
+    return newDay.id;
+};
+
+// Get activities for a specific trip + day
+export const getTripActivitiesForDay = async (
+    trip_id: string,
+    day_date: string // 'YYYY-MM-DD'
+): Promise<Activity[]> => {
+    const itinerary_day_id = await getOrCreateItineraryDayId(trip_id, day_date);
+
+    const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('itinerary_day_id', itinerary_day_id)
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        throw error;
+    }
+
+    return (data as Activity[]) || [];
+};
+
+// Add an activity (location) to a specific day
+export const addTripActivityToDay = async (input: {
+    trip_id: string,
+    day_date: string, // 'YYYY-MM-DD'
+    title?: string | null,
+    description?: string | null,
+    location_name: string,
+    latitude: number | null,
+    longitude: number | null,
+    start_time?: string | null, // 'HH:MM:SS'
+    end_time?: string | null    // 'HH:MM:SS'
+}): Promise<Activity> => {
+    const itinerary_day_id = await getOrCreateItineraryDayId(input.trip_id, input.day_date);
+
+    const { data, error } = await supabase
+        .from('activities')
+        .insert({
+            itinerary_day_id,
+            title: input.title ?? null,
+            description: input.description ?? null,
+            location_name: input.location_name,
+            latitude: input.latitude,
+            longitude: input.longitude,
+            start_time: input.start_time ?? null,
+            end_time: input.end_time ?? null
+        })
+        .select('*')
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data as Activity;
+};
+
+// Delete an activity
+export const deleteTripActivity = async (activity_id: string): Promise<void> => {
+    const { error } = await supabase
+        .from('activities')
+        .delete()
+        .eq('id', activity_id);
+
+    if (error) {
         throw error;
     }
 };
