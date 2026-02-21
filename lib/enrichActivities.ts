@@ -2,11 +2,66 @@ import { ParsedActivity } from "@/types/activity";
 import { searchPlace } from "./googlePlaces";
 
 function cleanPlaceName(name: string) {
-  return name
-    .replace(/morning|afternoon|evening|visit|explore|enjoy|walk|trip|day|tour|full|including|relaxed|leisurely/gi, "")
-    .replace(/in the|at the|to the|for|with|and|followed by/gi, "")
-    .replace(/^\s+|\s+$/g, "")
-    .trim();
+  if (!name) return "";
+
+  let cleaned = name;
+
+  // Remove time blocks (Morning 8:00-12:00 etc)
+  cleaned = cleaned.replace(
+    /(morning|afternoon|evening|night)\s*\([^)]*\)\s*:/gi,
+    ""
+  );
+
+  // Remove starting verbs only (NOT inside sentence)
+  cleaned = cleaned.replace(
+    /^(visit|explore|enjoy|walk|discover|experience|take|wander|head to|go to|stop at)\s+/i,
+    ""
+  );
+
+  // Remove "lunch at", "dinner at", but KEEP place
+  cleaned = cleaned.replace(
+    /^(lunch|dinner|breakfast|brunch)\s+(at|in)\s+/i,
+    ""
+  );
+
+  // Remove travel/logistics beginnings
+  cleaned = cleaned.replace(
+    /^(arrive at|depart from|return to|check into|check-in at)\s+/i,
+    ""
+  );
+
+  // Remove filler connectors
+  cleaned = cleaned.replace(
+    /\b(afterward|afterwards|then|later|followed by|before heading to)\b/gi,
+    ""
+  );
+
+  // Remove extra punctuation but keep names
+  cleaned = cleaned.replace(/[.]/g, " ");
+
+  // Remove long descriptions in parentheses
+  cleaned = cleaned.replace(/\(.*?\)/g, "").trim();
+
+  // Collapse spaces
+  cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+
+
+
+  // If multiple places in sentence → keep first chunk
+  if (cleaned.includes(" and ")) {
+    cleaned = cleaned.split(" and ")[0];
+  }
+
+  if (cleaned.includes(" then ")) {
+    cleaned = cleaned.split(" then ")[0];
+  }
+
+  // If quoted place exists → use it directly
+  const quoted = cleaned.match(/"([^"]+)"/);
+  if (quoted && quoted[1]) {
+    return quoted[1].trim();
+  }
+  return cleaned;
 }
 
 export async function enrichActivities(
@@ -17,27 +72,23 @@ export async function enrichActivities(
   const enriched: ParsedActivity[] = [];
 
   for (const act of activities) {
+    // Skip only pure logistics (not real places)
+    const lower = act.name.toLowerCase().trim();
 
-    const text = act.name.toLowerCase();
+    const isLogistics =
+      lower.startsWith("arrive") ||
+      lower.startsWith("check into") ||
+      lower.startsWith("check-in") ||
+      lower.startsWith("depart") ||
+      lower.startsWith("return to");
 
-    // 🚫 skip generic non-real places
-    if (
-      text.includes("arrive") ||
-      text.includes("check in") ||
-      text.includes("stroll") ||
-      text.includes("dinner") ||
-      text.includes("lunch") ||
-      text.includes("depart") ||
-      text.includes("relax") ||
-      text.includes("free time") ||
-      text.includes("return")
-    ) {
-      console.log("⏭️ Skipping non-place:", act.name);
+    if (isLogistics){
+      console.log("⏭️ Skipping logistics:", act.name);
       enriched.push(act);
       continue;
     }
 
-    // 🧹 CLEAN NAME
+    // Clean name
     let cleaned = cleanPlaceName(act.name);
 
     if (!cleaned || cleaned.length < 3) {
@@ -45,7 +96,7 @@ export async function enrichActivities(
       continue;
     }
 
-    // 🌍 add destination for better search
+    // Add destination for better search
     const searchQuery = destination
       ? `${cleaned} ${destination}`
       : cleaned;
@@ -67,6 +118,34 @@ export async function enrichActivities(
       });
 
     } else {
+        // try shorter search
+        const firstWord = cleaned.split(" ")[0];
+        if (firstWord.length > 3){
+
+          const shorter = destination
+            ? `${cleaned.split(" ")[0]} ${destination}`
+            : cleaned.split(" ")[0];
+
+
+
+          const retry = await searchPlace(shorter);
+
+          if (retry) {
+            console.log("🔁 RETRY FOUND:", retry.name);
+
+            enriched.push({
+              ...act,
+              name: retry.name,
+              address: retry.address,
+              latitude: retry.lat,
+              longitude: retry.lng,
+              place_id: retry.place_id,
+            });
+
+            continue;
+          }
+        }
+
       console.log("❌ No place found:", searchQuery);
       enriched.push(act);
     }
@@ -74,4 +153,3 @@ export async function enrichActivities(
 
   return enriched;
 }
-

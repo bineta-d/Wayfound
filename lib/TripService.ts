@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext'
 import Alert from 'react-native'
 import { User, Trip } from './types'
+import { StructuredDay } from '@/types/activity';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 
@@ -322,3 +323,4 @@ export const removeTripMember = async (trip_id: string, user_id: string): Promis
         throw error;
     }
 };
+

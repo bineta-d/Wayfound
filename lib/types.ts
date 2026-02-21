@@ -31,3 +31,4 @@ export interface User {
     age: string,
     updated_at?: string;
 }
+

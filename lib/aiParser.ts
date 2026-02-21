@@ -1,26 +1,42 @@
 import { ParsedActivity } from "@/types/activity";
 
-export function parseAIItinerary(itinerary: string[]): ParsedActivity[] {
+export function parseAIItinerary(days: string[]): ParsedActivity[] {
   const activities: ParsedActivity[] = [];
 
-  itinerary.forEach((dayText, index) => {
+  days.forEach((dayText, index) => {
     const dayNumber = index + 1;
 
-    // Split by commas or dots
-    const parts = dayText
-      .replace(/Day\s*\d+:/i, "")
-      .split(/[.,]/)
-      .map(p => p.trim())
-      .filter(p => p.length > 3);
+    // split by Morning/Afternoon/Evening blocks
+    const blocks = dayText.split(
+      /(Morning\s*\(.*?\):|Afternoon\s*\(.*?\):|Evening\s*\(.*?\):)/g
+    );
 
-    parts.forEach(p => {
+    for (let i = 1; i < blocks.length; i += 2) {
+      const timeHeader = blocks[i];       // "Morning (8:00-12:00):"
+      const description = blocks[i + 1];  // "Visit Acropolis..."
+
+      if (!timeHeader || !description) continue;
+
+      // extract time range
+      const timeMatch = timeHeader.match(/\((\d{1,2}:\d{2})-(\d{1,2}:\d{2})\)/);
+
+      const start_time = timeMatch ? timeMatch[1] : null;
+      const end_time = timeMatch ? timeMatch[2] : null;
+
+      // clean title
+      const cleanTitle = description
+        .replace(/\n/g, " ")
+        .replace(/\./g, "")
+        .trim();
+
       activities.push({
         dayNumber,
-        name: p,
+        name: cleanTitle,
         rawText: dayText,
+        start_time: start_time || undefined,
+        end_time: end_time || undefined,
       });
-    });
+    }
   });
-
   return activities;
 }

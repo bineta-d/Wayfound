@@ -1,8 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams } from "expo-router";
+import { getTripItinerary } from '@/lib/itineraryService';
+
 
 
 interface ItineraryScreenProps {
@@ -12,31 +14,31 @@ interface ItineraryScreenProps {
     destination?: string;
 }
 
+
+
 export default function ItineraryScreen(props: ItineraryScreenProps) {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const [itinerary, setItinerary] = useState<any[]>([]);
     
     // Priority: props -> params
     const tripId = props.tripId || (params.tripId as string);
     const startDate = props.startDate || (params.startDate as string);
     const endDate = props.endDate || (params.endDate as string);
     const destination = props.destination || (params.destination as string);
-    
 
-    const [aiItinerary, setAiItinerary] = useState<string[]>([]);
-
-    // Load AI from Query Params
     useEffect(() => {
-        if (params.ai && typeof params.ai === "string") {
-            try {
-                const parsed = JSON.parse(params.ai as string);
-                setAiItinerary(parsed);
-                console.log("Loaded AI itinerary:", parsed);
-            } catch (e) {
-                console.log("Parse error", e);
-            }
+        loadItinerary();
+    }, []);
+
+    const loadItinerary = async () => {
+        try {
+            const data = await getTripItinerary(params.tripId as string);
+            setItinerary(data);
+        } catch (e) {
+            console.log("Failed loading itinerary", e);
         }
-    }, [params.ai]);
+    };
 
 
 
@@ -78,14 +80,18 @@ export default function ItineraryScreen(props: ItineraryScreenProps) {
 
             {/* Generate Itinerary Button */}
             <TouchableOpacity
-                className="bg-blue-500 px-4 py-3 rounded-lg mb-6 items-center"
+                className="bg-blue-600 px-4 py-3 rounded-xl mb-6 flex-row items-center justify-center shadow-md"
                 onPress={() => {
                     router.push(
                          `/ai-planner?tripId=${tripId}&destination=${encodeURIComponent(destination)}&startDate=${startDate}&endDate=${endDate}` as any
                     );
                 }}
             >
-                <Text className="text-white font-semibold">Generate with AI ✨</Text>
+                <MaterialIcons name="auto-awesome" size={20} color="white" />
+
+                <Text className="text-white font-semibold ml-2">
+                    Generate Itinerary
+                </Text>
             </TouchableOpacity>
 
 
@@ -110,18 +116,40 @@ export default function ItineraryScreen(props: ItineraryScreenProps) {
                                 <Ionicons name="chevron-forward" size={20} color="#6B7280" />
                             </View>
                             <View className="bg-white rounded-lg p-4 border border-gray-200 min-h-[100px]">
-                                {/* Show AI if exists */}
-                                {aiItinerary[day.dayNumber - 1] ? (
-                                    <Text className="text-gray-800">
-                                        {aiItinerary[day.dayNumber - 1]}
-                                    </Text>
-                                ) : (
-                                    <Text className="text-gray-400 text-center">
-                                        Tap to add activities
-                                    </Text>
-                                )}
+                            {(() => {
+                                const dayData = itinerary.find(d => {
+                                    const dbDate = new Date(d.day_date).toDateString();
+                                    const currentDate = day.date.toDateString();
+                                    return dbDate === currentDate;
+                                });
 
-                            </View>
+                                if (!dayData || dayData.activities.length === 0) {
+                                    return (
+                                        <Text className="text-gray-400 text-center">
+                                            No activities yet
+                                        </Text>
+                                    );
+                                }
+
+                                return dayData.activities.map((act: any, i: number) => (
+                                    <View key={i} className="mb-2">
+                                        <Text className="font-semibold text-gray-800">
+                                            {act.title}
+                                        </Text>
+
+                                        {act.start_time && (
+                                            <Text className="text-gray-500 text-sm">
+                                                {act.start_time} - {act.end_time}
+                                            </Text>
+                                        )}
+                                    </View>
+                                ));
+                            })()}
+
+                        </View>
+
+
+
                         </View>
                     </TouchableOpacity>
                 ))}
