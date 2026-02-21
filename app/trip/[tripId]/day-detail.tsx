@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, FlatList } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { getTripById, getTripActivitiesForDay, addTripActivityToDay, deleteTripActivity, Activity as TripActivity } from "../../../lib/TripService";
+import {
+  getTripById,
+  getTripActivitiesForDay,
+  addTripActivityToDay,
+  deleteTripActivity,
+  updateTripActivity,
+  Activity as TripActivity,
+  searchPlacePredictions,
+  getPlaceDetails,
+  PlacePrediction,
+} from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
 
 export default function DayDetailScreen() {
@@ -20,8 +30,15 @@ export default function DayDetailScreen() {
   const [activityName, setActivityName] = useState("");
   const [activityTitle, setActivityTitle] = useState("");
   const [activityDescription, setActivityDescription] = useState("");
-  const [activityLat, setActivityLat] = useState("");
-  const [activityLng, setActivityLng] = useState("");
+
+  const [placePredictions, setPlacePredictions] = useState<PlacePrediction[]>([]);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [placesError, setPlacesError] = useState("");
+
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [editingLat, setEditingLat] = useState<number | null>(null);
+  const [editingLng, setEditingLng] = useState<number | null>(null);
 
   useEffect(() => {
     if (tripId) {
@@ -63,16 +80,78 @@ export default function DayDetailScreen() {
     loadActivities();
   }, [tripId, dayDateStr]);
 
+  useEffect(() => {
+    // If a place was selected, don't refetch predictions for the filled text.
+    if (selectedPlaceId) return;
+
+    const q = activityName.trim();
+    if (q.length < 2) {
+      setPlacePredictions([]);
+      setPlacesError("");
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      setLoadingPlaces(true);
+      setPlacesError("");
+      try {
+        const preds = await searchPlacePredictions(q);
+        setPlacePredictions(preds);
+      } catch (e: any) {
+        setPlacePredictions([]);
+        setPlacesError(e?.message ?? "Places search failed");
+      } finally {
+        setLoadingPlaces(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(t);
+  }, [activityName, selectedPlaceId]);
+
   const openAddModal = () => {
+    setEditingActivityId(null);
+    setEditingLat(null);
+    setEditingLng(null);
+
     setActivityName("");
     setActivityTitle("");
     setActivityDescription("");
-    setActivityLat("");
-    setActivityLng("");
+
+    setPlacePredictions([]);
+    setLoadingPlaces(false);
+    setSelectedPlaceId(null);
+    setPlacesError("");
+
     setAddModalVisible(true);
   };
 
-  const closeAddModal = () => setAddModalVisible(false);
+  const openEditModal = (activity: TripActivity) => {
+    setEditingActivityId(activity.id);
+    setEditingLat(activity.latitude ?? null);
+    setEditingLng(activity.longitude ?? null);
+
+    setActivityName(activity.location_name ?? "");
+    setActivityTitle(activity.title ?? "");
+    setActivityDescription(activity.description ?? "");
+
+    setPlacePredictions([]);
+    setLoadingPlaces(false);
+    setSelectedPlaceId(null);
+    setPlacesError("");
+
+    setAddModalVisible(true);
+  };
+
+  const closeAddModal = () => {
+    setAddModalVisible(false);
+    setEditingActivityId(null);
+    setEditingLat(null);
+    setEditingLng(null);
+    setPlacePredictions([]);
+    setLoadingPlaces(false);
+    setSelectedPlaceId(null);
+    setPlacesError("");
+  };
 
   const saveManualActivity = async () => {
     if (!tripId || !dayDateStr) return;
@@ -80,25 +159,46 @@ export default function DayDetailScreen() {
     const trimmedName = activityName.trim();
     if (!trimmedName) return;
 
-    const latNum = activityLat.trim() ? Number(activityLat.trim()) : null;
-    const lngNum = activityLng.trim() ? Number(activityLng.trim()) : null;
-
-    if (activityLat.trim() && Number.isNaN(latNum)) return;
-    if (activityLng.trim() && Number.isNaN(lngNum)) return;
-
     setSavingActivity(true);
     try {
-      const inserted = await addTripActivityToDay({
-        trip_id: tripId as string,
-        day_date: dayDateStr,
-        location_name: trimmedName,
+      let location_name = trimmedName;
+      let latitude: number | null = editingLat;
+      let longitude: number | null = editingLng;
+
+      if (selectedPlaceId) {
+        const details = await getPlaceDetails(selectedPlaceId);
+        location_name = details.location_name;
+        latitude = details.latitude;
+        longitude = details.longitude;
+      }
+
+      // ADD
+      if (!editingActivityId) {
+        const inserted = await addTripActivityToDay({
+          trip_id: tripId as string,
+          day_date: dayDateStr,
+          location_name,
+          title: activityTitle.trim() ? activityTitle.trim() : null,
+          description: activityDescription.trim() ? activityDescription.trim() : null,
+          latitude,
+          longitude,
+        });
+
+        setActivities((prev) => [...prev, inserted]);
+        closeAddModal();
+        return;
+      }
+
+      // EDIT
+      const updated = await updateTripActivity(editingActivityId, {
+        location_name,
         title: activityTitle.trim() ? activityTitle.trim() : null,
         description: activityDescription.trim() ? activityDescription.trim() : null,
-        latitude: latNum,
-        longitude: lngNum,
+        latitude,
+        longitude,
       });
 
-      setActivities((prev) => [...prev, inserted]);
+      setActivities((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       closeAddModal();
     } finally {
       setSavingActivity(false);
@@ -167,8 +267,10 @@ export default function DayDetailScreen() {
         ) : (
           <View className="gap-3">
             {activities.map((a) => (
-              <View
+              <TouchableOpacity
                 key={a.id}
+                activeOpacity={0.9}
+                onPress={() => openEditModal(a)}
                 className="bg-neutral-background rounded-lg p-4 border border-neutral-divider"
               >
                 <View className="flex-row justify-between items-start">
@@ -182,11 +284,6 @@ export default function DayDetailScreen() {
                     {!!a.description && (
                       <Text className="text-neutral-textSecondary mt-1">{a.description}</Text>
                     )}
-                    {a.latitude != null && a.longitude != null && (
-                      <Text className="text-neutral-textSecondary mt-2 text-xs">
-                        {a.latitude}, {a.longitude}
-                      </Text>
-                    )}
                   </View>
 
                   <TouchableOpacity
@@ -199,7 +296,7 @@ export default function DayDetailScreen() {
                     <Text className="text-white font-semibold">Remove</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -229,7 +326,7 @@ export default function DayDetailScreen() {
           <View className="w-full rounded-t-3xl bg-neutral-surface px-6 pt-6 pb-10">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-xl font-bold text-neutral-textPrimary">
-                Add Activity
+                {editingActivityId ? "Edit Activity" : "Add Activity"}
               </Text>
               <TouchableOpacity onPress={closeAddModal} className="p-2">
                 <Ionicons name="close" size={22} color="#67717B" />
@@ -239,11 +336,47 @@ export default function DayDetailScreen() {
             <Text className="text-neutral-textSecondary mb-2">Location name *</Text>
             <TextInput
               value={activityName}
-              onChangeText={setActivityName}
+              onChangeText={(text) => {
+                setSelectedPlaceId(null);
+                setPlacesError("");
+                setActivityName(text);
+              }}
               placeholder="e.g., Wynwood Walls"
               placeholderTextColor="#67717B"
               className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
             />
+
+            {loadingPlaces && (
+              <View className="mb-4">
+                <ActivityIndicator />
+              </View>
+            )}
+
+            {placesError.length > 0 && (
+              <Text className="text-xs text-accent-hotCoral mb-3">{placesError}</Text>
+            )}
+
+            {placePredictions.length > 0 && (
+              <View className="border border-neutral-divider rounded-xl mb-4 overflow-hidden">
+                <FlatList
+                  keyboardShouldPersistTaps="handled"
+                  data={placePredictions}
+                  keyExtractor={(item) => item.place_id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      className="px-4 py-3 bg-neutral-surface border-b border-neutral-divider"
+                      onPress={() => {
+                        setSelectedPlaceId(item.place_id);
+                        setActivityName(item.description);
+                        setPlacePredictions([]);
+                      }}
+                    >
+                      <Text className="text-neutral-textPrimary">{item.description}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
 
             <Text className="text-neutral-textSecondary mb-2">Title (optional)</Text>
             <TextInput
@@ -265,32 +398,6 @@ export default function DayDetailScreen() {
               style={{ minHeight: 90, textAlignVertical: "top" }}
             />
 
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <Text className="text-neutral-textSecondary mb-2">Latitude (optional)</Text>
-                <TextInput
-                  value={activityLat}
-                  onChangeText={setActivityLat}
-                  placeholder="25.80"
-                  placeholderTextColor="#67717B"
-                  keyboardType="numeric"
-                  className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
-                />
-              </View>
-
-              <View className="flex-1">
-                <Text className="text-neutral-textSecondary mb-2">Longitude (optional)</Text>
-                <TextInput
-                  value={activityLng}
-                  onChangeText={setActivityLng}
-                  placeholder="-80.20"
-                  placeholderTextColor="#67717B"
-                  keyboardType="numeric"
-                  className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
-                />
-              </View>
-            </View>
-
             <TouchableOpacity
               disabled={savingActivity || activityName.trim().length === 0}
               onPress={saveManualActivity}
@@ -301,7 +408,9 @@ export default function DayDetailScreen() {
               }}
             >
               <Text className="text-white font-semibold">
-                {savingActivity ? "Saving..." : "Save Activity"}
+                {editingActivityId
+                  ? (savingActivity ? "Saving..." : "Save Changes")
+                  : (savingActivity ? "Saving..." : "Save Activity")}
               </Text>
             </TouchableOpacity>
           </View>

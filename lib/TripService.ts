@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext'
-import Alert from 'react-native'
-import { User, Trip, TripActivity } from './types'
+import { Alert } from 'react-native'
+import { Trip } from './types';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 
@@ -28,10 +28,10 @@ export const getUserTrips = async (user: SupabaseUser) => {
         const { data, error } = await supabase.from
             ('trips').select('*').eq('owner_id', user.id).order('created_at', { ascending: false })
         if (error) {
-            throw error
-            console.log("❌ Trips not found: " + error)
+            console.log('❌ Trips not found:', error);
+            throw error;
         }
-        console.log("✅ This is trip info: " + data)
+        console.log('✅ This is trip info:', data);
         return data || [];
     } catch (error) {
         console.error('Error getting user trips:', error);
@@ -443,4 +443,185 @@ export const deleteTripActivity = async (activity_id: string): Promise<void> => 
     if (error) {
         throw error;
     }
+};
+
+// Update an existing activity
+export const updateTripActivity = async (
+    activity_id: string,
+    updates: Partial<Pick<Activity, 'location_name' | 'title' | 'description' | 'latitude' | 'longitude' | 'start_time' | 'end_time'>>
+): Promise<Activity> => {
+    const { data, error } = await supabase
+        .from('activities')
+        .update(updates)
+        .eq('id', activity_id)
+        .select('*')
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data as Activity;
+};
+
+/**
+ * -----------------------------
+ * Google Places helpers
+ * (Used for Add Activity search + map pinning)
+ * -----------------------------
+ */
+
+export interface PlacePrediction {
+    description: string;
+    place_id: string;
+}
+
+export interface PlaceDetails {
+    location_name: string;
+    latitude: number;
+    longitude: number;
+}
+
+const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+
+export const searchPlacePredictions = async (
+    input: string,
+    opts?: { country?: string }
+): Promise<PlacePrediction[]> => {
+    if (!GOOGLE_PLACES_KEY) {
+        throw new Error('Missing EXPO_PUBLIC_GOOGLE_API_KEY');
+    }
+
+    const trimmed = input.trim();
+    if (!trimmed) return [];
+
+    const params = new URLSearchParams({
+        input: trimmed,
+        key: GOOGLE_PLACES_KEY,
+        types: 'establishment'
+    });
+
+    // Optional country restriction, e.g. 'fr' for France
+    if (opts?.country) {
+        params.set('components', `country:${opts.country}`);
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`;
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (json.status !== 'OK' && json.status !== 'ZERO_RESULTS') {
+        // Examples: REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST
+        throw new Error(`Places Autocomplete error: ${json.status} ${json.error_message ?? ''}`);
+    }
+
+    const preds = (json.predictions ?? []) as any[];
+    return preds.map(p => ({
+        description: p.description,
+        place_id: p.place_id
+    }));
+};
+
+export const getPlaceDetails = async (place_id: string): Promise<PlaceDetails> => {
+    if (!GOOGLE_PLACES_KEY) {
+        throw new Error('Missing EXPO_PUBLIC_GOOGLE_API_KEY');
+    }
+
+    const params = new URLSearchParams({
+        place_id,
+        key: GOOGLE_PLACES_KEY,
+        fields: 'name,formatted_address,geometry'
+    });
+
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?${params.toString()}`;
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (json.status !== 'OK') {
+        throw new Error(`Place Details error: ${json.status} ${json.error_message ?? ''}`);
+    }
+
+    const result = json.result;
+    const lat = result?.geometry?.location?.lat;
+    const lng = result?.geometry?.location?.lng;
+
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+        throw new Error('Place Details missing geometry');
+    }
+
+    const name = result?.name ?? '';
+    const addr = result?.formatted_address ?? '';
+
+    return {
+        location_name: name && addr ? `${name}, ${addr}` : (name || addr || 'Selected location'),
+        latitude: lat,
+        longitude: lng
+    };
+};
+
+/**
+ * -----------------------------
+ * Trip-wide activities (for Trip Overview + Map Pins)
+ * -----------------------------
+ */
+
+export const getTripActivities = async (
+    trip_id: string
+): Promise<(Activity & { day_date: string })[]> => {
+    // 1) get itinerary days for trip
+    const { data: days, error: daysError } = await supabase
+        .from('itinerary_days')
+        .select('id, day_date')
+        .eq('trip_id', trip_id)
+        .order('day_date', { ascending: true });
+
+    if (daysError) throw daysError;
+    if (!days || days.length === 0) return [];
+
+    const dayIdToDate = new Map<string, string>();
+    const itineraryDayIds: string[] = [];
+
+    for (const d of days as any[]) {
+        if (d?.id && d?.day_date) {
+            dayIdToDate.set(d.id, d.day_date);
+            itineraryDayIds.push(d.id);
+        }
+    }
+
+    if (itineraryDayIds.length === 0) return [];
+
+    // 2) fetch all activities across those days
+    const { data: acts, error: actsError } = await supabase
+        .from('activities')
+        .select('*')
+        .in('itinerary_day_id', itineraryDayIds)
+        .order('created_at', { ascending: true });
+
+    if (actsError) throw actsError;
+
+    const activities = (acts as Activity[]) || [];
+
+    // 3) attach day_date for easy grouping / UI
+    return activities.map(a => ({
+        ...a,
+        day_date: dayIdToDate.get(a.itinerary_day_id) ?? 'unknown'
+    }));
+};
+
+export const getTripActivitiesGroupedByDay = async (
+    trip_id: string
+): Promise<Record<string, Activity[]>> => {
+    const flat = await getTripActivities(trip_id);
+    const grouped: Record<string, Activity[]> = {};
+
+    for (const item of flat) {
+        const day = item.day_date;
+        if (!grouped[day]) grouped[day] = [];
+
+        // remove the extra field when returning per-day arrays
+        const { day_date: _day, ...activity } = item as any;
+        grouped[day].push(activity as Activity);
+    }
+
+    return grouped;
 };
