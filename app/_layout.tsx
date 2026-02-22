@@ -9,12 +9,13 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import AuthGate from "./AuthGate";
 import "../global.css";
 
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "AuthGate",
 };
 
 export default function RootLayout() {
@@ -84,10 +85,40 @@ function AuthStack() {
     return null;
   }
 
+  if (!user) {
+    console.log("🔍 AuthStack: No user found, redirecting to login");
+    return (
+      <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="AuthGate" options={{ headerShown: false }} />
+      </Stack>
+    );
+  }
+
+  // Check if user needs onboarding (Google OAuth users without profile)
+  const checkOnboardingNeeded = async () => {
+    if (user?.app_metadata?.provider === 'google') {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('id, full_name, dob')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || !profile.dob) {
+        console.log("🔍 AuthStack: Google user needs onboarding");
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // For now, we'll handle onboarding in the auth state change listener
+  console.log("🔍 AuthStack: User authenticated, showing main app with AuthGate");
   return (
     <Stack>
       {/* Auth + Main */}
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="AuthGate" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
       {/* Trip routes */}
