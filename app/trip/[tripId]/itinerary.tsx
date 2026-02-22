@@ -9,7 +9,7 @@ import { getTripActivitiesForDay } from '../../../lib/TripService';
 //New imports
 import { generateTripPlan } from '@/lib/ai';
 
-import MapView, { Marker, Callout, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Callout, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { getTripActivitiesGroupedByDay, Activity as TripActivity } from '../../../lib/TripService';
 
 interface ItineraryScreenProps {
@@ -496,3 +496,4 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
             </View>
         );
     }
+}
