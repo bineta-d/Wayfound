@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, ActivityInd
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import MapView, { Marker, Callout, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import {
   getTripById,
   getTripActivitiesForDay,
@@ -42,6 +43,37 @@ export default function DayDetailScreen() {
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [editingLat, setEditingLat] = useState<number | null>(null);
   const [editingLng, setEditingLng] = useState<number | null>(null);
+
+  const dayMapActivities = activities.filter(
+    (a) => typeof a.latitude === 'number' && typeof a.longitude === 'number'
+  );
+
+  const computeDayRegion = (): Region => {
+    if (dayMapActivities.length === 0) {
+      return {
+        latitude: 25.7617,
+        longitude: -80.1918,
+        latitudeDelta: 0.15,
+        longitudeDelta: 0.15,
+      };
+    }
+
+    const lats = dayMapActivities.map((a) => a.latitude as number);
+    const lngs = dayMapActivities.map((a) => a.longitude as number);
+
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    const latitude = (minLat + maxLat) / 2;
+    const longitude = (minLng + maxLng) / 2;
+
+    const latitudeDelta = Math.max(0.02, (maxLat - minLat) * 1.6);
+    const longitudeDelta = Math.max(0.02, (maxLng - minLng) * 1.6);
+
+    return { latitude, longitude, latitudeDelta, longitudeDelta };
+  };
 
   useEffect(() => {
     if (tripId) {
@@ -260,15 +292,57 @@ export default function DayDetailScreen() {
 
       {/* Map Section */}
       <View className="bg-neutral-surface px-6 py-6 mb-2">
-        <Text className="text-xl font-bold text-neutral-textPrimary mb-4">Trip Map</Text>
-        <View className="bg-neutral-divider rounded-lg h-48 items-center justify-center mb-4">
-          <Text className="text-neutral-textSecondary text-center mb-2">🗺️</Text>
-          <Text className="text-neutral-textPrimary text-center font-medium">
-            Interactive Map
-          </Text>
-          <Text className="text-neutral-textSecondary text-sm">
-            Google Maps integration coming soon
-          </Text>
+        <Text className="text-xl font-bold text-neutral-textPrimary mb-4">Day Map</Text>
+
+        <View className="rounded-lg overflow-hidden border border-neutral-divider bg-neutral-surface">
+          <View className="px-4 py-3 border-b border-neutral-divider">
+            <Text className="text-neutral-textPrimary font-semibold">Pinned activities</Text>
+            <Text className="text-neutral-textSecondary text-xs mt-1">
+              {dayMapActivities.length > 0
+                ? `${dayMapActivities.length} pinned activities`
+                : 'No pinned activities yet'}
+            </Text>
+          </View>
+
+          <View style={{ height: 200 }}>
+            {dayMapActivities.length === 0 ? (
+              <View className="flex-1 items-center justify-center">
+                <Text className="text-neutral-textSecondary">Add a location to pin activities</Text>
+              </View>
+            ) : (
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                style={{ flex: 1 }}
+                initialRegion={computeDayRegion()}
+              >
+                {dayMapActivities.map((a) => (
+                  <Marker
+                    key={a.id}
+                    coordinate={{ latitude: a.latitude as number, longitude: a.longitude as number }}
+                  >
+                    <Callout onPress={() => openEditModal(a)}>
+                      <View style={{ maxWidth: 220 }}>
+                        <Text style={{ fontWeight: '600' }}>
+                          {(a.location_name ?? 'Activity').split(',')[0]}
+                        </Text>
+                        {formatTimeRange(a.start_time, a.end_time) ? (
+                          <Text style={{ marginTop: 4, color: '#67717B' }}>
+                            {formatTimeRange(a.start_time, a.end_time)}
+                          </Text>
+                        ) : null}
+                        {a.title ? (
+                          <Text style={{ marginTop: 4, color: '#67717B' }}>{a.title}</Text>
+                        ) : null}
+                        <Text style={{ marginTop: 6, color: '#3A1FA8', fontWeight: '600' }}>
+                          Edit activity
+                        </Text>
+                      </View>
+                    </Callout>
+                  </Marker>
+                ))}
+              </MapView>
+            )}
+          </View>
         </View>
       </View>
 
