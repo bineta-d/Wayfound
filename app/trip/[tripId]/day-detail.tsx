@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, FlatList } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   getTripById,
   getTripActivitiesForDay,
@@ -245,11 +246,17 @@ export default function DayDetailScreen() {
       <View className="bg-neutral-background px-6 py-6 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-neutral-textPrimary">Activities</Text>
-          <TouchableOpacity
-            className="bg-primary-royalPurple px-4 py-2 rounded-lg"
-            onPress={openAddModal}
-          >
-            <Text className="text-white font-semibold">+ Add Activity</Text>
+          <TouchableOpacity activeOpacity={0.9} onPress={openAddModal}>
+            <LinearGradient
+              colors={["#3A1FA8", "#5B3DF5"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 8 }}
+            >
+              <View className="px-4 py-2 rounded-lg">
+                <Text className="text-white font-semibold">+ Add Activity</Text>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -305,10 +312,19 @@ export default function DayDetailScreen() {
       {/* Generate Itinerary Button */}
       <View className="px-6 py-4 mb-8">
         <TouchableOpacity
-          className="bg-accent-crimsonMagenta px-6 py-3 rounded-lg items-center"
+          activeOpacity={0.9}
           onPress={() => console.log("Generate itinerary pressed")}
         >
-          <Text className="text-white font-semibold">Generate Itinerary</Text>
+          <LinearGradient
+            colors={["#D81E5B", "#FF4D4D"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 8 }}
+          >
+            <View className="px-6 py-3 rounded-lg items-center">
+              <Text className="text-white font-semibold">Generate Itinerary</Text>
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -401,17 +417,26 @@ export default function DayDetailScreen() {
             <TouchableOpacity
               disabled={savingActivity || activityName.trim().length === 0}
               onPress={saveManualActivity}
-              className="items-center rounded-xl py-4 bg-primary-electricViolet"
+              activeOpacity={0.9}
               style={{
                 opacity:
                   savingActivity || activityName.trim().length === 0 ? 0.7 : 1,
               }}
             >
-              <Text className="text-white font-semibold">
-                {editingActivityId
-                  ? (savingActivity ? "Saving..." : "Save Changes")
-                  : (savingActivity ? "Saving..." : "Save Activity")}
-              </Text>
+              <LinearGradient
+                colors={["#3A1FA8", "#5B3DF5"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 12 }}
+              >
+                <View className="items-center rounded-xl py-4">
+                  <Text className="text-white font-semibold">
+                    {editingActivityId
+                      ? (savingActivity ? "Saving..." : "Save Changes")
+                      : (savingActivity ? "Saving..." : "Save Activity")}
+                  </Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
