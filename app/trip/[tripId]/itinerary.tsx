@@ -96,29 +96,25 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
 
             {/* Generate Itinerary Button */}
             <TouchableOpacity
-                className="bg-blue-500 px-4 py-3 rounded-lg mb-6 items-center"
+                activeOpacity={0.9}
+                className="mb-6 w-full"
                 onPress={async () => {
                     try {
                         setLoadingAI(true);
-
                         const result = await generateTripPlan({
                             destination: destination,
                             duration: days.length,
                             budget: 1500,
                             preferences: ["food", "culture", "exploring"],
                         });
-
                         console.log("AI RESULT:", result);
-
                         setAiItinerary(result.itinerary);
                         setLoadingAI(false);
-
                     } catch (err) {
                         console.log("AI ERROR:", err);
                         setLoadingAI(false);
                     }
                 }}
-
             >
                 <LinearGradient
                     colors={['#D81E5B', '#FF4D4D']}
@@ -160,22 +156,21 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
                                 </Text>
                                 <Ionicons name="chevron-forward" size={20} color="#67717B" />
                             </View>
-                            <View className="bg-white rounded-lg p-4 border border-gray-200 min-h-[100px]">
+                            <View className="bg-neutral-surface rounded-lg p-4 border border-neutral-divider min-h-[100px]">
                                 {aiItinerary[day.dayNumber - 1] ? (
-                                    <Text className="text-gray-800">
+                                    <Text className="text-neutral-textPrimary">
                                         {aiItinerary[day.dayNumber - 1]}
                                     </Text>
                                 ) : (
-                                    <Text className="text-gray-500 text-center">
+                                    <Text className="text-neutral-textSecondary text-center">
                                         Tap to add activities
                                     </Text>
                                 )}
                             </View>
                         </View>
-                    </TouchableOpacity >
-                ))
-                }
-            </ScrollView >
-        </View >
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
     );
 }
