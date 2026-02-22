@@ -175,12 +175,7 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
                     </View>
                     <Text className="text-xs text-neutral-textSecondary">Car Rental</Text>
                 </TouchableOpacity>
-                <TouchableOpacity className="items-center mr-6">
-                    <View className="bg-indigo-100 p-3 rounded-full mb-1">
-                        <Ionicons name="restaurant" size={20} color="#6366F1" />
-                    </View>
-                    <Text className="text-xs text-neutral-textSecondary">Dining</Text>
-                </TouchableOpacity>
+
                 <TouchableOpacity className="items-center mr-6">
                     <View className="bg-pink-100 p-3 rounded-full mb-1">
                         <Ionicons name="ticket" size={20} color="#EC4899" />
