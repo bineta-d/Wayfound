@@ -334,6 +334,7 @@ export const removeTripMember = async (trip_id: string, user_id: string): Promis
  */
 
 export interface Activity {
+    day_date: any;
     id: string,
     itinerary_day_id: string,
     title: string | null,
