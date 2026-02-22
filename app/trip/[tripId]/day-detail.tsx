@@ -31,6 +31,8 @@ export default function DayDetailScreen() {
   const [activityName, setActivityName] = useState("");
   const [activityTitle, setActivityTitle] = useState("");
   const [activityDescription, setActivityDescription] = useState("");
+  const [activityStartTime, setActivityStartTime] = useState("");
+  const [activityEndTime, setActivityEndTime] = useState("");
 
   const [placePredictions, setPlacePredictions] = useState<PlacePrediction[]>([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
@@ -48,6 +50,24 @@ export default function DayDetailScreen() {
         .finally(() => setLoading(false));
     }
   }, [tripId]);
+
+  const normalizeTime = (t: string): string | null => {
+    const s = t.trim();
+    if (!s) return null;
+    // Accept HH:MM or HH:MM:SS
+    if (/^\d{2}:\d{2}$/.test(s)) return `${s}:00`;
+    if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s;
+    return null;
+  };
+
+  const formatTimeRange = (start: string | null | undefined, end: string | null | undefined) => {
+    const s = start ? start.slice(0, 5) : "";
+    const e = end ? end.slice(0, 5) : "";
+    if (s && e) return `${s}–${e}`;
+    if (s) return s;
+    if (e) return `Ends ${e}`;
+    return "";
+  };
 
   // calculate the date for the selected day
   let dayNumber = parseInt(day as string, 10) || 1;
@@ -117,6 +137,8 @@ export default function DayDetailScreen() {
     setActivityName("");
     setActivityTitle("");
     setActivityDescription("");
+    setActivityStartTime("");
+    setActivityEndTime("");
 
     setPlacePredictions([]);
     setLoadingPlaces(false);
@@ -134,6 +156,8 @@ export default function DayDetailScreen() {
     setActivityName(activity.location_name ?? "");
     setActivityTitle(activity.title ?? "");
     setActivityDescription(activity.description ?? "");
+    setActivityStartTime(activity.start_time ? activity.start_time.slice(0, 5) : "");
+    setActivityEndTime(activity.end_time ? activity.end_time.slice(0, 5) : "");
 
     setPlacePredictions([]);
     setLoadingPlaces(false);
@@ -152,6 +176,8 @@ export default function DayDetailScreen() {
     setLoadingPlaces(false);
     setSelectedPlaceId(null);
     setPlacesError("");
+    setActivityStartTime("");
+    setActivityEndTime("");
   };
 
   const saveManualActivity = async () => {
@@ -183,6 +209,8 @@ export default function DayDetailScreen() {
           description: activityDescription.trim() ? activityDescription.trim() : null,
           latitude,
           longitude,
+          start_time: normalizeTime(activityStartTime),
+          end_time: normalizeTime(activityEndTime),
         });
 
         setActivities((prev) => [...prev, inserted]);
@@ -197,6 +225,8 @@ export default function DayDetailScreen() {
         description: activityDescription.trim() ? activityDescription.trim() : null,
         latitude,
         longitude,
+        start_time: normalizeTime(activityStartTime),
+        end_time: normalizeTime(activityEndTime),
       });
 
       setActivities((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
@@ -282,9 +312,22 @@ export default function DayDetailScreen() {
               >
                 <View className="flex-row justify-between items-start">
                   <View className="flex-1 pr-3">
-                    <Text className="text-neutral-textPrimary font-semibold text-base">
-                      {a.location_name ?? "Activity"}
-                    </Text>
+                    <View>
+                      {formatTimeRange(a.start_time, a.end_time) ? (
+                        <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mb-2">
+                          <Text className="text-xs text-neutral-textSecondary">
+                            {formatTimeRange(a.start_time, a.end_time)}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      <Text
+                        className="text-neutral-textPrimary font-semibold text-base"
+                        numberOfLines={2}
+                      >
+                        {a.location_name ?? "Activity"}
+                      </Text>
+                    </View>
                     {!!a.title && (
                       <Text className="text-neutral-textSecondary mt-1">{a.title}</Text>
                     )}
@@ -413,6 +456,30 @@ export default function DayDetailScreen() {
               className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
               style={{ minHeight: 90, textAlignVertical: "top" }}
             />
+
+            <View className="flex-row gap-3 mb-4">
+              <View className="flex-1">
+                <Text className="text-neutral-textSecondary mb-2">Start time (optional)</Text>
+                <TextInput
+                  value={activityStartTime}
+                  onChangeText={setActivityStartTime}
+                  placeholder="HH:MM"
+                  placeholderTextColor="#67717B"
+                  className="border border-neutral-divider rounded-xl px-4 py-3 text-neutral-textPrimary"
+                />
+              </View>
+
+              <View className="flex-1">
+                <Text className="text-neutral-textSecondary mb-2">End time (optional)</Text>
+                <TextInput
+                  value={activityEndTime}
+                  onChangeText={setActivityEndTime}
+                  placeholder="HH:MM"
+                  placeholderTextColor="#67717B"
+                  className="border border-neutral-divider rounded-xl px-4 py-3 text-neutral-textPrimary"
+                />
+              </View>
+            </View>
 
             <TouchableOpacity
               disabled={savingActivity || activityName.trim().length === 0}

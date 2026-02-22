@@ -59,15 +59,31 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
         return `${yyyy}-${mm}-${dd}`;
     };
 
+    const formatTimeRange = (
+        start: string | null | undefined,
+        end: string | null | undefined
+    ) => {
+        const s = start ? start.slice(0, 5) : '';
+        const e = end ? end.slice(0, 5) : '';
+        if (s && e) return `${s}–${e}`;
+        if (s) return s;
+        if (e) return `Ends ${e}`;
+        return '';
+    };
+
     const formatActivitySummary = (activity: TripActivity) => {
         const rawLocation = activity.location_name ?? '';
         const shortLocation = rawLocation ? rawLocation.split(',')[0].trim() : '';
         const title = (activity.title ?? '').trim();
 
-        if (shortLocation && title) return `${shortLocation} - ${title}`;
-        if (shortLocation) return shortLocation;
-        if (title) return title;
-        return 'Activity';
+        let base = '';
+        if (shortLocation && title) base = `${shortLocation} - ${title}`;
+        else if (shortLocation) base = shortLocation;
+        else if (title) base = title;
+        else base = 'Activity';
+
+        const time = formatTimeRange(activity.start_time, activity.end_time);
+        return time ? `${time} • ${base}` : base;
     };
 
     const handleDayPress = (dayNumber: number) => {
