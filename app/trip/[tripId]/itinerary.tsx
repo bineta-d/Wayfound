@@ -1,18 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useState } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { getTripActivitiesGroupedByDay, Activity as TripActivity } from '../../../lib/TripService';
+
+//New imports
+import { generateTripPlan } from '@/lib/ai';
+
 
 interface ItineraryScreenProps {
     tripId: string;
     startDate: string;
     endDate: string;
+    destination: string;
 }
 
-export default function ItineraryScreen({ tripId, startDate, endDate }: ItineraryScreenProps) {
+export default function ItineraryScreen({ tripId, startDate, endDate, destination }: ItineraryScreenProps) {
     const router = useRouter();
+    const [aiItinerary, setAiItinerary] = useState<string[]>([]);
+    const [loadingAI, setLoadingAI] = useState(false);
+
 
     const [groupedActivities, setGroupedActivities] = useState<Record<string, TripActivity[]>>({});
 
@@ -29,7 +38,7 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
     useFocusEffect(
         React.useCallback(() => {
             loadGroupedActivities();
-            return () => {};
+            return () => { };
         }, [tripId])
     );
 
@@ -87,9 +96,29 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
 
             {/* Generate Itinerary Button */}
             <TouchableOpacity
-                activeOpacity={0.9}
-                className="mb-6"
-                onPress={() => console.log('Generate itinerary pressed')}
+                className="bg-blue-500 px-4 py-3 rounded-lg mb-6 items-center"
+                onPress={async () => {
+                    try {
+                        setLoadingAI(true);
+
+                        const result = await generateTripPlan({
+                            destination: destination,
+                            duration: days.length,
+                            budget: 1500,
+                            preferences: ["food", "culture", "exploring"],
+                        });
+
+                        console.log("AI RESULT:", result);
+
+                        setAiItinerary(result.itinerary);
+                        setLoadingAI(false);
+
+                    } catch (err) {
+                        console.log("AI ERROR:", err);
+                        setLoadingAI(false);
+                    }
+                }}
+
             >
                 <LinearGradient
                     colors={['#D81E5B', '#FF4D4D']}
@@ -102,6 +131,13 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
                     </View>
                 </LinearGradient>
             </TouchableOpacity>
+
+            {loadingAI && (
+                <Text className="text-blue-500 mb-4 font-semibold">
+                    🤖 Generating AI itinerary...
+                </Text>
+            )}
+
 
             {/* Daily Itinerary Sections */}
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -124,38 +160,22 @@ export default function ItineraryScreen({ tripId, startDate, endDate }: Itinerar
                                 </Text>
                                 <Ionicons name="chevron-forward" size={20} color="#67717B" />
                             </View>
-
-                            <View className="bg-neutral-surface rounded-lg p-4 border border-neutral-divider min-h-[100px]">
-                                {(() => {
-                                    const isoDate = toLocalISODate(day.date);
-                                    const activities = groupedActivities[isoDate] || [];
-
-                                    if (activities.length === 0) {
-                                        return (
-                                            <Text className="text-neutral-textSecondary text-center">Tap to add activities</Text>
-                                        );
-                                    }
-
-                                    return (
-                                        <View>
-                                            {activities.slice(0, 3).map((activity) => (
-                                                <Text key={activity.id} className="text-neutral-textPrimary mb-1">
-                                                    • {formatActivitySummary(activity)}
-                                                </Text>
-                                            ))}
-                                            {activities.length > 3 && (
-                                                <Text className="text-neutral-textSecondary text-sm mt-1">
-                                                    + {activities.length - 3} more
-                                                </Text>
-                                            )}
-                                        </View>
-                                    );
-                                })()}
+                            <View className="bg-white rounded-lg p-4 border border-gray-200 min-h-[100px]">
+                                {aiItinerary[day.dayNumber - 1] ? (
+                                    <Text className="text-gray-800">
+                                        {aiItinerary[day.dayNumber - 1]}
+                                    </Text>
+                                ) : (
+                                    <Text className="text-gray-500 text-center">
+                                        Tap to add activities
+                                    </Text>
+                                )}
                             </View>
                         </View>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-        </View>
+                    </TouchableOpacity >
+                ))
+                }
+            </ScrollView >
+        </View >
     );
 }
