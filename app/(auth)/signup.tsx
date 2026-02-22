@@ -113,7 +113,7 @@ export default function SignupScreen() {
             // Ensure any existing auth session is cleared
             WebBrowser.maybeCompleteAuthSession();
 
-            // Use the app's configured scheme for deep linking
+            // Use Expo Router's Linking to create proper redirect URL
             const appScheme = Constants.expoConfig?.scheme as string;
             const redirectUrl = `${appScheme}://auth/callback`;
             console.log('🔍 Google SignUp: App scheme:', appScheme);
@@ -142,6 +142,10 @@ export default function SignupScreen() {
                 if (result.type === 'success') {
                     console.log('🔍 Google SignUp: Authentication successful');
                     // The auth state change will be handled by AuthContext
+                    // Wait a moment for the auth state to update, then redirect to AuthGate for profile check
+                    setTimeout(() => {
+                        router.replace('/AuthGate');
+                    }, 1000);
                 } else if (result.type === 'cancel') {
                     console.log('🔍 Google SignUp: User cancelled');
                     Alert.alert('Cancelled', 'Google sign up was cancelled');
@@ -254,7 +258,7 @@ export default function SignupScreen() {
                         resizeMode="contain"
                     />
                     <Text className="text-gray-700 font-semibold text-center">
-                        {googleLoading ? 'Signing up with Google...' : 'Sign up with Google'}
+                        {googleLoading ? 'Creating account...' : 'Sign up with Google'}
                     </Text>
                 </TouchableOpacity>
             </View>

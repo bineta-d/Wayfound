@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from './supabase';
 import { useAuth } from '../context/AuthContext'
 import Alert from 'react-native'
 import { User, Trip } from './types'
