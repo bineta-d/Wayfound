@@ -95,6 +95,21 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
             }, [tripId])
         );
 
+        useFocusEffect(
+            React.useCallback(() => {
+                // Set default collapse state: all days uncollapsed except today
+                const today = new Date();
+                const defaultCollapsed: Record<number, boolean> = {};
+                days.forEach(day => {
+                    const dayDate = new Date(day.date);
+                    const isCurrentDay = dayDate.toDateString() === today.toDateString();
+                    defaultCollapsed[day.dayNumber] = isCurrentDay; // Only today is collapsed
+                });
+                setCollapsedDays(defaultCollapsed);
+                return () => { };
+            }, [tripId, startDate])
+        );
+
         const toggleDayCollapse = (dayNumber: number) => {
             setCollapsedDays(prev => ({
                 ...prev,
@@ -147,7 +162,7 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
             days.forEach(day => {
                 const dayDate = new Date(day.date);
                 const isCurrentDay = dayDate.toDateString() === today.toDateString();
-                defaultCollapsed[day.dayNumber] = false; // All days uncollapsed by default
+                defaultCollapsed[day.dayNumber] = false;
             });
             setCollapsedDays(defaultCollapsed);
         }, [tripId, startDate]);
