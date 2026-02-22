@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { uploadProfilePicture } from '../lib/storage';
+import * as Linking from 'expo-linking';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +11,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  checkProfileComplete: (userId: string) => Promise<{ isComplete: boolean; profile?: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('🔍 AuthContext: Initializing auth state...');
     console.log('🔍 AuthContext: Checking for existing session...');
+
+    // Handle deep links for OAuth
+    const handleDeepLink = async (url: string) => {
+      console.log('🔍 AuthContext: Handling deep link:', url);
+      const { params } = Linking.parse(url as string);
+      const { access_token, refresh_token } = params;
+
+      if (access_token && refresh_token) {
+        console.log('🔍 AuthContext: Found tokens in deep link, setting session');
+        await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+      }
+    };
+
+    Linking.addEventListener('url', (event: { url: string }) => {
+      if (event.url) {
+        handleDeepLink(event.url);
+      }
+    });
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -111,22 +134,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: { message: 'Failed to create Google account' } };
         }
 
+        // Check if user profile exists in users table
+        const { data: existingProfile, error: profileCheckError } = await supabase
+          .from('users')
+          .select('id, full_name, dob, avatar_url')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (profileCheckError) {
+          console.log('🔍 AuthContext: Profile check failed:', profileCheckError.message);
+          return { error: { message: 'Failed to check user profile' } };
+        }
+
+        if (existingProfile) {
+          console.log('🔍 AuthContext: User profile already exists, redirecting to home');
+          return { error: null };
+        }
+
         console.log('🔍 AuthContext: Google auth successful, creating profile...');
 
-        // Create user profile using the database function
+        // Create user profile using database function
         const { data: profileResult, error: profileError } = await supabase.rpc('create_user_with_profile', {
           p_user_id: authData.user.id,
           p_email: email,
-          p_full_name: userData.full_name,
-          p_dob: null, // Google sign up doesn't require DOB
-          p_avatar_url: userData.avatar_url
+          p_full_name: authData.user.user_metadata?.full_name || email.split('@')[0],
+          p_dob: null, // Google sign up doesn't require DOB initially
+          p_avatar_url: authData.user.user_metadata?.avatar_url
         });
 
         if (profileError || !profileResult) {
           console.log('🔍 AuthContext: Profile creation failed:', profileError?.message || 'Unknown error');
           return {
             error: {
-              message: profileError?.message || 'Failed to create user profile. Please ensure the database is properly configured.'
+              message: profileError?.message || 'Failed to create user profile. Please ensure database is properly configured.'
             }
           };
         } else {
@@ -200,6 +240,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const checkProfileComplete = async (userId: string) => {
+    console.log('🔍 AuthContext: Checking profile completeness for user:', userId);
+
+    try {
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('id, full_name, dob, avatar_url, email')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.log('🔍 AuthContext: Profile check failed:', error.message);
+        return { isComplete: false };
+      }
+
+      if (!profile) {
+        console.log('🔍 AuthContext: No profile found for user');
+        return { isComplete: false };
+      }
+
+      // Check if mandatory fields are complete
+      const isComplete = !!(profile.full_name && profile.dob && profile.email);
+
+      console.log('🔍 AuthContext: Profile completeness check result:', {
+        hasFullName: !!profile.full_name,
+        hasDOB: !!profile.dob,
+        hasEmail: !!profile.email,
+        isComplete
+      });
+
+      return { isComplete, profile };
+    } catch (error) {
+      console.log('🔍 AuthContext: Unexpected error checking profile:', error);
+      return { isComplete: false };
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -211,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    checkProfileComplete,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
