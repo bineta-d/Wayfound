@@ -1,58 +1,32 @@
-import { supabase } from './supabase';
-
 interface TripPlanRequest {
-  destination: string;
-  startDate: string;
-  endDate: string;
-  budget: number;
-  interests: string[];
-  prompt: string;
+    destination: string;
+    duration: number;
+    budget: number;
+    preferences: string[];
 }
 
 interface TripPlan {
-  itinerary: any[];
-  recommendations: string[];
-  estimatedCost: number;
+    itinerary: string[];
+    recommendations: string[];
+    estimatedCost: number;
 }
 
 export async function generateTripPlan(request: TripPlanRequest): Promise<TripPlan> {
-  try {
-
-    console.log("Sending to AI:", request);
-
-    const { data, error } = await supabase.functions.invoke(
-      "generate-itinerary",
-      {
-        body: request,
-      }
-    );
-
-    if (error) {
-      console.log("Edge function error:", error);
-      throw new Error("Failed to generate itinerary");
-    }
-
-    if (!data) {
-      throw new Error("Empty AI response");
-    }
-
-    console.log("AI RESPONSE:", data);
-
+    // AI trip planning logic will be implemented here
     return {
-      itinerary: data.itinerary || [],
-      recommendations: data.recommendations || [],
-      estimatedCost: data.estimatedCost || 0,
+        itinerary: [
+            'Day 1: Arrival and city exploration',
+            'Day 2: Main attractions',
+            'Day 3: Day trip to nearby areas',
+        ],
+        recommendations: [
+            'Visit local markets',
+            'Try regional cuisine',
+            'Book guided tours in advance',
+        ],
+        estimatedCost: request.budget * 0.8,
     };
-
-  } catch (error) {
-    console.error("AI generation error:", error);
-    throw error;
-  }
 }
-
-
-
-
 
 export async function optimizeItinerary(
     currentPlan: string[],
