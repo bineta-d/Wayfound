@@ -442,6 +442,56 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
                     </TouchableOpacity>
                 </View>
 
+                {/* Google Places Modal */}
+                {showAddSpotModal && (
+                    <View className="absolute top-0 left-0 right-0 bottom-0 items-center justify-center z-50">
+                        <View className="bg-white rounded-lg p-6 m-4 w-80 shadow-lg border border-neutral-divider">
+                            <Text className="text-lg font-semibold text-neutral-textPrimary mb-4">Add Target Spot</Text>
+
+                            <TextInput
+                                className="border border-neutral-divider rounded-lg p-3 mb-4"
+                                placeholder="Search for a place..."
+                                value={newSpotName}
+                                onChangeText={setNewSpotName}
+                            />
+
+                            <View className="space-y-2">
+                                {googlePlaces.slice(0, 3).map((place, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        className="bg-neutral-surface p-3 rounded-lg"
+                                        onPress={() => setNewSpotName(place.description || place.name)}
+                                    >
+                                        <Text className="text-neutral-textPrimary">{place.description || place.name}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <View className="flex-row space-x-3">
+                                <TouchableOpacity
+                                    className="flex-1 bg-gray-200 rounded-lg p-3"
+                                    onPress={() => setShowAddSpotModal(false)}
+                                >
+                                    <Text className="text-gray-600 text-center font-medium">Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-blue-500 rounded-lg p-3"
+                                    onPress={() => {
+                                        if (newSpotName.trim()) {
+                                            // TODO: Add to unassigned activities (no day assigned)
+                                            console.log('New spot via Google Places:', newSpotName);
+                                        }
+                                        setShowAddSpotModal(false);
+                                        setNewSpotName('');
+                                        setGooglePlaces([]);
+                                    }}
+                                >
+                                    <Text className="text-white text-center font-medium">Add</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                )}
 
 
                 {/* Daily Itinerary Sections */}
