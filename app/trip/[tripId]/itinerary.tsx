@@ -21,7 +21,9 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
     const router = useRouter();
     const [aiItinerary, setAiItinerary] = useState<string[]>([]);
     const [loadingAI, setLoadingAI] = useState(false);
-
+    const [targetSpots, setTargetSpots] = useState<string[]>([]);
+    const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
+    const [isItineraryCollapsed, setIsItineraryCollapsed] = useState(false);
 
     const [groupedActivities, setGroupedActivities] = useState<Record<string, TripActivity[]>>({});
 
@@ -41,6 +43,27 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
             return () => { };
         }, [tripId])
     );
+
+    const toggleDayCollapse = (dayNumber: number) => {
+        setCollapsedDays(prev => ({
+            ...prev,
+            [dayNumber]: !prev[dayNumber]
+        }));
+    };
+
+    const toggleItineraryCollapse = () => {
+        setIsItineraryCollapsed(!isItineraryCollapsed);
+    };
+
+    const addTargetSpot = (spot: string) => {
+        if (spot.trim()) {
+            setTargetSpots(prev => [...prev, spot.trim()]);
+        }
+    };
+
+    const removeTargetSpot = (index: number) => {
+        setTargetSpots(prev => prev.filter((_, i) => i !== index));
+    };
 
     const generateDayHeaders = () => {
         const start = new Date(startDate);
@@ -85,6 +108,52 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
 
     return (
         <View className="bg-neutral-background px-6 py-6 mb-2">
+            {/* Reservation Icons */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-blue-100 p-3 rounded-full mb-1">
+                        <Ionicons name="bed" size={20} color="#3B82F6" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Accommodation</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-green-100 p-3 rounded-full mb-1">
+                        <Ionicons name="airplane" size={20} color="#10B981" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Flight</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-purple-100 p-3 rounded-full mb-1">
+                        <Ionicons name="train" size={20} color="#8B5CF6" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Train</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-yellow-100 p-3 rounded-full mb-1">
+                        <Ionicons name="bus" size={20} color="#F59E0B" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Bus</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-red-100 p-3 rounded-full mb-1">
+                        <Ionicons name="car" size={20} color="#EF4444" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Car Rental</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-indigo-100 p-3 rounded-full mb-1">
+                        <Ionicons name="restaurant" size={20} color="#6366F1" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Dining</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center mr-6">
+                    <View className="bg-pink-100 p-3 rounded-full mb-1">
+                        <Ionicons name="ticket" size={20} color="#EC4899" />
+                    </View>
+                    <Text className="text-xs text-neutral-textSecondary">Activities</Text>
+                </TouchableOpacity>
+            </ScrollView>
+
             <Text className="text-xl font-bold text-neutral-textPrimary mb-4">Itinerary</Text>
 
             {/* Map Card */}
@@ -134,43 +203,98 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
                 </Text>
             )}
 
+            {/* Target Spots Section */}
+            <View className="bg-neutral-surface rounded-lg p-4 mb-6">
+                <View className="flex-row justify-between items-center mb-3">
+                    <Text className="text-lg font-semibold text-neutral-textPrimary">Target Spots</Text>
+                    <TouchableOpacity onPress={() => { }}>
+                        <Ionicons name="add-circle" size={24} color="#3B82F6" />
+                    </TouchableOpacity>
+                </View>
+
+                {targetSpots.length === 0 ? (
+                    <Text className="text-neutral-textSecondary text-sm mb-3">
+                        Add places you want to visit during your trip
+                    </Text>
+                ) : (
+                    <View className="space-y-2">
+                        {targetSpots.map((spot, index) => (
+                            <View key={index} className="flex-row justify-between items-center bg-neutral-background p-3 rounded-lg">
+                                <Text className="text-neutral-textPrimary flex-1">• {spot}</Text>
+                                <TouchableOpacity onPress={() => removeTargetSpot(index)}>
+                                    <Ionicons name="close-circle" size={20} color="#EF4444" />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                <TouchableOpacity
+                    className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3"
+                    onPress={() => {
+                        // Simple add spot functionality - you can replace with modal later
+                        const spot = prompt("Add a target spot:");
+                        if (spot) addTargetSpot(spot);
+                    }}
+                >
+                    <Text className="text-blue-600 text-center font-medium">+ Add Target Spot</Text>
+                </TouchableOpacity>
+            </View>
+
+
 
             {/* Daily Itinerary Sections */}
-            <ScrollView showsVerticalScrollIndicator={false}>
-                {days.map((day) => (
-                    <TouchableOpacity
-                        key={day.date.toISOString()}
-                        className="mb-6"
-                        onPress={() => handleDayPress(day.dayNumber)}
-                    >
-                        <View className="bg-neutral-surface rounded-lg p-4">
-                            <View className="flex-row justify-between items-center mb-2">
-                                <Text className="text-lg font-semibold text-neutral-textPrimary">
-                                    Day {day.dayNumber} - {day.date.toLocaleDateString('en-US', {
-                                        weekday: 'long'
-                                    })}{' '}
-                                    {day.date.toLocaleDateString('en-US', {
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                </Text>
-                                <Ionicons name="chevron-forward" size={20} color="#67717B" />
-                            </View>
-                            <View className="bg-neutral-surface rounded-lg p-4 border border-neutral-divider min-h-[100px]">
-                                {aiItinerary[day.dayNumber - 1] ? (
-                                    <Text className="text-neutral-textPrimary">
-                                        {aiItinerary[day.dayNumber - 1]}
-                                    </Text>
-                                ) : (
-                                    <Text className="text-neutral-textSecondary text-center">
-                                        Tap to add activities
-                                    </Text>
-                                )}
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <View className="mb-4">
+                <TouchableOpacity
+                    onPress={toggleItineraryCollapse}
+                    className="flex-row justify-between items-center mb-4"
+                >
+                    <Text className="text-lg font-semibold text-neutral-textPrimary">Daily Itinerary</Text>
+                    <Ionicons
+                        name={isItineraryCollapsed ? "chevron-down" : "chevron-up"}
+                        size={20}
+                        color="#6B7280"
+                    />
+                </TouchableOpacity>
+
+                {!isItineraryCollapsed && (
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        {days.map((day) => (
+                            <TouchableOpacity
+                                key={day.date.toISOString()}
+                                className="mb-6"
+                                onPress={() => handleDayPress(day.dayNumber)}
+                            >
+                                <View className="bg-neutral-surface rounded-lg p-4">
+                                    <View className="flex-row justify-between items-center mb-2">
+                                        <Text className="text-lg font-semibold text-neutral-textPrimary">
+                                            Day {day.dayNumber} - {day.date.toLocaleDateString('en-US', {
+                                                weekday: 'long'
+                                            })}{' '}
+                                            {day.date.toLocaleDateString('en-US', {
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </Text>
+                                        <Ionicons name="chevron-forward" size={20} color="#67717B" />
+                                    </View>
+                                    <View className="bg-neutral-surface rounded-lg p-4 border border-neutral-divider min-h-[100px]">
+                                        {aiItinerary[day.dayNumber - 1] ? (
+                                            <Text className="text-neutral-textPrimary">
+                                                {aiItinerary[day.dayNumber - 1]}
+                                            </Text>
+                                        ) : (
+                                            <Text className="text-neutral-textSecondary text-center">
+                                                Tap to add activities
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
         </View>
     );
 }
