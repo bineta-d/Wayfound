@@ -2,9 +2,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { getTripActivitiesGroupedByDay, Activity as TripActivity } from '../../../lib/TripService';
+import { getTripActivitiesForDay, getTripActivitiesGroupedByDay, Activity as TripActivity } from '../../../lib/TripService';
 
 //New imports
 import { generateTripPlan } from '@/lib/ai';
@@ -24,8 +24,26 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
     const [targetSpots, setTargetSpots] = useState<string[]>([]);
     const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
     const [isItineraryCollapsed, setIsItineraryCollapsed] = useState(false);
+    const [dayActivities, setDayActivities] = useState<Record<number, TripActivity[]>>({});
+    const [loadingActivities, setLoadingActivities] = useState<Record<number, boolean>>({});
 
     const [groupedActivities, setGroupedActivities] = useState<Record<string, TripActivity[]>>({});
+
+    const loadDayActivities = async (dayNumber: number) => {
+        if (!tripId) return;
+        setLoadingActivities(prev => ({ ...prev, [dayNumber]: true }));
+        try {
+            const dayDate = new Date(startDate);
+            dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
+            const dateStr = dayDate.toISOString().split('T')[0];
+            const activities = await getTripActivitiesForDay(tripId, dateStr);
+            setDayActivities(prev => ({ ...prev, [dayNumber]: activities }));
+        } catch (e) {
+            console.log(`Error loading day ${dayNumber} activities:`, e);
+        } finally {
+            setLoadingActivities(prev => ({ ...prev, [dayNumber]: false }));
+        }
+    };
 
     const loadGroupedActivities = async () => {
         if (!tripId) return;
@@ -83,6 +101,23 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
     };
 
     const days = generateDayHeaders();
+
+    useEffect(() => {
+        // Load activities for all days when component mounts
+        days.forEach(day => {
+            loadDayActivities(day.dayNumber);
+        });
+
+        // Set default collapse state: all days uncollapsed except current day
+        const today = new Date();
+        const defaultCollapsed: Record<number, boolean> = {};
+        days.forEach(day => {
+            const dayDate = new Date(day.date);
+            const isCurrentDay = dayDate.toDateString() === today.toDateString();
+            defaultCollapsed[day.dayNumber] = false; // All days uncollapsed by default
+        });
+        setCollapsedDays(defaultCollapsed);
+    }, [tripId, startDate]);
 
     const toLocalISODate = (d: Date) => {
         const yyyy = d.getFullYear();
@@ -260,12 +295,11 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
                 {!isItineraryCollapsed && (
                     <ScrollView showsVerticalScrollIndicator={false}>
                         {days.map((day) => (
-                            <TouchableOpacity
-                                key={day.date.toISOString()}
-                                className="mb-6"
-                                onPress={() => handleDayPress(day.dayNumber)}
-                            >
-                                <View className="bg-neutral-surface rounded-lg p-4">
+                            <View key={day.date.toISOString()} className="mb-6">
+                                <TouchableOpacity
+                                    onPress={() => toggleDayCollapse(day.dayNumber)}
+                                    className="bg-neutral-surface rounded-lg p-4"
+                                >
                                     <View className="flex-row justify-between items-center mb-2">
                                         <Text className="text-lg font-semibold text-neutral-textPrimary">
                                             Day {day.dayNumber} - {day.date.toLocaleDateString('en-US', {
@@ -276,21 +310,68 @@ export default function ItineraryScreen({ tripId, startDate, endDate, destinatio
                                                 day: 'numeric'
                                             })}
                                         </Text>
-                                        <Ionicons name="chevron-forward" size={20} color="#67717B" />
+                                        <View className="flex-row items-center">
+                                            <Ionicons
+                                                name={collapsedDays[day.dayNumber] ? "chevron-down" : "chevron-up"}
+                                                size={20}
+                                                color="#6B7280"
+                                            />
+                                            <TouchableOpacity
+                                                onPress={() => handleDayPress(day.dayNumber)}
+                                                className="ml-3"
+                                            >
+                                                <Ionicons name="chevron-forward" size={20} color="#67717B" />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                    <View className="bg-neutral-surface rounded-lg p-4 border border-neutral-divider min-h-[100px]">
-                                        {aiItinerary[day.dayNumber - 1] ? (
-                                            <Text className="text-neutral-textPrimary">
-                                                {aiItinerary[day.dayNumber - 1]}
-                                            </Text>
-                                        ) : (
-                                            <Text className="text-neutral-textSecondary text-center">
-                                                Tap to add activities
-                                            </Text>
-                                        )}
-                                    </View>
-                                </View>
-                            </TouchableOpacity>
+
+                                    {!collapsedDays[day.dayNumber] && (
+                                        <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
+                                            {loadingActivities[day.dayNumber] ? (
+                                                <Text className="text-neutral-textSecondary text-center py-4">
+                                                    Loading activities...
+                                                </Text>
+                                            ) : dayActivities[day.dayNumber] && dayActivities[day.dayNumber].length > 0 ? (
+                                                <View className="space-y-3">
+                                                    {dayActivities[day.dayNumber].map((activity, index) => (
+                                                        <View key={activity.id || index} className="bg-white rounded-lg p-3 border border-neutral-divider">
+                                                            <View className="flex-row justify-between items-start">
+                                                                <View className="flex-1">
+                                                                    <Text className="font-medium text-neutral-textPrimary mb-1">
+                                                                        {activity.title || 'Untitled Activity'}
+                                                                    </Text>
+                                                                    <Text className="text-sm text-neutral-textSecondary mb-1">
+                                                                        {activity.location_name}
+                                                                    </Text>
+                                                                    {activity.start_time && (
+                                                                        <Text className="text-xs text-neutral-textTertiary">
+                                                                            {activity.start_time} - {activity.end_time || 'TBD'}
+                                                                        </Text>
+                                                                    )}
+                                                                </View>
+                                                                <TouchableOpacity
+                                                                    onPress={() => handleDayPress(day.dayNumber)}
+                                                                    className="ml-2"
+                                                                >
+                                                                    <Ionicons name="create" size={16} color="#6B7280" />
+                                                                </TouchableOpacity>
+                                                            </View>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            ) : aiItinerary[day.dayNumber - 1] ? (
+                                                <Text className="text-neutral-textPrimary">
+                                                    {aiItinerary[day.dayNumber - 1]}
+                                                </Text>
+                                            ) : (
+                                                <Text className="text-neutral-textSecondary text-center py-4">
+                                                    Tap to add activities
+                                                </Text>
+                                            )}
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         ))}
                     </ScrollView>
                 )}
