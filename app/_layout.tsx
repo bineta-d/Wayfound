@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import AuthGate from "./AuthGate";
 import "../global.css";
+import { supabase } from "@/lib/supabase";
 
 export { ErrorBoundary } from "expo-router";
 
