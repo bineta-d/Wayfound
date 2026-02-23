@@ -79,6 +79,18 @@ export default function GenerateItinerary({
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
 
+  const formatTimeRange = (
+    start: string | null | undefined,
+    end: string | null | undefined,
+  ) => {
+    const s = start ? start.slice(0, 5) : "";
+    const e = end ? end.slice(0, 5) : "";
+    if (s && e) return `${s}–${e}`;
+    if (s) return s;
+    if (e) return `Ends ${e}`;
+    return "";
+  };
+
   return (
     <View className="bg-neutral-surface rounded-lg">
       <View className="flex-row justify-between items-center mb-3">
@@ -87,7 +99,7 @@ export default function GenerateItinerary({
         </Text>
       </View>
 
-      {/* Trip Map Section */}
+      {/* Trip Map */}
       <View className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface">
         <View className="px-4 py-3 border-b border-neutral-divider">
           <Text className="text-neutral-textPrimary font-semibold">
