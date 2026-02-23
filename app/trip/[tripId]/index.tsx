@@ -4,6 +4,7 @@ import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
+  getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
 } from "../../../lib/TripService";
@@ -11,7 +12,7 @@ import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
 import CollaboratorsScreen from "./collaborators";
 import GenerateItinerary from "./generate-itinerary";
-import ItineraryScreen from "./itinerary";
+import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
 
@@ -54,14 +55,40 @@ export default function TripOverviewScreen() {
     setTargetSpots((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleAssignToDay = (activity: any, dayNumber: number) => {
+    // Navigate to day detail with the activity
+    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+  };
+
   const handleMarkerNavigate = (a: any) => {
-    // Navigate to day detail for the activity
+    // Navigate to day detail for activity
     router.push(`/trip/${tripId}/day-detail?day=1`);
+  };
+
+  const loadGroupedActivities = async () => {
+    if (!tripId) return;
+    try {
+      console.log('🔍 Loading grouped activities for trip:', tripId);
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+      console.log('📍 Grouped activities loaded:', grouped);
+      setGroupedActivities(grouped);
+
+      // Log activities with coordinates
+      const allActivities = Object.values(grouped).flat();
+      const activitiesWithCoords = allActivities.filter(
+        (a) => typeof a.latitude === "number" && typeof a.longitude === "number"
+      );
+      console.log('🗺️ Activities with coordinates:', activitiesWithCoords.length);
+      console.log('📊 Total activities:', allActivities.length);
+    } catch (e) {
+      console.log("Error loading grouped activities:", e);
+    }
   };
 
   useEffect(() => {
     if (tripId) {
       loadTripData();
+      loadGroupedActivities();
     }
   }, [tripId]);
 
@@ -176,6 +203,8 @@ export default function TripOverviewScreen() {
             targetSpots={targetSpots}
             onAddSpot={addTargetSpot}
             onRemoveSpot={removeTargetSpot}
+            activities={Object.values(groupedActivities).flat()}
+            onAssignToDay={handleAssignToDay}
           /></View>
 
 
