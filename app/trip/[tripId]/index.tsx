@@ -249,7 +249,7 @@ export default function TripOverviewScreen() {
         </View>
 
         {/* Generate Itinerary Section */}
-        <View className="bg-white px-6 py-6 mb-2">
+        <View className="bg-white px-6 mb-2">
           <GenerateItinerary
             destination={trip.destination}
             duration={Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24))}
@@ -261,7 +261,7 @@ export default function TripOverviewScreen() {
           /></View>
 
         {/* Target Spots Section */}
-        <View className="bg-white px-6 py-6 mb-2">
+        <View className="bg-white px-6 mb-2">
           <TargetSpots
             targetSpots={targetSpots}
             onAddSpot={addTargetSpot}
@@ -272,7 +272,7 @@ export default function TripOverviewScreen() {
 
 
         {/* Itinerary Section */}
-        <View className="bg-white px-6 py-6 mb-2">
+        <View className="bg-white px-6 mb-2">
           <ItineraryScreen
             tripId={tripId as string}
             startDate={trip.start_date}
