@@ -29,6 +29,13 @@ export default function GenerateItinerary({
   activities,
   onMarkerNavigate
 }: GenerateItineraryProps) {
+  const [mapRegion, setMapRegion] = React.useState<Region>({
+    latitude: 25.7617,
+    longitude: -80.1918,
+    latitudeDelta: 0.15,
+    longitudeDelta: 0.15,
+  });
+
   const handleGenerate = async () => {
     try {
       setLoading(true);
@@ -79,6 +86,29 @@ export default function GenerateItinerary({
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
 
+  const handleZoomIn = () => {
+    setMapRegion(prev => ({
+      ...prev,
+      latitudeDelta: prev.latitudeDelta * 0.8,
+      longitudeDelta: prev.longitudeDelta * 0.8,
+    }));
+  };
+
+  const handleZoomOut = () => {
+    setMapRegion(prev => ({
+      ...prev,
+      latitudeDelta: prev.latitudeDelta * 1.2,
+      longitudeDelta: prev.longitudeDelta * 1.2,
+    }));
+  };
+
+  React.useEffect(() => {
+    if (mapActivities.length > 0) {
+      const newRegion = computeRegion();
+      setMapRegion(newRegion);
+    }
+  }, [activities]);
+
   const formatTimeRange = (
     start: string | null | undefined,
     end: string | null | undefined,
@@ -102,14 +132,32 @@ export default function GenerateItinerary({
       {/* Trip Map */}
       <View className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface">
         <View className="px-4 py-3 border-b border-neutral-divider">
-          <Text className="text-neutral-textPrimary font-semibold">
-            Trip Map
-          </Text>
-          <Text className="text-neutral-textSecondary text-xs mt-1">
-            {mapActivities.length > 0
-              ? `${mapActivities.length} pinned activities`
-              : "No pinned activities yet"}
-          </Text>
+          <View className="flex-row justify-between items-center">
+            <View>
+              <Text className="text-neutral-textPrimary font-semibold">
+                Trip Map
+              </Text>
+              <Text className="text-neutral-textSecondary text-xs mt-1">
+                {mapActivities.length > 0
+                  ? `${mapActivities.length} pinned activities`
+                  : "No pinned activities yet"}
+              </Text>
+            </View>
+            <View className="flex-row items-center">
+              <TouchableOpacity
+                onPress={handleZoomOut}
+                className="p-2 rounded-lg bg-neutral-background mr-2"
+              >
+                <Text className="text-neutral-textPrimary font-semibold">−</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleZoomIn}
+                className="p-2 rounded-lg bg-neutral-background"
+              >
+                <Text className="text-neutral-textPrimary font-semibold">+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         <View style={{ height: 180 }}>
@@ -123,7 +171,7 @@ export default function GenerateItinerary({
             <MapView
               provider={PROVIDER_GOOGLE}
               style={{ flex: 1 }}
-              initialRegion={computeRegion()}
+              region={mapRegion}
             >
               {mapActivities.map((a) => (
                 <Marker
