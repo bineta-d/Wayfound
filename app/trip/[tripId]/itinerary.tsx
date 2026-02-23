@@ -142,48 +142,49 @@ export default function Itinerary({
                                                                         <Text className="text-xs text-neutral-textTertiary">
                                                                             {activity.start_time} - {activity.end_time || 'TBD'}
                                                                         </Text>
-                                                                    )}
-                                                                </View>
-                                                                <TouchableOpacity
-                                                                    onPress={() => handleDayPress(day.dayNumber)}
-                                                                    className="ml-2"
-                                                                >
-                                                                    <Ionicons name="create" size={16} color="#6B7280" />
-                                                                </TouchableOpacity>
+                                                                    </View>
                                                             </View>
+                                                            <TouchableOpacity
+                                                                onPress={() => handleDayPress(day.dayNumber)}
+                                                                className="ml-2"
+                                                            >
+                                                                <Ionicons name="create" size={16} color="#6B7280" />
+                                                            </TouchableOpacity>
                                                         </View>
-                                                    ))}
-                                                </View>
-                                            );
-                                        })()}
+                                                        </View>
+                                            ))}
                                     </View>
-                                )}
-                            </TouchableOpacity>
+                                );
+                                        })()}
                         </View>
-                    ))}
-                </ScrollView>
+                    )}
+                </TouchableOpacity>
+                        </View>
+    ))
+}
+                </ScrollView >
             )}
-        </View>
+        </View >
             </View >
         );
-    return (
-        <View>
-            {activities.slice(0, 3).map((activity) => (
-                <Text key={activity.id} className="text-neutral-textPrimary mb-1">
-                    • {formatActivitySummary(activity)}
-                </Text>
-            ))}
-            {activities.length > 3 && (
-                <Text className="text-neutral-textSecondary text-sm">
-                    {isoDate}
-                    {isActivityAssignedToThisDay(activities[0], isoDate) && (
-                        <Text className="text-green-600 ml-2">• Assigned to this day</Text>
-                    )}
-                    + {activities.length - 3} more
-                </Text>
-            )}
-        </View>
-    );
+return (
+    <View>
+        {activities.slice(0, 3).map((activity) => (
+            <Text key={activity.id} className="text-neutral-textPrimary mb-1">
+                • {formatActivitySummary(activity)}
+            </Text>
+        ))}
+        {activities.length > 3 && (
+            <Text className="text-neutral-textSecondary text-sm">
+                {isoDate}
+                {isActivityAssignedToThisDay(activities[0], isoDate) && (
+                    <Text className="text-green-600 ml-2">• Assigned to this day</Text>
+                )}
+                + {activities.length - 3} more
+            </Text>
+        )}
+    </View>
+);
 }) ()
 }
                                         </View >
