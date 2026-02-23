@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
-  getTripById,
-  getTripMembers,
   deleteTrip,
+  getTripActivitiesForDay,
+  getTripActivitiesGroupedByDay,
+  getTripById,
+  getTripMembers
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
-import ItineraryScreen from "./itinerary";
-import CollaboratorsScreen from "./collaborators";
 import BudgetScreen from "./budget";
-import BookingsScreen from "./bookings";
+import CollaboratorsScreen from "./collaborators";
+import GenerateItinerary from "./generate-itinerary";
+import { default as ItineraryScreen } from "./itinerary";
+import ReservationsSection from "./reservations";
+import TargetSpots from "./target-spots";
 
 export default function TripOverviewScreen() {
   const { tripId } = useLocalSearchParams();
@@ -21,11 +25,111 @@ export default function TripOverviewScreen() {
   const [members, setMembers] = useState<Trip_member[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (tripId) {
-      loadTripData();
+  // State for new components
+  const [aiItinerary, setAiItinerary] = useState<string[]>([]);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [targetSpots, setTargetSpots] = useState<string[]>([]);
+  const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
+  const [isItineraryCollapsed, setIsItineraryCollapsed] = useState(false);
+  const [dayActivities, setDayActivities] = useState<Record<number, any[]>>({});
+  const [loadingActivities, setLoadingActivities] = useState<Record<number, boolean>>({});
+  const [groupedActivities, setGroupedActivities] = useState<Record<string, any[]>>({});
+
+  const toggleDayCollapse = (dayNumber: number) => {
+    setCollapsedDays((prev) => ({
+      ...prev,
+      [dayNumber]: !prev[dayNumber],
+    }));
+  };
+
+  const toggleItineraryCollapse = () => {
+    setIsItineraryCollapsed(!isItineraryCollapsed);
+  };
+
+  const addTargetSpot = (spot: string) => {
+    if (spot.trim()) {
+      setTargetSpots((prev) => [...prev, spot.trim()]);
     }
-  }, [tripId]);
+  };
+
+  const removeTargetSpot = (index: number) => {
+    setTargetSpots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAssignToDay = (activity: any, dayNumber: number) => {
+    // Navigate to day detail with the activity
+    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+  };
+
+  const handleMarkerNavigate = (a: any) => {
+    // Navigate to day detail for activity
+    router.push(`/trip/${tripId}/day-detail?day=1`);
+  };
+
+  const loadGroupedActivities = async () => {
+    if (!tripId) return;
+    try {
+      console.log('🔍 Loading grouped activities for trip:', tripId);
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+      console.log('📍 Grouped activities loaded:', grouped);
+      setGroupedActivities(grouped);
+
+      // Load activities for each day individually after trip data is loaded
+      if (trip) {
+        const days = generateDayHeaders();
+        days.forEach((day) => {
+          loadDayActivities(day.dayNumber);
+        });
+      }
+
+      // Log activities with coordinates
+      const allActivities = Object.values(grouped).flat();
+      const activitiesWithCoords = allActivities.filter(
+        (a) => typeof a.latitude === "number" && typeof a.longitude === "number"
+      );
+      console.log('🗺️ Activities with coordinates:', activitiesWithCoords.length);
+      console.log('📊 Total activities:', allActivities.length);
+    } catch (e) {
+      console.log("Error loading grouped activities:", e);
+    }
+  };
+
+  const loadDayActivities = async (dayNumber: number) => {
+    if (!tripId || !trip) return;
+    setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
+    try {
+      const dayDate = new Date(trip.start_date);
+      dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
+      const dateStr = dayDate.toISOString().split("T")[0];
+
+      const activities = await getTripActivitiesForDay(tripId as string, dateStr);
+
+      setDayActivities((prev) => ({ ...prev, [dayNumber]: activities }));
+      console.log(`📅 Loaded ${activities.length} activities for day ${dayNumber}`);
+    } catch (e) {
+      console.log(`Error loading day ${dayNumber} activities:`, e);
+    } finally {
+      setLoadingActivities((prev) => ({ ...prev, [dayNumber]: false }));
+    }
+  };
+
+  const generateDayHeaders = () => {
+    if (!trip) return [];
+    const start = new Date(trip.start_date);
+    const end = new Date(trip.end_date);
+    const days = [];
+    const current = new Date(start);
+
+    while (current <= end) {
+      days.push({
+        date: new Date(current),
+        dayNumber: days.length + 1,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+
+    return days;
+  };
 
   const loadTripData = async () => {
     try {
@@ -40,6 +144,30 @@ export default function TripOverviewScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (tripId) {
+      loadTripData();
+      loadGroupedActivities();
+    }
+  }, [tripId]);
+
+  useEffect(() => {
+    // Load activities for all days when component mounts
+    if (trip) {
+      const days = generateDayHeaders();
+      days.forEach((day) => {
+        loadDayActivities(day.dayNumber);
+      });
+
+      // Set default collapse state: all days collapsed except first day
+      const defaultCollapsed: Record<number, boolean> = {};
+      days.forEach((day) => {
+        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1; // Only first day is uncollapsed
+      });
+      setCollapsedDays(defaultCollapsed);
+    }
+  }, [trip, tripId]);
 
   const handleDeleteTrip = () => {
     Alert.alert(
@@ -87,7 +215,7 @@ export default function TripOverviewScreen() {
 
   return (
     <>
-      <ScrollView className="flex-1 bg-gray-50">
+      <ScrollView className="flex-1 bg-gray-50 m">
         {/* Trip Header */}
         <View className="bg-white px-6 py-6 mb-2">
           <Text className="text-3xl font-bold text-gray-800 mb-2">
@@ -115,16 +243,49 @@ export default function TripOverviewScreen() {
           </View>
         </View>
 
-        {/* Itinerary Section */}
-        <ItineraryScreen
-          tripId={tripId as string}
-          startDate={trip.start_date}
-          endDate={trip.end_date}
-          destination={trip.destination}
-        />
+        {/* Reservations Section */}
+        <View className="bg-white px-6 mb-1">
+          <ReservationsSection />
+        </View>
 
-        {/* Bookings Section */}
-        <BookingsScreen />
+        {/* Generate Itinerary Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <GenerateItinerary
+            destination={trip.destination}
+            duration={Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24))}
+            onItineraryGenerated={setAiItinerary}
+            loading={loadingAI}
+            setLoading={setLoadingAI}
+            activities={Object.values(groupedActivities).flat()}
+            onMarkerNavigate={handleMarkerNavigate}
+          /></View>
+
+        {/* Target Spots Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <TargetSpots
+            targetSpots={targetSpots}
+            onAddSpot={addTargetSpot}
+            onRemoveSpot={removeTargetSpot}
+            activities={Object.values(groupedActivities).flat()}
+            onAssignToDay={handleAssignToDay}
+          /></View>
+
+
+        {/* Itinerary Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <ItineraryScreen
+            tripId={tripId as string}
+            startDate={trip.start_date}
+            endDate={trip.end_date}
+            aiItinerary={aiItinerary}
+            onToggleDayCollapse={toggleDayCollapse}
+            onToggleItineraryCollapse={toggleItineraryCollapse}
+            collapsedDays={collapsedDays}
+            isItineraryCollapsed={isItineraryCollapsed}
+            dayActivities={dayActivities}
+            loadingActivities={loadingActivities}
+          /></View>
+
 
         {/* Collaborators Section */}
         <CollaboratorsScreen members={members} />
