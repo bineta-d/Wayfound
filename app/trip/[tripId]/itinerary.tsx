@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from 'react';
+import { PanResponder, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
 
 interface ItineraryProps {
@@ -30,6 +30,25 @@ export default function Itinerary({
     loadingActivities,
 }: ItineraryProps) {
     const router = useRouter();
+    const [draggedItem, setDraggedItem] = useState<number | null>(null);
+
+    const createPanResponder = (index: number) => {
+        return PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderGrant: () => {
+                setDraggedItem(index);
+                console.log('Start dragging item:', index);
+            },
+            onPanResponderMove: () => {
+                // Handle drag movement
+            },
+            onPanResponderRelease: () => {
+                setDraggedItem(null);
+                console.log('End dragging item:', index);
+            },
+        });
+    };
 
     const generateDayHeaders = () => {
         const start = new Date(startDate);
