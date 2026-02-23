@@ -74,7 +74,7 @@ export default function Itinerary({
     };
 
     return (
-        <View className="mb-4">
+        <View className="mb-0">
             <TouchableOpacity
                 onPress={onToggleItineraryCollapse}
                 className="flex-row justify-between items-center mb-4"
