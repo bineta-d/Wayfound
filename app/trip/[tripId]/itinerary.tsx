@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from 'react';
+import { PanResponder, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
 
 interface ItineraryProps {
@@ -30,6 +30,25 @@ export default function Itinerary({
     loadingActivities,
 }: ItineraryProps) {
     const router = useRouter();
+    const [draggedItem, setDraggedItem] = useState<number | null>(null);
+
+    const createPanResponder = (index: number) => {
+        return PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderGrant: () => {
+                setDraggedItem(index);
+                console.log('Start dragging item:', index);
+            },
+            onPanResponderMove: () => {
+                // Handle drag movement
+            },
+            onPanResponderRelease: () => {
+                setDraggedItem(null);
+                console.log('End dragging item:', index);
+            },
+        });
+    };
 
     const generateDayHeaders = () => {
         const start = new Date(startDate);
@@ -100,7 +119,7 @@ export default function Itinerary({
                                             color="#6B7280"
                                         />
                                         <TouchableOpacity
-                                            onPress={() => handleDayPress(day.dayNumber)}
+                                            onPress={() => router.push(`/trip/${tripId}/day-detail?day=${day.dayNumber}`)}
                                             className="ml-3"
                                         >
                                             <Ionicons
@@ -114,141 +133,63 @@ export default function Itinerary({
 
                                 {!collapsedDays[day.dayNumber] && (
                                     <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
-                                        {(() => {
-                                            const isoDate = toLocalISODate(day.date);
-                                            const activities = groupedActivities[isoDate] || [];
-
-                                            if (activities.length === 0) {
-                                                return (
-                                                    <Text className="text-neutral-textSecondary text-center py-4">
-                                                        Tap to add activities
-                                                    </Text>
-                                                );
-                                            }
-
-                                            return (
-                                                <View className="space-y-3">
-                                                    {activities.map((activity) => (
-                                                        <View key={activity.id} className="bg-white rounded-lg p-3 border border-neutral-divider">
-                                                            <View className="flex-row justify-between items-start">
-                                                                <View className="flex-1">
-                                                                    <Text className="font-medium text-neutral-textPrimary mb-1">
-                                                                        {activity.title || 'Untitled Activity'}
-                                                                    </Text>
-                                                                    <Text className="text-sm text-neutral-textSecondary mb-1">
-                                                                        {activity.location_name}
-                                                                    </Text>
-                                                                    {activity.start_time && (
-                                                                        <Text className="text-xs text-neutral-textTertiary">
-                                                                            {activity.start_time} - {activity.end_time || 'TBD'}
+                                        {loadingActivities[day.dayNumber] ? (
+                                            <Text className="text-neutral-textSecondary text-center py-4">
+                                                Loading activities...
+                                            </Text>
+                                        ) : dayActivities[day.dayNumber] &&
+                                            dayActivities[day.dayNumber].length > 0 ? (
+                                            <View className="space-y-2">
+                                                <Text className="text-sm text-neutral-textSecondary mb-3">
+                                                    {dayActivities[day.dayNumber].length} activities
+                                                </Text>
+                                                {dayActivities[day.dayNumber].map(
+                                                    (activity, index) => {
+                                                        const panResponder = createPanResponder(index);
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={activity.id || index}
+                                                                className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
+                                                                onPress={() => router.push(`/trip/${tripId}/day-detail?day=${day.dayNumber}`)}
+                                                            >
+                                                                <View className="flex-row justify-between items-center">
+                                                                    <View className="flex-1">
+                                                                        <Text className="font-medium text-neutral-textPrimary">
+                                                                            {activity.location_name ? activity.location_name.split(',')[0].trim() : 'Unknown Location'}
                                                                         </Text>
                                                                     </View>
-                                                            </View>
-                                                            <TouchableOpacity
-                                                                onPress={() => handleDayPress(day.dayNumber)}
-                                                                className="ml-2"
-                                                            >
-                                                                <Ionicons name="create" size={16} color="#6B7280" />
+                                                                    <View
+                                                                        {...panResponder.panHandlers}
+                                                                        className="ml-3 p-2"
+                                                                    >
+                                                                        <Ionicons
+                                                                            name="reorder-four"
+                                                                            size={16}
+                                                                            color={draggedItem === index ? "#3B82F6" : "#6B7280"}
+                                                                        />
+                                                                    </View>
+                                                                </View>
                                                             </TouchableOpacity>
-                                                        </View>
-                                                        </View>
-                                            ))}
+                                                        );
+                                                    },
+                                                )}
+                                            </View>
+                                        ) : aiItinerary[day.dayNumber - 1] ? (
+                                            <Text className="text-neutral-textPrimary">
+                                                {aiItinerary[day.dayNumber - 1]}
+                                            </Text>
+                                        ) : (
+                                            <Text className="text-neutral-textSecondary text-center py-4">
+                                                Tap to add activities
+                                            </Text>
+                                        )}
                                     </View>
-                                );
-                                        })()}
-                        </View>
-                    )}
-                </TouchableOpacity>
-                        </View>
-    ))
-}
-                </ScrollView >
-            )}
-        </View >
-            </View >
-        );
-return (
-    <View>
-        {activities.slice(0, 3).map((activity) => (
-            <Text key={activity.id} className="text-neutral-textPrimary mb-1">
-                • {formatActivitySummary(activity)}
-            </Text>
-        ))}
-        {activities.length > 3 && (
-            <Text className="text-neutral-textSecondary text-sm">
-                {isoDate}
-                {isActivityAssignedToThisDay(activities[0], isoDate) && (
-                    <Text className="text-green-600 ml-2">• Assigned to this day</Text>
-                )}
-                + {activities.length - 3} more
-            </Text>
-        )}
-    </View>
-);
-}) ()
-}
-                                        </View >
-                                </View >
-                    </TouchableOpacity >
-                    ))}
-                </ScrollView >
-            </View >
-        );
-{
-    !collapsedDays[day.dayNumber] && (
-        <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
-            {loadingActivities[day.dayNumber] ? (
-                <Text className="text-neutral-textSecondary text-center py-4">
-                    Loading activities...
-                </Text>
-            ) : dayActivities[day.dayNumber] && dayActivities[day.dayNumber].length > 0 ? (
-                <View className="space-y-3">
-                    {dayActivities[day.dayNumber].map((activity, index) => (
-                        <View key={activity.id || index} className="bg-white rounded-lg p-3 border border-neutral-divider">
-                            <View className="flex-row justify-between items-start">
-                                <View className="flex-1">
-                                    <Text className="font-medium text-neutral-textPrimary mb-1">
-                                        {activity.title || 'Untitled Activity'}
-                                    </Text>
-                                    <Text className="text-sm text-neutral-textSecondary mb-1">
-                                        {activity.location_name}
-                                    </Text>
-                                    {activity.start_time && (
-                                        <Text className="text-xs text-neutral-textTertiary">
-                                            {activity.start_time} - {activity.end_time || 'TBD'}
-                                        </Text>
-                                    )}
-                                </View>
-                                <TouchableOpacity
-                                    onPress={() => handleDayPress(day.dayNumber)}
-                                    className="ml-2"
-                                >
-                                    <Ionicons name="create" size={16} color="#6B7280" />
-                                </TouchableOpacity>
-                            </View>
+                                )}
+                            </TouchableOpacity>
                         </View>
                     ))}
-                </View>
-            ) : aiItinerary[day.dayNumber - 1] ? (
-                <Text className="text-neutral-textPrimary">
-                    {aiItinerary[day.dayNumber - 1]}
-                </Text>
-            ) : (
-                <Text className="text-neutral-textSecondary text-center py-4">
-                    Tap to add activities
-                </Text>
+                </ScrollView>
             )}
         </View>
-    )
-}
-                                    </TouchableOpacity >
-                                </View >
-                            ))
-}
-                        </ScrollView >
-                    )}
-                </View >
-            </View >
-        );
-    }
+    );
 }
