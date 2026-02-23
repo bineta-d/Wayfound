@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
+  deleteTrip,
   getTripById,
   getTripMembers,
-  deleteTrip,
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
-import ItineraryScreen from "./itinerary";
-import CollaboratorsScreen from "./collaborators";
 import BudgetScreen from "./budget";
-import BookingsScreen from "./bookings";
+import Collaboration from "./collaboration";
+import CollaboratorsScreen from "./collaborators";
+import GenerateItinerary from "./generate-itinerary";
+import ItineraryScreen from "./itinerary";
+import ReservationsSection from "./reservations";
+import TargetSpots from "./target-spots";
 
 export default function TripOverviewScreen() {
   const { tripId } = useLocalSearchParams();
@@ -20,6 +23,42 @@ export default function TripOverviewScreen() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Trip_member[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // State for new components
+  const [aiItinerary, setAiItinerary] = useState<string[]>([]);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [targetSpots, setTargetSpots] = useState<string[]>([]);
+  const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
+  const [isItineraryCollapsed, setIsItineraryCollapsed] = useState(false);
+  const [dayActivities, setDayActivities] = useState<Record<number, any[]>>({});
+  const [loadingActivities, setLoadingActivities] = useState<Record<number, boolean>>({});
+  const [groupedActivities, setGroupedActivities] = useState<Record<string, any[]>>({});
+
+  const toggleDayCollapse = (dayNumber: number) => {
+    setCollapsedDays((prev) => ({
+      ...prev,
+      [dayNumber]: !prev[dayNumber],
+    }));
+  };
+
+  const toggleItineraryCollapse = () => {
+    setIsItineraryCollapsed(!isItineraryCollapsed);
+  };
+
+  const addTargetSpot = (spot: string) => {
+    if (spot.trim()) {
+      setTargetSpots((prev) => [...prev, spot.trim()]);
+    }
+  };
+
+  const removeTargetSpot = (index: number) => {
+    setTargetSpots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMarkerNavigate = (a: any) => {
+    // Navigate to day detail for the activity
+    router.push(`/trip/${tripId}/day-detail?day=1`);
+  };
 
   useEffect(() => {
     if (tripId) {
@@ -87,7 +126,7 @@ export default function TripOverviewScreen() {
 
   return (
     <>
-      <ScrollView className="flex-1 bg-gray-50">
+      <ScrollView className="flex-1 bg-gray-50 m">
         {/* Trip Header */}
         <View className="bg-white px-6 py-6 mb-2">
           <Text className="text-3xl font-bold text-gray-800 mb-2">
@@ -115,16 +154,49 @@ export default function TripOverviewScreen() {
           </View>
         </View>
 
-        {/* Itinerary Section */}
-        <ItineraryScreen
-          tripId={tripId as string}
-          startDate={trip.start_date}
-          endDate={trip.end_date}
-          destination={trip.destination}
-        />
+        {/* Reservations Section */}
+        <View className="bg-white px-6 mb-1">
+          <ReservationsSection />
+        </View>
 
-        {/* Bookings Section */}
-        <BookingsScreen />
+        {/* Generate Itinerary Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <GenerateItinerary
+            destination={trip.destination}
+            duration={Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24))}
+            onItineraryGenerated={setAiItinerary}
+            loading={loadingAI}
+            setLoading={setLoadingAI}
+            activities={Object.values(groupedActivities).flat()}
+            onMarkerNavigate={handleMarkerNavigate}
+          /></View>
+
+        {/* Itinerary Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <ItineraryScreen
+            tripId={tripId as string}
+            startDate={trip.start_date}
+            endDate={trip.end_date}
+            aiItinerary={aiItinerary}
+            onToggleDayCollapse={toggleDayCollapse}
+            onToggleItineraryCollapse={toggleItineraryCollapse}
+            collapsedDays={collapsedDays}
+            isItineraryCollapsed={isItineraryCollapsed}
+            dayActivities={dayActivities}
+            loadingActivities={loadingActivities}
+          /></View>
+
+        {/* Target Spots Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <TargetSpots
+            targetSpots={targetSpots}
+            onAddSpot={addTargetSpot}
+            onRemoveSpot={removeTargetSpot}
+          /></View>
+
+
+        {/* Collaboration Section */}
+        <Collaboration />
 
         {/* Collaborators Section */}
         <CollaboratorsScreen members={members} />
