@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from 'react';
+import { PanResponder, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
 
 interface ItineraryProps {
@@ -30,6 +30,25 @@ export default function Itinerary({
     loadingActivities,
 }: ItineraryProps) {
     const router = useRouter();
+    const [draggedItem, setDraggedItem] = useState<number | null>(null);
+
+    const createPanResponder = (index: number) => {
+        return PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderGrant: () => {
+                setDraggedItem(index);
+                console.log('Start dragging item:', index);
+            },
+            onPanResponderMove: () => {
+                // Handle drag movement
+            },
+            onPanResponderRelease: () => {
+                setDraggedItem(null);
+                console.log('End dragging item:', index);
+            },
+        });
+    };
 
     const generateDayHeaders = () => {
         const start = new Date(startDate);
@@ -100,7 +119,7 @@ export default function Itinerary({
                                             color="#6B7280"
                                         />
                                         <TouchableOpacity
-                                            onPress={() => handleDayPress(day.dayNumber)}
+                                            onPress={() => router.push(`/trip/${tripId}/day-detail?day=${day.dayNumber}`)}
                                             className="ml-3"
                                         >
                                             <Ionicons
@@ -125,37 +144,34 @@ export default function Itinerary({
                                                     {dayActivities[day.dayNumber].length} activities
                                                 </Text>
                                                 {dayActivities[day.dayNumber].map(
-                                                    (activity, index) => (
-                                                        <View
-                                                            key={activity.id || index}
-                                                            className="bg-white rounded-lg p-3 border border-neutral-divider"
-                                                        >
-                                                            <View className="flex-row justify-between items-center">
-                                                                <View className="flex-1 flex-row items-center">
-                                                                    <Text className="text-sm text-neutral-textTertiary mr-3">
-                                                                        {index + 1}.
-                                                                    </Text>
+                                                    (activity, index) => {
+                                                        const panResponder = createPanResponder(index);
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={activity.id || index}
+                                                                className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
+                                                                onPress={() => router.push(`/trip/${tripId}/day-detail?day=${day.dayNumber}`)}
+                                                            >
+                                                                <View className="flex-row justify-between items-center">
                                                                     <View className="flex-1">
                                                                         <Text className="font-medium text-neutral-textPrimary">
                                                                             {activity.location_name ? activity.location_name.split(',')[0].trim() : 'Unknown Location'}
                                                                         </Text>
                                                                     </View>
+                                                                    <View
+                                                                        {...panResponder.panHandlers}
+                                                                        className="ml-3 p-2"
+                                                                    >
+                                                                        <Ionicons
+                                                                            name="reorder-four"
+                                                                            size={16}
+                                                                            color={draggedItem === index ? "#3B82F6" : "#6B7280"}
+                                                                        />
+                                                                    </View>
                                                                 </View>
-                                                                <TouchableOpacity
-                                                                    onPress={() =>
-                                                                        handleDayPress(day.dayNumber)
-                                                                    }
-                                                                    className="ml-3"
-                                                                >
-                                                                    <Ionicons
-                                                                        name="reorder-four"
-                                                                        size={16}
-                                                                        color="#6B7280"
-                                                                    />
-                                                                </TouchableOpacity>
-                                                            </View>
-                                                        </View>
-                                                    ),
+                                                            </TouchableOpacity>
+                                                        );
+                                                    },
                                                 )}
                                             </View>
                                         ) : aiItinerary[day.dayNumber - 1] ? (
