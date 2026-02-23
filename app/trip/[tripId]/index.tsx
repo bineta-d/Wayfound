@@ -4,9 +4,10 @@ import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
+  getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
-  getTripMembers,
+  getTripMembers
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
@@ -73,6 +74,14 @@ export default function TripOverviewScreen() {
       console.log('📍 Grouped activities loaded:', grouped);
       setGroupedActivities(grouped);
 
+      // Load activities for each day individually after trip data is loaded
+      if (trip) {
+        const days = generateDayHeaders();
+        days.forEach((day) => {
+          loadDayActivities(day.dayNumber);
+        });
+      }
+
       // Log activities with coordinates
       const allActivities = Object.values(grouped).flat();
       const activitiesWithCoords = allActivities.filter(
@@ -85,12 +94,42 @@ export default function TripOverviewScreen() {
     }
   };
 
-  useEffect(() => {
-    if (tripId) {
-      loadTripData();
-      loadGroupedActivities();
+  const loadDayActivities = async (dayNumber: number) => {
+    if (!tripId || !trip) return;
+    setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
+    try {
+      const dayDate = new Date(trip.start_date);
+      dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
+      const dateStr = dayDate.toISOString().split("T")[0];
+
+      const activities = await getTripActivitiesForDay(tripId as string, dateStr);
+
+      setDayActivities((prev) => ({ ...prev, [dayNumber]: activities }));
+      console.log(`📅 Loaded ${activities.length} activities for day ${dayNumber}`);
+    } catch (e) {
+      console.log(`Error loading day ${dayNumber} activities:`, e);
+    } finally {
+      setLoadingActivities((prev) => ({ ...prev, [dayNumber]: false }));
     }
-  }, [tripId]);
+  };
+
+  const generateDayHeaders = () => {
+    if (!trip) return [];
+    const start = new Date(trip.start_date);
+    const end = new Date(trip.end_date);
+    const days = [];
+    const current = new Date(start);
+
+    while (current <= end) {
+      days.push({
+        date: new Date(current),
+        dayNumber: days.length + 1,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+
+    return days;
+  };
 
   const loadTripData = async () => {
     try {
@@ -105,6 +144,23 @@ export default function TripOverviewScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (tripId) {
+      loadTripData();
+      loadGroupedActivities();
+    }
+  }, [tripId]);
+
+  useEffect(() => {
+    // Load day activities when trip data is available
+    if (trip && tripId) {
+      const days = generateDayHeaders();
+      days.forEach((day) => {
+        loadDayActivities(day.dayNumber);
+      });
+    }
+  }, [trip, tripId]);
 
   const handleDeleteTrip = () => {
     Alert.alert(

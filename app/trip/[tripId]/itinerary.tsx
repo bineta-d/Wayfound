@@ -120,36 +120,35 @@ export default function Itinerary({
                                             </Text>
                                         ) : dayActivities[day.dayNumber] &&
                                             dayActivities[day.dayNumber].length > 0 ? (
-                                            <View className="space-y-3">
+                                            <View className="space-y-2">
+                                                <Text className="text-sm text-neutral-textSecondary mb-3">
+                                                    {dayActivities[day.dayNumber].length} activities
+                                                </Text>
                                                 {dayActivities[day.dayNumber].map(
                                                     (activity, index) => (
                                                         <View
                                                             key={activity.id || index}
                                                             className="bg-white rounded-lg p-3 border border-neutral-divider"
                                                         >
-                                                            <View className="flex-row justify-between items-start">
-                                                                <View className="flex-1">
-                                                                    <Text className="font-medium text-neutral-textPrimary mb-1">
-                                                                        {activity.title || "Untitled Activity"}
+                                                            <View className="flex-row justify-between items-center">
+                                                                <View className="flex-1 flex-row items-center">
+                                                                    <Text className="text-sm text-neutral-textTertiary mr-3">
+                                                                        {index + 1}.
                                                                     </Text>
-                                                                    <Text className="text-sm text-neutral-textSecondary mb-1">
-                                                                        {activity.location_name}
-                                                                    </Text>
-                                                                    {activity.start_time && (
-                                                                        <Text className="text-xs text-neutral-textTertiary">
-                                                                            {activity.start_time} -{" "}
-                                                                            {activity.end_time || "TBD"}
+                                                                    <View className="flex-1">
+                                                                        <Text className="font-medium text-neutral-textPrimary">
+                                                                            {activity.location_name ? activity.location_name.split(',')[0].trim() : 'Unknown Location'}
                                                                         </Text>
-                                                                    )}
+                                                                    </View>
                                                                 </View>
                                                                 <TouchableOpacity
                                                                     onPress={() =>
                                                                         handleDayPress(day.dayNumber)
                                                                     }
-                                                                    className="ml-2"
+                                                                    className="ml-3"
                                                                 >
                                                                     <Ionicons
-                                                                        name="create"
+                                                                        name="reorder-four"
                                                                         size={16}
                                                                         color="#6B7280"
                                                                     />
