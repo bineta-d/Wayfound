@@ -17,7 +17,7 @@ interface ItineraryProps {
     loadingActivities: Record<number, boolean>;
 }
 
-export default function Itinerary({
+export default function ItineraryScreen({
     tripId,
     startDate,
     endDate,
