@@ -9,7 +9,6 @@ import {
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
-import Collaboration from "./collaboration";
 import CollaboratorsScreen from "./collaborators";
 import GenerateItinerary from "./generate-itinerary";
 import ItineraryScreen from "./itinerary";
@@ -171,6 +170,15 @@ export default function TripOverviewScreen() {
             onMarkerNavigate={handleMarkerNavigate}
           /></View>
 
+        {/* Target Spots Section */}
+        <View className="bg-white px-6 py-6 mb-2">
+          <TargetSpots
+            targetSpots={targetSpots}
+            onAddSpot={addTargetSpot}
+            onRemoveSpot={removeTargetSpot}
+          /></View>
+
+
         {/* Itinerary Section */}
         <View className="bg-white px-6 py-6 mb-2">
           <ItineraryScreen
@@ -186,17 +194,6 @@ export default function TripOverviewScreen() {
             loadingActivities={loadingActivities}
           /></View>
 
-        {/* Target Spots Section */}
-        <View className="bg-white px-6 py-6 mb-2">
-          <TargetSpots
-            targetSpots={targetSpots}
-            onAddSpot={addTargetSpot}
-            onRemoveSpot={removeTargetSpot}
-          /></View>
-
-
-        {/* Collaboration Section */}
-        <Collaboration />
 
         {/* Collaborators Section */}
         <CollaboratorsScreen members={members} />
