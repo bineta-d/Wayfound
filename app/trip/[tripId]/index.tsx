@@ -153,12 +153,19 @@ export default function TripOverviewScreen() {
   }, [tripId]);
 
   useEffect(() => {
-    // Load day activities when trip data is available
-    if (trip && tripId) {
+    // Load activities for all days when component mounts
+    if (trip) {
       const days = generateDayHeaders();
       days.forEach((day) => {
         loadDayActivities(day.dayNumber);
       });
+
+      // Set default collapse state: all days collapsed except first day
+      const defaultCollapsed: Record<number, boolean> = {};
+      days.forEach((day) => {
+        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1; // Only first day is uncollapsed
+      });
+      setCollapsedDays(defaultCollapsed);
     }
   }, [trip, tripId]);
 
