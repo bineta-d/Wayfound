@@ -1,6 +1,6 @@
 import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
-import { MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -326,18 +326,18 @@ export default function TripOverviewScreen() {
             {/* Trip Header */}
             <HeaderSection title={trip.title} trip={trip} />
 
-            {/* Tabs Section (always present) */}
+            {/* Tabs Section  */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Reservation Icons Scroll (tabbing logic, hardcoded icons as tabs) */}
+            {/* Reservation Icons Scroll*/}
             <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
               {[
-                { label: "Accommodation", icon: "hotel" },
-                { label: "Flight", icon: "flight" },
+                { label: "Accommodation", icon: "bed" },
+                { label: "Flight", icon: "airplane" },
                 { label: "Train", icon: "train" },
-                { label: "Bus", icon: "directions-bus" },
-                { label: "Car Rental", icon: "directions-car" },
-                { label: "Activities", icon: "confirmation-number" },
+                { label: "Bus", icon: "bus" },
+                { label: "Car Rental", icon: "car" },
+                { label: "Activities", icon: "ticket" },
               ].map((tab, idx) => (
                 <TouchableOpacity
                   key={tab.label}
@@ -355,9 +355,9 @@ export default function TripOverviewScreen() {
                     }}
                   >
                     <Text>
-                      <MaterialIcons
+                      <Ionicons
                         name={tab.icon as any}
-                        size={21}
+                        size={20}
                         color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
                       />
                     </Text>
