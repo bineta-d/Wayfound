@@ -1,6 +1,7 @@
-import { generateTripPlan } from "@/lib/ai";
+import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React from 'react';
+import { useRouter } from "expo-router";
+import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import MapView, {
   Callout,
@@ -11,6 +12,9 @@ import MapView, {
 import { Activity as TripActivity } from "../../../lib/TripService";
 
 interface GenerateItineraryProps {
+  startDate: string;
+  endDate: string;
+  tripId: string;
   destination: string;
   duration: number;
   onItineraryGenerated: (itinerary: string[]) => void;
@@ -21,13 +25,16 @@ interface GenerateItineraryProps {
 }
 
 export default function GenerateItinerary({
+  startDate,
+  endDate,
+  tripId,
   destination,
   duration,
   onItineraryGenerated,
   loading,
   setLoading,
   activities,
-  onMarkerNavigate
+  onMarkerNavigate,
 }: GenerateItineraryProps) {
   const [mapRegion, setMapRegion] = React.useState<Region>({
     latitude: 25.7617,
@@ -35,24 +42,6 @@ export default function GenerateItinerary({
     latitudeDelta: 0.15,
     longitudeDelta: 0.15,
   });
-
-  const handleGenerate = async () => {
-    try {
-      setLoading(true);
-      const result = await generateTripPlan({
-        destination: destination,
-        duration: duration,
-        budget: 1500,
-        preferences: ["food", "culture", "exploring"],
-      });
-      console.log("AI RESULT:", result);
-      onItineraryGenerated(result.itinerary);
-      setLoading(false);
-    } catch (err) {
-      console.log("AI ERROR:", err);
-      setLoading(false);
-    }
-  };
 
   const mapActivities = activities.filter(
     (a) => typeof a.latitude === "number" && typeof a.longitude === "number",
@@ -87,7 +76,7 @@ export default function GenerateItinerary({
   };
 
   const handleZoomIn = () => {
-    setMapRegion(prev => ({
+    setMapRegion((prev) => ({
       ...prev,
       latitudeDelta: prev.latitudeDelta * 0.8,
       longitudeDelta: prev.longitudeDelta * 0.8,
@@ -95,7 +84,7 @@ export default function GenerateItinerary({
   };
 
   const handleZoomOut = () => {
-    setMapRegion(prev => ({
+    setMapRegion((prev) => ({
       ...prev,
       latitudeDelta: prev.latitudeDelta * 1.2,
       longitudeDelta: prev.longitudeDelta * 1.2,
@@ -120,6 +109,7 @@ export default function GenerateItinerary({
     if (e) return `Ends ${e}`;
     return "";
   };
+  const router = useRouter();
 
   return (
     <View className="bg-neutral-surface rounded-lg">
@@ -148,13 +138,17 @@ export default function GenerateItinerary({
                 onPress={handleZoomOut}
                 className="p-2 rounded-lg bg-neutral-background mr-2"
               >
-                <Text className="text-neutral-textPrimary font-semibold">−</Text>
+                <Text className="text-neutral-textPrimary font-semibold">
+                  −
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleZoomIn}
                 className="p-2 rounded-lg bg-neutral-background"
               >
-                <Text className="text-neutral-textPrimary font-semibold">+</Text>
+                <Text className="text-neutral-textPrimary font-semibold">
+                  +
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -213,7 +207,11 @@ export default function GenerateItinerary({
       <TouchableOpacity
         activeOpacity={0.9}
         className="mb-6 w-full"
-        onPress={handleGenerate}
+        onPress={() => {
+          router.push(
+            `/ai-planner?tripId=${tripId}&destination=${encodeURIComponent(destination)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}` as any,
+          );
+        }}
       >
         <LinearGradient
           colors={["#D81E5B", "#FF4D4D"]}
@@ -221,8 +219,9 @@ export default function GenerateItinerary({
           end={{ x: 1, y: 1 }}
           style={{ borderRadius: 12 }}
         >
-          <View className="px-4 py-3 rounded-lg items-center">
-            <Text className="text-white font-semibold">
+          <View className="px-4 py-3 rounded-lg items-center flex-row justify-center">
+            <MaterialIcons name="auto-awesome" size={20} color="white" />
+            <Text className="text-white font-semibold ml-2">
               Generate Itinerary
             </Text>
           </View>
