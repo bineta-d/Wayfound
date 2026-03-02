@@ -1,15 +1,16 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  PanResponder,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    PanResponder,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
-
+import TripMap from "./trip-map";
 interface ItineraryProps {
   tripId: string;
   startDate: string;
@@ -82,7 +83,43 @@ export default function ItineraryScreen({
   };
 
   return (
-    <View className="mb-0">
+    <View className="mb-0 px-6">
+      <TripMap
+        tripId={tripId}
+        startDate={startDate}
+        endDate={endDate}
+        destination={destination}
+        activities={Object.values(dayActivities).flat()}
+        onMarkerNavigate={(activity) => {
+          router.push(`/trip/${tripId}/day-detail?activityId=${activity.id}`);
+        }}
+      />
+
+      {/* Generate Itinerary Button (same as overview) */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        className="mb-6 w-full"
+        onPress={() => {
+          router.push(
+            `/ai-planner?tripId=${tripId}&destination=${encodeURIComponent(destination)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+          );
+        }}
+      >
+        <LinearGradient
+          colors={["#D81E5B", "#FF4D4D"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 12 }}
+        >
+          <View className="px-4 py-3 rounded-lg items-center flex-row justify-center">
+            <MaterialIcons name="auto-awesome" size={20} color="white" />
+            <Text className="text-white font-semibold ml-2">
+              Generate Itinerary
+            </Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+
       <TouchableOpacity
         onPress={onToggleItineraryCollapse}
         className="flex-row justify-between items-center mb-4"
