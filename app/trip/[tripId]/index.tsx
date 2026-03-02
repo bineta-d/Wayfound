@@ -1,5 +1,6 @@
 import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -328,77 +329,67 @@ export default function TripOverviewScreen() {
             {/* Tabs Section (always present) */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Reservation Icons Scroll (tabbing logic) */}
-            <View className="px-6 pt-2">
-              <ReservationsSection />
+            {/* Reservation Icons Scroll (tabbing logic, hardcoded icons as tabs) */}
+            <View className="px-6 pt-2 flex-row justify-between">
+              {[
+                { label: "Accommodation", icon: "hotel" },
+                { label: "Flight", icon: "flight" },
+                { label: "Train", icon: "train" },
+                { label: "Bus", icon: "directions-bus" },
+                { label: "Car Rental", icon: "directions-car" },
+                { label: "Activities", icon: "confirmation-number" },
+              ].map((tab, idx) => (
+                <TouchableOpacity
+                  key={tab.label}
+                  className="items-center pt-3"
+                  onPress={() => setReservationTab(idx)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={{
+                      backgroundColor:
+                        reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
+                      borderRadius: 999,
+                      padding: 12,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text>
+                      <MaterialIcons
+                        name={tab.icon as any}
+                        size={23}
+                        color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
+                      />
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: reservationTab === idx ? "#D81E5B" : "#6B7280",
+                      fontWeight: reservationTab === idx ? "bold" : "normal",
+                      fontSize: 12,
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            {/* Feature Guide for Reservations Tab Implementation */}
-            {/* <View className="px-6 py-4 mb-2 bg-neutral-background rounded-lg border border-neutral-divider">
-              <Text className="text-lg font-bold mb-2 text-crimsonMagenta">
-                Reservations Tab Feature Guide
+            {/* Active tab content: */}
+            <View className="px-6 py-6">
+              <Text className="text-xl font-bold text-crimsonMagenta">
+                {
+                  [
+                    "Accommodation Files Page",
+                    "Flights Files Page",
+                    "Train Files Page",
+                    "Bus Files Page",
+                    "Car Rental Files Page",
+                    "Activities Files Page",
+                  ][reservationTab]
+                }
               </Text>
-              <Text className="text-base mb-2 text-neutral-textPrimary">
-                To implement the reservation type tabs below:
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                <Text style={{ fontWeight: "bold" }}>Logic Overview:</Text>
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                - Each reservation icon below acts as a tab. When clicked, set
-                the active reservation tab and display the relevant content area
-                below. - For each tab, fetch and render all files uploaded to
-                the corresponding storage bucket for this trip (e.g.,
-                hotel/accommodation files from the 'accommodations' bucket,
-                flight files from the 'flights' bucket, etc.). - Each file
-                should be rendered as a clickable document (image, PDF, docx,
-                etc.). On click, open a modal for full preview. - Integrate the
-                email-scanner feature so scanned reservation emails are parsed
-                and uploaded to the correct bucket and shown in the relevant
-                tab.
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                <Text style={{ fontWeight: "bold" }}>
-                  Required Storage Buckets:
-                </Text>
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                - Create individual storage buckets for each reservation type:
-                {"\n"} • accommodations
-                {"\n"} • flights
-                {"\n"} • trains
-                {"\n"} • buses
-                {"\n"} • car_rentals
-                {"\n"} • activities
-                {"\n"} • (currently only 'trip-uploads' exists)
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                <Text style={{ fontWeight: "bold" }}>
-                  Email-Scanner Integration:
-                </Text>
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                - For each tab, integrate the email-scanner so reservation
-                confirmation emails are parsed and relevant files (PDFs,
-                screenshots, etc.) are automatically uploaded to the correct
-                bucket and displayed in the tab. - See the feature/email-scanner
-                branch for implementation details.
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                <Text style={{ fontWeight: "bold" }}>Next Steps:</Text>
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                - Create individual storage buckets for each reservation type.
-                {"\n"}- Implement file fetching and rendering logic for each
-                tab.
-                {"\n"}- Integrate email-scanner feature for automated uploads.
-              </Text>
-              <Text className="text-base mb-2 text-neutral-textSecondary">
-                <Text style={{ fontWeight: "bold" }}>Note:</Text> The
-                ReservationsSection component should remain unchanged for use in
-                other screens. Do not modify the icon UI or styles.
-              </Text>
-            </View> */}
+            </View>
           </View>
         )}
         {/* Budget Tab */}
