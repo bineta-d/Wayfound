@@ -3,11 +3,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    PanResponder,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  PanResponder,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";

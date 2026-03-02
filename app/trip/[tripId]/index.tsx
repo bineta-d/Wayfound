@@ -21,6 +21,8 @@ import TargetSpots from "./target-spots";
 
 export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
+  // Reservation tab state for icons
+  const [reservationTab, setReservationTab] = useState(0);
   const { tripId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -323,9 +325,80 @@ export default function TripOverviewScreen() {
             {/* Trip Header */}
             <HeaderSection title={trip.title} trip={trip} />
 
+            {/* Tabs Section (always present) */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            <ReservationsSection />
+            {/* Reservation Icons Scroll (tabbing logic) */}
+            <View className="px-6 pt-2">
+              <ReservationsSection />
+            </View>
+
+            {/* Feature Guide for Reservations Tab Implementation */}
+            {/* <View className="px-6 py-4 mb-2 bg-neutral-background rounded-lg border border-neutral-divider">
+              <Text className="text-lg font-bold mb-2 text-crimsonMagenta">
+                Reservations Tab Feature Guide
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textPrimary">
+                To implement the reservation type tabs below:
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                <Text style={{ fontWeight: "bold" }}>Logic Overview:</Text>
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                - Each reservation icon below acts as a tab. When clicked, set
+                the active reservation tab and display the relevant content area
+                below. - For each tab, fetch and render all files uploaded to
+                the corresponding storage bucket for this trip (e.g.,
+                hotel/accommodation files from the 'accommodations' bucket,
+                flight files from the 'flights' bucket, etc.). - Each file
+                should be rendered as a clickable document (image, PDF, docx,
+                etc.). On click, open a modal for full preview. - Integrate the
+                email-scanner feature so scanned reservation emails are parsed
+                and uploaded to the correct bucket and shown in the relevant
+                tab.
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                <Text style={{ fontWeight: "bold" }}>
+                  Required Storage Buckets:
+                </Text>
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                - Create individual storage buckets for each reservation type:
+                {"\n"} • accommodations
+                {"\n"} • flights
+                {"\n"} • trains
+                {"\n"} • buses
+                {"\n"} • car_rentals
+                {"\n"} • activities
+                {"\n"} • (currently only 'trip-uploads' exists)
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                <Text style={{ fontWeight: "bold" }}>
+                  Email-Scanner Integration:
+                </Text>
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                - For each tab, integrate the email-scanner so reservation
+                confirmation emails are parsed and relevant files (PDFs,
+                screenshots, etc.) are automatically uploaded to the correct
+                bucket and displayed in the tab. - See the feature/email-scanner
+                branch for implementation details.
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                <Text style={{ fontWeight: "bold" }}>Next Steps:</Text>
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                - Create individual storage buckets for each reservation type.
+                {"\n"}- Implement file fetching and rendering logic for each
+                tab.
+                {"\n"}- Integrate email-scanner feature for automated uploads.
+              </Text>
+              <Text className="text-base mb-2 text-neutral-textSecondary">
+                <Text style={{ fontWeight: "bold" }}>Note:</Text> The
+                ReservationsSection component should remain unchanged for use in
+                other screens. Do not modify the icon UI or styles.
+              </Text>
+            </View> */}
           </View>
         )}
         {/* Budget Tab */}
