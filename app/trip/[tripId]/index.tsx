@@ -1,3 +1,6 @@
+import HeaderSection from "@/components/HeaderSection";
+import TabsSection from "@/components/TabsSection";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -18,6 +21,9 @@ import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
 
 export default function TripOverviewScreen() {
+  const [activeTab, setActiveTab] = useState(0);
+  // Reservation tab state for icons
+  const [reservationTab, setReservationTab] = useState(0);
   const { tripId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -63,12 +69,10 @@ export default function TripOverviewScreen() {
   };
 
   const handleAssignToDay = (activity: any, dayNumber: number) => {
-    // Navigate to day detail with the activity
     router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
   };
 
   const handleMarkerNavigate = (a: any) => {
-    // Navigate to day detail for activity
     router.push(`/trip/${tripId}/day-detail?day=1`);
   };
 
@@ -80,7 +84,6 @@ export default function TripOverviewScreen() {
       console.log("📍 Grouped activities loaded:", grouped);
       setGroupedActivities(grouped);
 
-      // Load activities for each day individually after trip data is loaded
       if (trip) {
         const days = generateDayHeaders();
         days.forEach((day) => {
@@ -168,17 +171,15 @@ export default function TripOverviewScreen() {
   }, [tripId]);
 
   useEffect(() => {
-    // Load activities for all days when component mounts
     if (trip) {
       const days = generateDayHeaders();
       days.forEach((day) => {
         loadDayActivities(day.dayNumber);
       });
 
-      // Set default collapse state: all days collapsed except first day
       const defaultCollapsed: Record<number, boolean> = {};
       days.forEach((day) => {
-        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1; // Only first day is uncollapsed
+        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1;
       });
       setCollapsedDays(defaultCollapsed);
     }
@@ -230,102 +231,178 @@ export default function TripOverviewScreen() {
 
   return (
     <>
-      <ScrollView className="flex-1 bg-gray-50 m">
-        {/* Trip Header */}
-        <View className="bg-white px-6 py-6 mb-2">
-          <Text className="text-3xl font-bold text-gray-800 mb-2">
-            {trip.title}
-          </Text>
-          <View className="flex-row items-center mb-2">
-            <Text className="text-gray-600 mr-2">📍</Text>
-            <Text className="text-gray-700 text-lg">{trip.destination}</Text>
-          </View>
-          <View className="flex-row items-center">
-            <Text className="text-gray-600 mr-2">📅</Text>
-            <Text className="text-gray-700">
-              {new Date(trip.start_date).toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}{" "}
-              -{" "}
-              {new Date(trip.end_date).toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
-            </Text>
-          </View>
-        </View>
+      {/* Tab Bar */}
 
-        {/* Reservations Section */}
-        <View className="bg-white px-6 mb-1">
-          <ReservationsSection />
-        </View>
+      {/* Tab Content */}
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        horizontal={false}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Overview Tab */}
+        {activeTab === 0 && (
+          <>
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} />
 
-        {/* Generate Itinerary Section */}
-        <View className="bg-white px-6 mb-2">
-          <GenerateItinerary
-            tripId={tripId as string}
-            destination={trip.destination}
-            startDate={trip.start_date}
-            endDate={trip.end_date}
-            duration={Math.ceil(
-              (new Date(trip.end_date).getTime() -
-                new Date(trip.start_date).getTime()) /
-                (1000 * 60 * 60 * 24),
+            {/* Tabs Section */}
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+
+            {/* Reservations Section */}
+            <View className="bg-white px-6 mb-1 pt-4">
+              <ReservationsSection />
+            </View>
+            {/* Generate Itinerary Section */}
+            <View className="bg-white px-6 mb-2">
+              <GenerateItinerary
+                tripId={tripId as string}
+                destination={trip.destination}
+                startDate={trip.start_date}
+                endDate={trip.end_date}
+                duration={Math.ceil(
+                  (new Date(trip.end_date).getTime() -
+                    new Date(trip.start_date).getTime()) /
+                    (1000 * 60 * 60 * 24),
+                )}
+                onItineraryGenerated={setAiItinerary}
+                loading={loadingAI}
+                setLoading={setLoadingAI}
+                activities={Object.values(groupedActivities).flat()}
+                onMarkerNavigate={handleMarkerNavigate}
+              />
+            </View>
+            {/* Target Spots Section */}
+            <View className="bg-white px-6 mb-2">
+              <TargetSpots
+                targetSpots={targetSpots}
+                onAddSpot={addTargetSpot}
+                onRemoveSpot={removeTargetSpot}
+                activities={Object.values(groupedActivities).flat()}
+                onAssignToDay={handleAssignToDay}
+              />
+            </View>
+            {/* Collaborators Section */}
+            <CollaboratorsScreen members={members} />
+            {/* Delete Button - Only for trip owners */}
+            {user?.id === trip.owner_id && (
+              <View className="px-6 py-4 mb-8">
+                <TouchableOpacity
+                  onPress={handleDeleteTrip}
+                  className="bg-red-500 px-6 py-3 rounded-lg items-center"
+                >
+                  <Text className="text-white font-semibold">Delete Trip</Text>
+                </TouchableOpacity>
+              </View>
             )}
-            onItineraryGenerated={setAiItinerary}
-            loading={loadingAI}
-            setLoading={setLoadingAI}
-            activities={Object.values(groupedActivities).flat()}
-            onMarkerNavigate={handleMarkerNavigate}
-          />
-        </View>
+          </>
+        )}
+        {/* Itinerary Tab */}
+        {activeTab === 1 && (
+          <View className="bg-white mb-2">
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} />
 
-        {/* Target Spots Section */}
-        <View className="bg-white px-6 mb-2">
-          <TargetSpots
-            targetSpots={targetSpots}
-            onAddSpot={addTargetSpot}
-            onRemoveSpot={removeTargetSpot}
-            activities={Object.values(groupedActivities).flat()}
-            onAssignToDay={handleAssignToDay}
-          />
-        </View>
+            {/* tabs Section */}
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Itinerary Section */}
-        <View className="bg-white px-6 mb-2">
-          <ItineraryScreen
-            tripId={tripId as string}
-            startDate={trip.start_date}
-            destination={trip.destination}
-            endDate={trip.end_date}
-            aiItinerary={aiItinerary}
-            onToggleDayCollapse={toggleDayCollapse}
-            onToggleItineraryCollapse={toggleItineraryCollapse}
-            collapsedDays={collapsedDays}
-            isItineraryCollapsed={isItineraryCollapsed}
-            dayActivities={dayActivities}
-            loadingActivities={loadingActivities}
-          />
-        </View>
+            <ItineraryScreen
+              tripId={tripId as string}
+              startDate={trip.start_date}
+              destination={trip.destination}
+              endDate={trip.end_date}
+              aiItinerary={aiItinerary}
+              onToggleDayCollapse={toggleDayCollapse}
+              onToggleItineraryCollapse={toggleItineraryCollapse}
+              collapsedDays={collapsedDays}
+              isItineraryCollapsed={isItineraryCollapsed}
+              dayActivities={dayActivities}
+              loadingActivities={loadingActivities}
+            />
+          </View>
+        )}
+        {/* Reservations Tab */}
+        {activeTab === 2 && (
+          <View className="bg-white mb-2">
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} />
 
-        {/* Collaborators Section */}
-        <CollaboratorsScreen members={members} />
+            {/* Tabs Section (always present) */}
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Budget Section */}
-        <BudgetScreen />
+            {/* Reservation Icons Scroll (tabbing logic, hardcoded icons as tabs) */}
+            <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
+              {[
+                { label: "Accommodation", icon: "hotel" },
+                { label: "Flight", icon: "flight" },
+                { label: "Train", icon: "train" },
+                { label: "Bus", icon: "directions-bus" },
+                { label: "Car Rental", icon: "directions-car" },
+                { label: "Activities", icon: "confirmation-number" },
+              ].map((tab, idx) => (
+                <TouchableOpacity
+                  key={tab.label}
+                  className="items-center pt-3"
+                  onPress={() => setReservationTab(idx)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={{
+                      backgroundColor:
+                        reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
+                      borderRadius: 999,
+                      padding: 12,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text>
+                      <MaterialIcons
+                        name={tab.icon as any}
+                        size={21}
+                        color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
+                      />
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: reservationTab === idx ? "#D81E5B" : "#6B7280",
+                      fontWeight: reservationTab === idx ? "bold" : "normal",
+                      fontSize: 12,
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        {/* Delete Button - Only for trip owners */}
-        {user?.id === trip.owner_id && (
-          <View className="px-6 py-4 mb-8">
-            <TouchableOpacity
-              onPress={handleDeleteTrip}
-              className="bg-red-500 px-6 py-3 rounded-lg items-center"
+            {/* Active tab content: */}
+            <View
+              className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
+              style={{ minHeight: 200 }}
             >
-              <Text className="text-white font-semibold">Delete Trip</Text>
-            </TouchableOpacity>
+              <Text className="text-xl font-bold text-crimsonMagenta text-center">
+                {
+                  [
+                    "Accommodation Files Page",
+                    "Flights Files Page",
+                    "Train Files Page",
+                    "Bus Files Page",
+                    "Car Rental Files Page",
+                    "Activities Files Page",
+                  ][reservationTab]
+                }
+              </Text>
+            </View>
+          </View>
+        )}
+        {/* Budget Tab */}
+        {activeTab === 3 && (
+          <View className="bg-white mb-2">
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} />
+
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+            <BudgetScreen />
           </View>
         )}
       </ScrollView>

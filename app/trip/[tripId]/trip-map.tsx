@@ -24,9 +24,10 @@ interface GenerateItineraryProps {
   loading: boolean;
   setLoading: (loading: boolean) => void;
 }
-export default function TripMap(
-  { activities, onMarkerNavigate }: TripMapProps,
-  {
+export default function TripMap(props: TripMapProps & Partial<GenerateItineraryProps>) {
+  const {
+    activities = [],
+    onMarkerNavigate = () => {},
     tripId,
     startDate,
     endDate,
@@ -35,8 +36,7 @@ export default function TripMap(
     onItineraryGenerated,
     loading,
     setLoading,
-  }: GenerateItineraryProps,
-) {
+  } = props;
   const router = useRouter();
 
   const mapActivities = activities.filter(

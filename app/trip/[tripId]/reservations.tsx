@@ -3,11 +3,11 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function ReservationsSection() {
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-white py-2 px-3">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="mb-4 "
+        className="mb-4"
       >
         <TouchableOpacity className="items-center mr-6">
           <View className="bg-blue-100 p-3 rounded-full mb-1">
