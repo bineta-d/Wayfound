@@ -330,7 +330,7 @@ export default function TripOverviewScreen() {
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
             {/* Reservation Icons Scroll (tabbing logic, hardcoded icons as tabs) */}
-            <View className="px-6 pt-2 flex-row justify-between">
+            <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
               {[
                 { label: "Accommodation", icon: "hotel" },
                 { label: "Flight", icon: "flight" },
@@ -357,7 +357,7 @@ export default function TripOverviewScreen() {
                     <Text>
                       <MaterialIcons
                         name={tab.icon as any}
-                        size={23}
+                        size={21}
                         color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
                       />
                     </Text>
@@ -376,8 +376,11 @@ export default function TripOverviewScreen() {
             </View>
 
             {/* Active tab content: */}
-            <View className="px-6 py-6">
-              <Text className="text-xl font-bold text-crimsonMagenta">
+            <View
+              className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
+              style={{ minHeight: 200 }}
+            >
+              <Text className="text-xl font-bold text-crimsonMagenta text-center">
                 {
                   [
                     "Accommodation Files Page",
