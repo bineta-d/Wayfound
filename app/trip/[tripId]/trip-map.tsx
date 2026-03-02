@@ -1,8 +1,6 @@
-import { MaterialIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
 import MapView, {
   Callout,
   Marker,
@@ -41,23 +39,6 @@ export default function TripMap(
 ) {
   const router = useRouter();
 
-  // const handleGenerate = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const result = await generateTripPlan({
-  //       destination: destination,
-  //       duration: duration,
-  //       budget: 1500,
-  //       preferences: ["food", "culture", "exploring"],
-  //     });
-  //     console.log("AI RESULT:", result);
-  //     onItineraryGenerated(result.itinerary);
-  //     setLoading(false);
-  //   } catch (err) {
-  //     console.log("AI ERROR:", err);
-  //     setLoading(false);
-  //   }
-  // };
   const mapActivities = activities.filter(
     (a) => typeof a.latitude === "number" && typeof a.longitude === "number",
   );
@@ -149,7 +130,7 @@ export default function TripMap(
         )}
       </View>
       <>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           activeOpacity={0.9}
           className="mb-6 w-full"
           onPress={() => {
@@ -171,7 +152,7 @@ export default function TripMap(
               </Text>
             </View>
           </LinearGradient>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </>
     </View>
   );
