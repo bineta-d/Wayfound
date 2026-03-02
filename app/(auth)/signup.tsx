@@ -3,6 +3,10 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '../../lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import Constants from 'expo-constants';
 
 export default function SignupScreen() {
     const router = useRouter();
@@ -16,6 +20,10 @@ export default function SignupScreen() {
     });
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+
+    // Complete any pending auth session when component mounts
+    WebBrowser.maybeCompleteAuthSession();
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -97,6 +105,66 @@ export default function SignupScreen() {
         setLoading(false);
     };
 
+    const handleGoogleSignUp = async () => {
+        console.log('🔍 Google SignUp: Starting Google OAuth sign up');
+        setGoogleLoading(true);
+
+        try {
+            // Ensure any existing auth session is cleared
+            WebBrowser.maybeCompleteAuthSession();
+
+            // Use Expo Router's Linking to create proper redirect URL
+            const appScheme = Constants.expoConfig?.scheme as string;
+            const redirectUrl = `${appScheme}://auth/callback`;
+            console.log('🔍 Google SignUp: App scheme:', appScheme);
+            console.log('🔍 Google SignUp: Redirect URL:', redirectUrl);
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: redirectUrl,
+                },
+            });
+
+            if (error) {
+                console.log('🔍 Google SignUp: Error:', error.message);
+                Alert.alert('Error', error.message);
+            } else if (data?.url) {
+                console.log('🔍 Google SignUp: OAuth flow initiated', data);
+
+                const result = await WebBrowser.openAuthSessionAsync(
+                    data.url,
+                    redirectUrl
+                );
+
+                console.log('🔍 Google SignUp: Auth session result:', result);
+
+                if (result.type === 'success') {
+                    console.log('🔍 Google SignUp: Authentication successful');
+                    // The auth state change will be handled by AuthContext
+                    // Wait a moment for the auth state to update, then redirect to AuthGate for profile check
+                    setTimeout(() => {
+                        router.replace('/AuthGate');
+                    }, 1000);
+                } else if (result.type === 'cancel') {
+                    console.log('🔍 Google SignUp: User cancelled');
+                    Alert.alert('Cancelled', 'Google sign up was cancelled');
+                } else {
+                    console.log('🔍 Google SignUp: Authentication failed:', result);
+                    Alert.alert('Error', 'Google sign up failed');
+                }
+            } else {
+                console.log('🔍 Google SignUp: No URL returned');
+                Alert.alert('Error', 'Failed to initiate Google sign up');
+            }
+        } catch (error: any) {
+            console.log('🔍 Google SignUp: Exception:', error);
+            Alert.alert('Error', 'Failed to initiate Google sign up');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
     return (
         <View className="flex-1 items-center justify-center bg-white p-6">
             <Text className="text-2xl font-bold mb-8">Create Account</Text>
@@ -169,6 +237,29 @@ export default function SignupScreen() {
                     onPress={() => router.push('/(auth)/login')}
                 >
                     <Text className="text-blue-500">Already have an account? Sign In</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View className="mt-8 w-full max-w-sm">
+                <View className="flex-row items-center justify-center mb-4">
+                    <View className="flex-1 h-px bg-gray-300" />
+                    <Text className="px-4 text-gray-500 text-sm">Or sign up with</Text>
+                    <View className="flex-1 h-px bg-gray-300" />
+                </View>
+
+                <TouchableOpacity
+                    className="w-full border border-gray-300 rounded-lg p-4 flex-row items-center justify-center"
+                    onPress={handleGoogleSignUp}
+                    disabled={googleLoading}
+                >
+                    <Image
+                        source={require('../../assets/google.png')}
+                        className="w-5 h-5 mr-3"
+                        resizeMode="contain"
+                    />
+                    <Text className="text-gray-700 font-semibold text-center">
+                        {googleLoading ? 'Creating account...' : 'Sign up with Google'}
+                    </Text>
                 </TouchableOpacity>
             </View>
         </View>

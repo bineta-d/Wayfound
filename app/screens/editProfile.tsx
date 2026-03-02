@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Image, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../lib/supabase';
-import { uploadProfilePicture } from '../../lib/storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, SafeAreaView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import PrimaryButton from '../../components/PrimaryButton';
+import { useAuth } from '../../context/AuthContext';
+import { uploadProfilePicture } from '../../lib/storage';
+import { supabase } from '../../lib/supabase';
 
 export default function EditProfileScreen() {
     const { user } = useAuth();
@@ -145,15 +146,10 @@ export default function EditProfileScreen() {
                     editable={false} // Email should not be editable
                 />
 
-                <TouchableOpacity
-                    onPress={handleSave}
-                    className="bg-blue-500 py-3 rounded-lg items-center"
-                    disabled={loading}
-                >
-                    <Text className="text-white font-semibold text-base">
-                        {loading ? 'Saving...' : 'Save Changes'}
-                    </Text>
-                </TouchableOpacity>
+                <PrimaryButton
+  title={loading ? 'Saving...' : 'Save Changes'}
+  onPress={handleSave}
+/>
             </View>
         </SafeAreaView>
     );

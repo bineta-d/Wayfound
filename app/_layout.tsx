@@ -5,19 +5,19 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack, Redirect } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import AuthGate from "./AuthGate";
 import "../global.css";
+import { supabase } from "@/lib/supabase";
 
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "AuthGate",
 };
-
-SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -30,9 +30,20 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
+    SplashScreen.preventAutoHideAsync().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!loaded) return;
+      try {
+        await SplashScreen.hideAsync();
+      } catch {
+        // ignore: can happen during fast refresh or if splash isn't registered
+      }
+    };
+
+    run();
   }, [loaded]);
 
   if (!loaded) {
@@ -54,18 +65,24 @@ function RootLayoutNav() {
 
 function AuthStack() {
   const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
 
-  console.log("🔍 AuthStack: Component rendering");
-  console.log("🔍 AuthStack: Loading state:", loading);
-  console.log("🔍 AuthStack: User authenticated:", !!user);
-  console.log("🔍 AuthStack: User email:", user?.email || "None");
-  console.log(
-    "🔍 AuthStack: Current route will be:",
-    loading ? "Loading" : user ? "Main App" : "Login",
-  );
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (!user && !inAuthGroup) {
+      router.replace("/(auth)/login");
+    }
+
+    if (user && inAuthGroup) {
+      router.replace("/(tabs)/home");
+    }
+  }, [user, loading, segments, router]);
 
   if (loading) {
-    console.log("🔍 AuthStack: Showing loading state");
     return null;
   }
 
@@ -74,18 +91,55 @@ function AuthStack() {
     return (
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Redirect href="/(auth)/login" />
+        <Stack.Screen name="AuthGate" options={{ headerShown: false }} />
       </Stack>
     );
   }
 
-  console.log("🔍 AuthStack: User authenticated, showing main app");
+  // Check if user needs onboarding (Google OAuth users without profile)
+  const checkOnboardingNeeded = async () => {
+    if (user?.app_metadata?.provider === 'google') {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('id, full_name, dob')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || !profile.dob) {
+        console.log("🔍 AuthStack: Google user needs onboarding");
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // For now, we'll handle onboarding in the auth state change listener
+  console.log("🔍 AuthStack: User authenticated, showing main app with AuthGate");
   return (
     <Stack>
+      {/* Auth + Main */}
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="AuthGate" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="trip" options={{ headerShown: true }} />
-      <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+
+      {/* Trip routes */}
+      <Stack.Screen name="trip/[tripId]" options={{ headerShown: true }} />
+      <Stack.Screen
+        name="trip/[tripId]/day-detail"
+        options={{ headerShown: true, title: "Day Details" }}
+      />
+
+      {/* Modals */}
+      <Stack.Screen
+        name="modal/add-activity"
+        options={{ presentation: "modal", headerShown: false }}
+      />
+      <Stack.Screen
+        name="modal/create-trip"
+        options={{ presentation: "modal", headerShown: false }}
+      />
+
+      {/* Other screens */}
       <Stack.Screen
         name="screens/editProfile"
         options={{
@@ -94,7 +148,6 @@ function AuthStack() {
           headerBackTitle: "",
         }}
       />
-      <Redirect href="/(tabs)/home" />
     </Stack>
   );
 }
