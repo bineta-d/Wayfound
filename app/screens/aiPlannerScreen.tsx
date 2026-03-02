@@ -1,6 +1,8 @@
 import { generateTripPlan } from "@/lib/ai";
 import { parseAIItinerary } from "@/lib/aiParser";
 import { enrichActivities } from "@/lib/enrichActivities";
+import { saveItinerary } from "@/lib/itineraryService";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -10,15 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-
-
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 export default function AIPlannerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [loadingAI, setLoadingAI] = useState(false);
-
 
   const [prompt, setPrompt] = useState("");
   const [budget, setBudget] = useState("");
@@ -27,7 +26,7 @@ export default function AIPlannerScreen() {
 
   const toggleInterest = (value: string) => {
     if (interests.includes(value)) {
-      setInterests(interests.filter(i => i !== value));
+      setInterests(interests.filter((i) => i !== value));
     } else {
       setInterests([...interests, value]);
     }
@@ -35,7 +34,6 @@ export default function AIPlannerScreen() {
 
   return (
     <View className="flex-1">
-
       <KeyboardAwareScrollView
         className="flex-1 bg-white"
         contentContainerStyle={{ padding: 24, paddingBottom: 140 }}
@@ -44,21 +42,24 @@ export default function AIPlannerScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View className="flex-row items-center mb-4">
+          <MaterialIcons name="auto-awesome" size={26} color="black" />
+          <Text className="text-2xl font-bold ml-2">Create Itinerary</Text>
+        </View>
 
-        <Text className="text-3xl font-bold mb-2">
-          🤖 AI Trip Planner
-        </Text>
+        <Text className="text-lg text-gray-500">Destination</Text>
+        <Text className="text-2xl font-bold mb-4">{params.destination}</Text>
 
-        <Text className="text-base mb-1">
-          Destination: {params.destination}
-        </Text>
-
-        <Text className="text-base mb-6">
-          Dates: {params.startDate} → {params.endDate}
+        <Text className="text-lg text-gray-500">Dates</Text>
+        <Text className="text-xl font-bold mb-6">
+          {params.startDate} → {params.endDate}
         </Text>
 
         {/* Prompt */}
-        <Text className="font-semibold mb-2">Describe your trip</Text>
+        <View className="flex-row items-center mb-2">
+          <Ionicons name="document-text-outline" size={18} color="black" />
+          <Text className="font-semibold ml-2">Preferences</Text>
+        </View>
 
         <TextInput
           placeholder="I want food spots, hidden gems, rooftop bars..."
@@ -69,43 +70,55 @@ export default function AIPlannerScreen() {
         />
 
         {/* Budget */}
-        <Text className="font-semibold mb-2">Budget ($)</Text>
+        <View className="flex-row items-center mb-2">
+          <MaterialIcons name="attach-money" size={20} color="black" />
+          <Text className="font-semibold ml-1">Budget</Text>
+        </View>
 
-        <TextInput
-          placeholder="Enter total budget in USD"
-          value={budget}
-          onChangeText={setBudget}
-          keyboardType="numeric"
-          className="border border-gray-300 rounded-xl p-4 mb-6"
-        />
+        <View className="flex-row mb-6">
+          <TextInput
+            placeholder="Enter total budget"
+            value={budget}
+            onChangeText={setBudget}
+            keyboardType="numeric"
+            className="border border-gray-300 rounded-xl p-4 flex-1"
+          />
+
+          {/* placeholder currency (temporal) */}
+          <View className="ml-2 px-4 justify-center border border-gray-300 rounded-xl bg-gray-100">
+            <Text className="font-semibold">USD</Text>
+          </View>
+        </View>
 
         {/* Interests */}
         <Text className="font-semibold mb-2 text-gray-800">Interests</Text>
 
         <View className="flex-row flex-wrap mb-6">
-          {["food","culture","nature","nightlife","shopping","relax"].map(i => {
-            const selected = interests.includes(i);
+          {["food", "culture", "nature", "nightlife", "shopping", "relax"].map(
+            (i) => {
+              const selected = interests.includes(i);
 
-            return (
-              <TouchableOpacity
-                key={i}
-                onPress={() => toggleInterest(i)}
-                className={`
-                  px-4 py-2 mr-2 mb-2 rounded-full
-                  ${selected ? "bg-emerald-500" : "bg-gray-200"}
-                `}
-              >
-                <Text
+              return (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => toggleInterest(i)}
                   className={`
-                    text-sm font-medium
-                    ${selected ? "text-white" : "text-black"}
-                  `}
+                px-4 py-2 mr-2 mb-2 rounded-full
+                ${selected ? "bg-emerald-500" : "bg-gray-200"}
+              `}
                 >
-                  {i}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    className={`
+                  text-sm font-medium
+                  ${selected ? "text-white" : "text-black"}
+                `}
+                  >
+                    {i}
+                  </Text>
+                </TouchableOpacity>
+              );
+            },
+          )}
         </View>
 
         {/* Other interests */}
@@ -121,14 +134,14 @@ export default function AIPlannerScreen() {
         {/* Generate button */}
         <TouchableOpacity
           className="bg-black py-4 rounded-xl items-center justify-center w-full"
-          onPress={async ()=>{ 
+          onPress={async () => {
             try {
               setLoadingAI(true);
 
               const extra = customInterests
                 .split(",")
-                .map(i => i.trim())
-                .filter(i => i.length > 0);
+                .map((i) => i.trim())
+                .filter((i) => i.length > 0);
 
               const finalInterests = [...interests, ...extra];
 
@@ -138,7 +151,7 @@ export default function AIPlannerScreen() {
                 endDate: params.endDate as string,
                 budget: Number(budget),
                 interests: finalInterests,
-                prompt: prompt
+                prompt: prompt,
               });
 
               //  Step 1 — parse raw itinerary
@@ -148,23 +161,27 @@ export default function AIPlannerScreen() {
               //  Step 2 — enrich with Google Places
               const enriched = await enrichActivities(
                 parsed,
-                params.destination as string
+                params.destination as string,
               );
 
-              // Saved in database Logic goes here
+              // 💾 STEP 3 — SAVE TO DATABASE
+              await saveItinerary(
+                params.tripId as string,
+                params.startDate as string,
+                enriched,
+              );
+
+              console.log("💾 Itinerary saved to DB");
 
               setTimeout(() => {
                 router.replace(
-                  (
-                    `/trip/${params.tripId}` +
+                  (`/trip/${params.tripId}` +
                     `?destination=${encodeURIComponent(params.destination as string)}` +
                     `&startDate=${params.startDate}` +
                     `&endDate=${params.endDate}` +
-                    `&ai=${encodeURIComponent(JSON.stringify(result.itinerary))}`
-                  ) as any
+                    `&ai=${encodeURIComponent(JSON.stringify(result.itinerary))}`) as any,
                 );
               }, 700);
-
             } catch (err) {
               console.log("AI ERROR:", err);
               alert("Failed to generate itinerary");
@@ -172,32 +189,31 @@ export default function AIPlannerScreen() {
             }
           }}
         >
-          <Text className="text-white font-bold text-lg text-center w-full">
-            ✨ Generate Itinerary
-          </Text>
+          <View className="flex-row items-center">
+            <MaterialIcons name="auto-awesome" size={20} color="white" />
+            <Text className="text-white font-bold text-lg ml-2">Generate</Text>
+          </View>
         </TouchableOpacity>
-
       </KeyboardAwareScrollView>
 
       {loadingAI && (
         <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/40 items-center justify-center">
-        
           <View className="bg-white px-8 py-8 rounded-2xl items-center shadow-lg">
-          
-            <Text className="text-xl font-bold mb-4">
-              ✨ AI generating your trip...
-            </Text>
+            <View className="flex-row items-center mb-4">
+              <MaterialIcons name="auto-awesome" size={22} color="black" />
+              <Text className="text-xl font-bold ml-2">
+                Generating itinerary...
+              </Text>
+            </View>
 
             <Text className="text-gray-500 mb-6 text-center">
               Please wait a few seconds
             </Text>
 
             <ActivityIndicator size="large" color="#000" />
-
           </View>
         </View>
       )}
-
     </View>
   );
 }
