@@ -1,8 +1,6 @@
-import { LinearGradient } from "expo-linear-gradient";
-import React from 'react';
-import { Text, TouchableOpacity, View } from "react-native";
-
-import { generateTripPlan } from "@/lib/ai";
+import { useRouter } from "expo-router";
+import React from "react";
+import { Text, View } from "react-native";
 import MapView, {
   Callout,
   Marker,
@@ -16,38 +14,31 @@ interface TripMapProps {
   onMarkerNavigate: (activity: TripActivity) => void;
 }
 
-
 interface GenerateItineraryProps {
+  tripId: string;
+  startDate: string;
+  endDate: string;
   destination: string;
   duration: number;
   onItineraryGenerated: (itinerary: string[]) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
 }
-export default function TripMap({ activities, onMarkerNavigate }: TripMapProps, {
-  destination,
-  duration,
-  onItineraryGenerated,
-  loading,
-  setLoading
-}: GenerateItineraryProps) {
-  const handleGenerate = async () => {
-    try {
-      setLoading(true);
-      const result = await generateTripPlan({
-        destination: destination,
-        duration: duration,
-        budget: 1500,
-        preferences: ["food", "culture", "exploring"],
-      });
-      console.log("AI RESULT:", result);
-      onItineraryGenerated(result.itinerary);
-      setLoading(false);
-    } catch (err) {
-      console.log("AI ERROR:", err);
-      setLoading(false);
-    }
-  };
+export default function TripMap(props: TripMapProps & Partial<GenerateItineraryProps>) {
+  const {
+    activities = [],
+    onMarkerNavigate = () => {},
+    tripId,
+    startDate,
+    endDate,
+    destination,
+    duration,
+    onItineraryGenerated,
+    loading,
+    setLoading,
+  } = props;
+  const router = useRouter();
+
   const mapActivities = activities.filter(
     (a) => typeof a.latitude === "number" && typeof a.longitude === "number",
   );
@@ -80,13 +71,10 @@ export default function TripMap({ activities, onMarkerNavigate }: TripMapProps, 
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
 
-
   return (
     <View className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface">
       <View className="px-4 py-3 border-b border-neutral-divider">
-        <Text className="text-neutral-textPrimary font-semibold">
-          Trip Map
-        </Text>
+        <Text className="text-neutral-textPrimary font-semibold">Trip Map</Text>
         <Text className="text-neutral-textSecondary text-xs mt-1">
           {mapActivities.length > 0
             ? `${mapActivities.length} pinned activities`
@@ -142,10 +130,14 @@ export default function TripMap({ activities, onMarkerNavigate }: TripMapProps, 
         )}
       </View>
       <>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           activeOpacity={0.9}
           className="mb-6 w-full"
-          onPress={handleGenerate}
+          onPress={() => {
+            router.push(
+              `/ai-planner?tripId=${tripId}&destination=${encodeURIComponent(destination)}&startDate=${startDate}&endDate=${endDate}` as any,
+            );
+          }}
         >
           <LinearGradient
             colors={["#D81E5B", "#FF4D4D"]}
@@ -153,19 +145,14 @@ export default function TripMap({ activities, onMarkerNavigate }: TripMapProps, 
             end={{ x: 1, y: 1 }}
             style={{ borderRadius: 12 }}
           >
-            <View className="px-4 py-3 rounded-lg items-center">
-              <Text className="text-white font-semibold">
+            <View className="px-4 py-3 rounded-lg items-center flex-row justify-center">
+              <MaterialIcons name="auto-awesome" size={20} color="white" />
+              <Text className="text-white font-semibold ml-2">
                 Generate Itinerary
               </Text>
             </View>
           </LinearGradient>
-        </TouchableOpacity>
-
-        {loading && (
-          <Text className="text-blue-500 mb-4 font-semibold">
-            🤖 Generating AI itinerary...
-          </Text>
-        )}
+        </TouchableOpacity> */}
       </>
     </View>
   );
