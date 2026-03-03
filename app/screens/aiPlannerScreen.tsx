@@ -14,13 +14,10 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
-
-
 export default function AIPlannerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [loadingAI, setLoadingAI] = useState(false);
-
 
   const [prompt, setPrompt] = useState("");
   const [budget, setBudget] = useState("");
@@ -37,7 +34,6 @@ export default function AIPlannerScreen() {
 
   return (
     <View className="flex-1">
-
       <KeyboardAwareScrollView
         className="flex-1 bg-white"
         contentContainerStyle={{ padding: 24, paddingBottom: 140 }}
@@ -103,7 +99,7 @@ export default function AIPlannerScreen() {
         <Text className="font-semibold mb-2 text-gray-800">Interests</Text>
 
         <View className="flex-row flex-wrap mb-6">
-          {["food","culture","nature","nightlife","shopping","relax"].map(i => {
+          {["food", "culture", "nature", "nightlife", "shopping", "relax"].map(i => {
             const selected = interests.includes(i);
 
             return (
@@ -111,15 +107,15 @@ export default function AIPlannerScreen() {
                 key={i}
                 onPress={() => toggleInterest(i)}
                 className={`
-                  px-4 py-2 mr-2 mb-2 rounded-full
-                  ${selected ? "bg-emerald-500" : "bg-gray-200"}
-                `}
+                px-4 py-2 mr-2 mb-2 rounded-full
+                ${selected ? "bg-emerald-500" : "bg-gray-200"}
+              `}
               >
                 <Text
                   className={`
-                    text-sm font-medium
-                    ${selected ? "text-white" : "text-black"}
-                  `}
+                  text-sm font-medium
+                  ${selected ? "text-white" : "text-black"}
+                `}
                 >
                   {i}
                 </Text>
@@ -141,7 +137,7 @@ export default function AIPlannerScreen() {
         {/* Generate button */}
         <TouchableOpacity
           className="bg-black py-4 rounded-xl items-center justify-center w-full"
-          onPress={async ()=>{ 
+          onPress={async () => {
             try {
               setLoadingAI(true);
 
@@ -211,8 +207,9 @@ export default function AIPlannerScreen() {
 
       {loadingAI && (
         <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/40 items-center justify-center">
-        
+
           <View className="bg-white px-8 py-8 rounded-2xl items-center shadow-lg">
+<<<<<<< HEAD
           
             <View className="flex-row items-center mb-4">
               <MaterialIcons name="auto-awesome" size={22} color="black" />
@@ -220,6 +217,12 @@ export default function AIPlannerScreen() {
                 Generating itinerary...
               </Text>
             </View>
+=======
+
+            <Text className="text-xl font-bold mb-4">
+              ✨ AI generating your trip...
+            </Text>
+>>>>>>> c9b77c908035effef185c7a50f4cda864f9e33ff
 
             <Text className="text-gray-500 mb-6 text-center">
               Please wait a few seconds
@@ -230,7 +233,6 @@ export default function AIPlannerScreen() {
           </View>
         </View>
       )}
-
     </View>
   );
 }

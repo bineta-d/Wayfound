@@ -32,3 +32,17 @@ export interface User {
     updated_at?: string;
 }
 
+export interface TripActivity {
+    id: string,
+    trip_id: string,
+    date: string, // 'YYYY-MM-DD'
+    title: string,
+    address?: string | null,
+    lat: number,
+    lng: number,
+    place_id?: string | null,
+    notes?: string | null,
+    start_time?: string | null, // 'HH:MM:SS'
+    end_time?: string | null,
+    created_at: string
+}

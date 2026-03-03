@@ -1,24 +1,20 @@
 import { supabase } from './supabase';
 
 interface TripPlanRequest {
-  destination: string;
-  startDate: string;
-  endDate: string;
-  budget: number;
-  interests: string[];
-  prompt: string;
+    destination: string;
+    duration: number;
+    budget: number;
+    preferences: string[];
 }
 
 interface TripPlan {
-  itinerary: any[];
-  recommendations: string[];
-  estimatedCost: number;
+    itinerary: string[];
+    recommendations: string[];
+    estimatedCost: number;
 }
 
 export async function generateTripPlan(request: TripPlanRequest): Promise<TripPlan> {
   try {
-
-    console.log("Sending to AI:", request);
 
     const { data, error } = await supabase.functions.invoke(
       "generate-itinerary",
@@ -32,14 +28,12 @@ export async function generateTripPlan(request: TripPlanRequest): Promise<TripPl
       throw new Error("Failed to generate itinerary");
     }
 
-    if (!data) {
-      throw new Error("Empty AI response");
+    if (!data?.itinerary) {
+      throw new Error("Invalid AI response");
     }
 
-    console.log("AI RESPONSE:", data);
-
     return {
-      itinerary: data.itinerary || [],
+      itinerary: data.itinerary,
       recommendations: data.recommendations || [],
       estimatedCost: data.estimatedCost || 0,
     };
@@ -49,7 +43,6 @@ export async function generateTripPlan(request: TripPlanRequest): Promise<TripPl
     throw error;
   }
 }
-
 
 
 
