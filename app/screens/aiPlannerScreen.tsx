@@ -32,6 +32,38 @@ export default function AIPlannerScreen() {
     }
   };
 
+  // Input Validation
+  const validateInputs = () => {
+    if (!params.destination){
+      alert("Destination is missing");
+      return false;
+    }
+
+    if (!params.startDate || !params.endDate){
+      alert("Trip dates are missing");
+      return false;
+    }
+    
+    if (!budget || Number(budget) <= 0){
+      alert("Please enter a valid budget");
+      return false;
+    }
+
+    const extra = customInterests
+      .split(",")
+      .map(i => i.trim())
+      .filter(i => i.length > 0);
+
+    const finalInterests = [...interests, ...extra];
+
+    if (finalInterests.length === 0){
+      alert("Please select at least one interest");
+      return false;
+    }
+
+    return true;
+  };
+
   return (
     <View className="flex-1">
       <KeyboardAwareScrollView
@@ -79,7 +111,10 @@ export default function AIPlannerScreen() {
           <TextInput
             placeholder="Enter total budget"
             value={budget}
-            onChangeText={setBudget}
+            onChangeText={(text) => {
+                const numeric = text.replace(/[^0-9]/g, "");
+                setBudget(numeric);
+            }}
             keyboardType="numeric"
             className="border border-gray-300 rounded-xl p-4 flex-1"
           />
@@ -135,6 +170,7 @@ export default function AIPlannerScreen() {
         <TouchableOpacity
           className="bg-black py-4 rounded-xl items-center justify-center w-full"
           onPress={async () => {
+            if (!validateInputs()) return;
             try {
               setLoadingAI(true);
 
