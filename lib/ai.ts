@@ -4,10 +4,12 @@ interface TripPlanRequest {
   startDate: string;
   endDate: string;
   destination: string;
-  duration: number;
+  duration?: number;
   budget: number;
-  preferences: string[];
+  preferences?: string[];
   interests: string[];
+  prompt?: string;
+  context?: string;
 }
 
 interface TripPlan {

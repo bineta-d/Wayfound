@@ -2,6 +2,7 @@ import { generateTripPlan } from "@/lib/ai";
 import { parseAIItinerary } from "@/lib/aiParser";
 import { enrichActivities } from "@/lib/enrichActivities";
 import { saveItinerary } from "@/lib/itineraryService";
+import { getTripContext } from "@/lib/tripContextService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -181,6 +182,34 @@ export default function AIPlannerScreen() {
 
               const finalInterests = [...interests, ...extra];
 
+              const context = await getTripContext(params.tripId as string);
+              const contextText = `
+              Accommodation:
+              ${context.accommodation?.name ?? "None"}
+
+              Transportation:
+              ${
+                context.transport?.map(
+                  (t) =>
+                    `${t.transport_type} from ${t.departure_location} to ${t.arrival_location}`
+                ).join("\n") ?? "None"
+              }
+
+              Bookings:
+              ${
+                context.bookings?.map(
+                  (b) => `${b.type} with ${b.provider}`
+                ).join("\n") ?? "None"
+              }
+
+              Existing Activities:
+              ${
+                context.activities?.map(
+                  (a) => a.title
+                ).join("\n") ?? "None"
+              }
+              `;
+
               const result = await generateTripPlan({
                 destination: params.destination as string,
                 startDate: params.startDate as string,
@@ -188,6 +217,7 @@ export default function AIPlannerScreen() {
                 budget: Number(budget),
                 interests: finalInterests,
                 prompt: prompt,
+                context: contextText,
               });
 
               //  Step 1 — parse raw itinerary
