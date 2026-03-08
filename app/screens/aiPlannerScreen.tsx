@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+import { Alert } from "react-native";
 import { generateTripPlan } from "@/lib/ai";
 import { parseAIItinerary } from "@/lib/aiParser";
 import { enrichActivities } from "@/lib/enrichActivities";
@@ -63,6 +65,95 @@ export default function AIPlannerScreen() {
     }
 
     return true;
+  };
+
+  // Check for existing itinerary
+  const checkExistingItinerary = async () => {
+    const { data, error } = await supabase
+      .from("itinerary_days")
+      .select("id")
+      .eq("trip_id", params.tripId)
+      .limit(1);
+
+    if (error) {
+      console.log("Check itinerary error:", error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  };
+
+  const runGeneration = async () => {
+    try {
+      setLoadingAI(true);
+
+      const extra = customInterests
+        .split(",")
+        .map((i) => i.trim())
+        .filter((i) => i.length > 0);
+
+      const finalInterests = [...interests, ...extra];
+
+      const context = await getTripContext(params.tripId as string);
+      const contextText = `
+        Accommodation:
+        ${context.accommodation?.name ?? "None"}
+
+        Transportation:
+        ${context.transport?.map(
+          (t) =>
+            `${t.transport_type} from ${t.departure_location} to ${t.arrival_location}`
+        ).join("\n") ?? "None"}
+
+        Bookings:
+        ${context.bookings?.map(
+          (b) => `${b.type} with ${b.provider}`
+        ).join("\n") ?? "None"}
+
+        Existing Activities:
+        ${context.activities?.map(
+          (a) => a.title
+        ).join("\n") ?? "None"}
+      `;
+
+      const result = await generateTripPlan({
+        destination: params.destination as string,
+        startDate: params.startDate as string,
+        endDate: params.endDate as string,
+        budget: Number(budget),
+        interests: finalInterests,
+        prompt: prompt,
+        context: contextText,
+      });
+
+      //  Step 1 — parse raw itinerary
+      const parsed = parseAIItinerary(result.itinerary);
+      console.log("🧠 PARSED ACTIVITIES:", parsed);
+
+      //  Step 2 — enrich with Google Places
+      const enriched = await enrichActivities(
+        parsed,
+        params.destination as string,
+      );
+
+      // 💾 STEP 3 — SAVE TO DATABASE
+      await saveItinerary(
+        params.tripId as string,
+        params.startDate as string,
+        enriched,
+      );
+
+      console.log("💾 Itinerary saved to DB");
+
+      setTimeout(() => {
+        router.back();
+      }, 700);
+    } catch (err) {
+        console.log("AI ERROR:", err);
+        alert("Failed to generate itinerary");
+    } finally {
+          setLoadingAI(false);
+    }
   };
 
   return (
@@ -169,95 +260,40 @@ export default function AIPlannerScreen() {
 
         {/* Generate button */}
         <TouchableOpacity
-          className="bg-black py-4 rounded-xl items-center justify-center w-full"
+          className={`py-4 rounded-xl items-center justify-center w-full ${
+            loadingAI ? "bg-gray-400" : "bg-black"
+          }`}
+          disabled = {loadingAI}
           onPress={async () => {
+            if (loadingAI) return;
+
             if (!validateInputs()) return;
-            try {
-              setLoadingAI(true);
 
-              const extra = customInterests
-                .split(",")
-                .map((i) => i.trim())
-                .filter((i) => i.length > 0);
-
-              const finalInterests = [...interests, ...extra];
-
-              const context = await getTripContext(params.tripId as string);
-              const contextText = `
-              Accommodation:
-              ${context.accommodation?.name ?? "None"}
-
-              Transportation:
-              ${
-                context.transport?.map(
-                  (t) =>
-                    `${t.transport_type} from ${t.departure_location} to ${t.arrival_location}`
-                ).join("\n") ?? "None"
-              }
-
-              Bookings:
-              ${
-                context.bookings?.map(
-                  (b) => `${b.type} with ${b.provider}`
-                ).join("\n") ?? "None"
-              }
-
-              Existing Activities:
-              ${
-                context.activities?.map(
-                  (a) => a.title
-                ).join("\n") ?? "None"
-              }
-              `;
-
-              const result = await generateTripPlan({
-                destination: params.destination as string,
-                startDate: params.startDate as string,
-                endDate: params.endDate as string,
-                budget: Number(budget),
-                interests: finalInterests,
-                prompt: prompt,
-                context: contextText,
-              });
-
-              //  Step 1 — parse raw itinerary
-              const parsed = parseAIItinerary(result.itinerary);
-              console.log("🧠 PARSED ACTIVITIES:", parsed);
-
-              //  Step 2 — enrich with Google Places
-              const enriched = await enrichActivities(
-                parsed,
-                params.destination as string,
+            const hasItinerary = await checkExistingItinerary();
+            
+            if (hasItinerary) {
+              Alert.alert(
+                "Replace itinerary?",
+                "This trip already has an itinerary. Generating a new one will replace it.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Replace",
+                    style: "destructive",
+                    onPress: () => runGeneration()
+                  }
+                ]
               );
-
-              // 💾 STEP 3 — SAVE TO DATABASE
-              await saveItinerary(
-                params.tripId as string,
-                params.startDate as string,
-                enriched,
-              );
-
-              console.log("💾 Itinerary saved to DB");
-
-              setTimeout(() => {
-                router.replace(
-                  (`/trip/${params.tripId}` +
-                    `?destination=${encodeURIComponent(params.destination as string)}` +
-                    `&startDate=${params.startDate}` +
-                    `&endDate=${params.endDate}` +
-                    `&ai=${encodeURIComponent(JSON.stringify(result.itinerary))}`) as any,
-                );
-              }, 700);
-            } catch (err) {
-              console.log("AI ERROR:", err);
-              alert("Failed to generate itinerary");
-              setLoadingAI(false);
+              return;
             }
+            runGeneration();
           }}
         >
           <View className="flex-row items-center">
             <MaterialIcons name="auto-awesome" size={20} color="white" />
-            <Text className="text-white font-bold text-lg ml-2">Generate</Text>
+            <Text className="text-white font-bold text-lg ml-2">
+              {loadingAI ? "Generating..." : "Generate"}
+            </Text>
           </View>
         </TouchableOpacity>
       </KeyboardAwareScrollView>

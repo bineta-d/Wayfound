@@ -1,13 +1,15 @@
+import { deleteItinerary } from "@/lib/itineraryService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   PanResponder,
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";
@@ -40,6 +42,34 @@ export default function ItineraryScreen({
 }: ItineraryProps) {
   const router = useRouter();
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
+
+  const handleDeleteItinerary = async () => {
+    Alert.alert(
+      "Delete itinerary",
+      "Are you sure you want to delete the generated itinerary?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteItinerary(tripId);
+              console.log("Itinerary deleted");
+
+              //Alert.alert("Itinerary deleted");
+              router.replace(`/trip/${tripId}` as any);
+
+            } catch (error) {
+              console.log("Delete error", error);
+              Alert.alert("Failed to delete itinerary");
+            }
+          },
+        },
+      ]
+    );
+  };
+
 
   const createPanResponder = (index: number) => {
     return PanResponder.create({
@@ -77,6 +107,10 @@ export default function ItineraryScreen({
   };
 
   const days = generateDayHeaders();
+
+  const hasItinerary = 
+    Object.values(dayActivities).some((activities) => activities.length > 0) || 
+    aiItinerary?.length > 0;
 
   const handleDayPress = (dayNumber: number) => {
     router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
@@ -119,6 +153,23 @@ export default function ItineraryScreen({
           </View>
         </LinearGradient>
       </TouchableOpacity>
+
+
+      {/* Delete Itinerary Button */}
+      {hasItinerary && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          className="mb-6 w-full"
+          onPress={handleDeleteItinerary}
+        >
+          <View className="bg-red-500 px-4 py-3 rounded-lg items-center flex-row justify-center">
+            <MaterialIcons name="delete" size={20} color="white" />
+            <Text className="text-white font-semibold ml-2">
+              Delete Itinerary
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         onPress={onToggleItineraryCollapse}

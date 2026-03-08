@@ -25,10 +25,14 @@ export const saveItinerary = async (
         .delete()
         .in("itinerary_day_id", dayIds);
 
+        console.log("🗑 Deleting activities for days:", dayIds);
+
       await supabase
         .from("itinerary_days")
         .delete()
         .eq("trip_id", tripId);
+        
+        console.log("🗑 Deleting old itinerary days:", dayIds.length);
     }
 
 
@@ -133,5 +137,45 @@ export const getTripItinerary = async (tripId: string) => {
   } catch (err) {
     console.error("❌ Error loading itinerary:", err);
     throw err;
+  }
+};
+
+//Delete Itinerary
+export const deleteItinerary = async (tripId: string) => {
+  try {
+
+    // Get itinerary days for the trip
+    const { data: days, error: daysFetchError } = await supabase
+      .from("itinerary_days")
+      .select("id")
+      .eq("trip_id", tripId);
+
+    if (daysFetchError) throw daysFetchError;
+
+    const dayIds = days?.map((d) => d.id) || [];
+
+    // Delete activities linked to those days
+    if (dayIds.length > 0) {
+      const { error: activitiesError } = await supabase
+        .from("activities")
+        .delete()
+        .in("itinerary_day_id", dayIds);
+
+      if (activitiesError) throw activitiesError;
+    }
+
+    // Delete itinerary days
+    const { error: deleteDaysError } = await supabase
+      .from("itinerary_days")
+      .delete()
+      .eq("trip_id", tripId);
+
+    if (deleteDaysError) throw deleteDaysError;
+
+    console.log("🗑 Itinerary deleted successfully");
+
+  } catch (error) {
+    console.error("Delete itinerary error:", error);
+    throw error;
   }
 };
