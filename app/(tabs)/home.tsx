@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import TripCard from '../../components/TripCard';
+import TripCardSkeleton from '../../components/TripCardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { getUserTrips } from '../../lib/TripService';
 import { Trip } from '../../lib/types';
-import TripCard from '../../components/TripCard';
-import TripCardSkeleton from '../../components/TripCardSkeleton';
-import { Stack } from 'expo-router';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -31,7 +31,13 @@ export default function HomeScreen() {
       Alert.alert('Error', 'Failed to load trips');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserTrips();
   };
 
   const handleTripPress = (trip: Trip) => {
@@ -42,7 +48,12 @@ export default function HomeScreen() {
     return (
       <>
         <Stack.Screen options={{ title: "Home", headerShown: true }} />
-        <ScrollView className="flex-1 bg-gray-50">
+        <ScrollView
+          className="flex-1 bg-gray-50"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           <View className="bg-white px-6 pt-12 pb-6">
             <Text className="text-2xl font-bold text-gray-800">Your Trips</Text>
             <Text className="text-gray-600 mt-2">Manage your travel plans</Text>
@@ -60,7 +71,12 @@ export default function HomeScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Home", headerShown: true }} />
-      <ScrollView className="flex-1 bg-gray-50">
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View className="bg-white px-6 pt-12 pb-6">
           <Text className="text-2xl font-bold text-gray-800">Your Trips</Text>
           <Text className="text-gray-600 mt-2">Manage your travel plans</Text>
