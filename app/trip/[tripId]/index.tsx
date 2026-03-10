@@ -1,8 +1,8 @@
 import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import React, { useEffect, useState, useCallback } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
@@ -163,12 +163,14 @@ export default function TripOverviewScreen() {
     }
   };
 
-  useEffect(() => {
-    if (tripId) {
-      loadTripData();
-      loadGroupedActivities();
-    }
-  }, [tripId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (tripId) {
+        loadTripData();
+        loadGroupedActivities();
+      }
+    }, [tripId])
+  )
 
   useEffect(() => {
     if (trip) {
