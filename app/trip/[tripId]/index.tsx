@@ -221,7 +221,13 @@ export default function TripOverviewScreen() {
   };
 
   if (loading) {
-    return <TripDetailSkeleton />;
+    return (
+      <>
+        <View className="flex-1 items-center justify-center bg-white">
+          <Text className="text-gray-600">Loading trip details...</Text>
+        </View>
+      </>
+    );
   }
 
   if (!trip) {
