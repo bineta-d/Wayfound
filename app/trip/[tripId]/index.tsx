@@ -19,7 +19,6 @@ import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
-import { TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 
 export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
@@ -213,7 +212,13 @@ export default function TripOverviewScreen() {
   };
 
   if (loading) {
-    return <TripDetailSkeleton />;
+    return (
+      <>
+        <View className="flex-1 items-center justify-center bg-white">
+          <Text className="text-gray-600">Loading trip details...</Text>
+        </View>
+      </>
+    );
   }
 
   if (!trip) {
