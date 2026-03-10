@@ -350,6 +350,51 @@ export const removeTripMember = async (
   }
 };
 
+// Fetch place photo using Google Places Photos API
+export const getPlacePhoto = async (placeName: string): Promise<string | null> => {
+  try {
+    console.log('🔍 Fetching photo for:', placeName);
+
+    const predictions = await searchPlacePredictions(placeName);
+    if (predictions.length === 0) {
+      console.log('❌ No predictions found for:', placeName);
+      return null;
+    }
+
+    const placeId = predictions[0].place_id;
+    console.log('📍 Found place ID:', placeId);
+
+    const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+    if (!GOOGLE_PLACES_KEY) {
+      console.log('❌ No Google API key found');
+      return null;
+    }
+
+    const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,photos&key=${GOOGLE_PLACES_KEY}`;
+
+    const response = await fetch(placeDetailsUrl);
+    const data = await response.json();
+
+    console.log('📸 Place details response:', data);
+
+    if (data.status === 'OK' && data.result.photos && data.result.photos.length > 0) {
+      const photoReference = data.result.photos[0].photo_reference;
+      console.log('🖼️ Photo reference found:', photoReference);
+
+      const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&maxheight=200&photo_reference=${photoReference}&key=${GOOGLE_PLACES_KEY}`;
+      console.log('✅ Photo URL generated:', photoUrl);
+
+      return photoUrl;
+    }
+
+    console.log('❌ No photos found for place');
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching place photo:', error);
+    return null;
+  }
+};
+
 //   Trip Activities
 
 export interface Activity {

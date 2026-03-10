@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from 'react';
 import { FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { addTripActivityToDay, getPlaceDetails, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
+import { addTripActivityToDay, getPlaceDetails, getPlacePhoto, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
 
 interface TargetSpotsProps {
   targetSpots: string[];
@@ -131,21 +131,8 @@ export default function TargetSpots({
   // Fetch place image using Google Places Photos API
   const fetchPlaceImage = async (placeName: string): Promise<string | null> => {
     try {
-      // First search for the place to get place_id
-      const predictions = await searchPlacePredictions(placeName);
-      if (predictions.length === 0) return null;
-
-      const placeId = predictions[0].place_id;
-
-      // Use Google Places Photos API to get image
-      const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
-      if (!GOOGLE_PLACES_KEY) return null;
-
-      const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&maxheight=200&photo_reference=&key=${GOOGLE_PLACES_KEY}`;
-
-      // For now, we'll use a placeholder approach since we need the photo_reference
-      // In a real implementation, you'd need to make a Place Details request first
-      return null;
+      const photoUrl = await getPlacePhoto(placeName);
+      return photoUrl;
     } catch (error) {
       console.error('Error fetching place image:', error);
       return null;
@@ -157,11 +144,11 @@ export default function TargetSpots({
     const updateTargetSpotsWithImages = async () => {
       const spotsWithImages: TargetSpotWithImage[] = [];
 
-      // Sort target spots alphabetically
       const sortedSpots = [...targetSpots].sort((a, b) => a.localeCompare(b));
 
       for (const spot of sortedSpots) {
         const image = await fetchPlaceImage(spot);
+        console.log('🖼️ Image for', spot, ':', image);
         spotsWithImages.push({
           name: spot,
           image: image || undefined,
@@ -234,17 +221,14 @@ export default function TargetSpots({
                 className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
               >
                 <View className="flex-row items-center">
-                  {/* Image or placeholder for activities */}
-                  <View className="w-12 h-12 bg-gray-100 rounded-lg mr-3 items-center justify-center">
-                    <Ionicons name="location" size={20} color="#6B7280" />
+                  <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
+                    <Ionicons name="location" size={24} color="#6B7280" />
                   </View>
 
-                  {/* Location title */}
                   <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
                     {parseLocationName(activity.location_name)}
                   </Text>
 
-                  {/* Calendar button */}
                   <TouchableOpacity
                     onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
                     className="ml-3"
@@ -255,24 +239,27 @@ export default function TargetSpots({
               </View>
             ))}
 
-            {/* Show manually added target spots with new card design */}
+            {/* Show manually added target spots */}
             {targetSpotsWithImages.map((spot, index) => (
               <View
                 key={`manual-${index}`}
                 className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
               >
                 <View className="flex-row items-center">
-                  {/* Image or placeholder */}
-                  <View className="w-12 h-12 bg-gray-100 rounded-lg mr-3 items-center justify-center">
-                    <Ionicons name="location" size={20} color="#6B7280" />
+                  <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
+                    {spot.image ? (
+                      <View className="w-16 h-16 bg-green-100 rounded-lg items-center justify-center">
+                        <Ionicons name="image" size={24} color="#10B981" />
+                      </View>
+                    ) : (
+                      <Ionicons name="location" size={24} color="#6B7280" />
+                    )}
                   </View>
 
-                  {/* Location title */}
                   <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
                     {spot.name}
                   </Text>
 
-                  {/* Action buttons */}
                   <View className="flex-row items-center">
                     <TouchableOpacity
                       onPress={() => {
