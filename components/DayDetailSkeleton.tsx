@@ -35,7 +35,7 @@ export function ActivitiesSkeleton() {
         <Skeleton width="30%" height={20} />
         <Skeleton width={80} height={32} borderRadius={8} />
       </View>
-      <View className="space-y-3">
+      <View className="flex gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <View key={i} className="bg-white rounded-lg p-4 border border-neutral-divider">
             <View className="flex-row justify-between items-start">

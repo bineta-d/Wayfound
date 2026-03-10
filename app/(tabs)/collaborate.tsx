@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getSharedTrips } from '../../lib/TripService';
 import { Trip } from '../../lib/types';
 import TripCard from '../../components/TripCard';
+import TripCardSkeleton from '../../components/TripCardSkeleton';
 import { Stack } from 'expo-router';
 
 export default function CollaborateScreen() {
@@ -44,9 +45,17 @@ export default function CollaborateScreen() {
         return (
             <>
                 <Stack.Screen options={{ title: "Collaborate", headerShown: true }} />
-                <View className="flex-1 items-center justify-center bg-white">
-                    <Text className="text-gray-600">Loading shared trips...</Text>
-                </View>
+                <ScrollView className="flex-1 bg-gray-50">
+                    <View className="bg-white px-6 pt-12 pb-6">
+                        <Text className="text-2xl font-bold text-gray-800">Shared Trips</Text>
+                        <Text className="text-gray-600 mt-2">Trips shared with you</Text>
+                    </View>
+                    <View className="px-6 py-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <TripCardSkeleton key={i} />
+                        ))}
+                    </View>
+                </ScrollView>
             </>
         );
     }
