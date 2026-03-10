@@ -16,6 +16,12 @@ interface TargetSpotsProps {
   onRefresh: () => void;
 }
 
+interface TargetSpotWithImage {
+  name: string;
+  image?: string;
+  hasImage: boolean;
+}
+
 export default function TargetSpots({
   targetSpots,
   onAddSpot,
@@ -33,6 +39,7 @@ export default function TargetSpots({
   const [showDayAssignModal, setShowDayAssignModal] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [tripDays, setTripDays] = useState<Array<{ dayNumber: number; date: string }>>([]);
+  const [targetSpotsWithImages, setTargetSpotsWithImages] = useState<TargetSpotWithImage[]>([]);
 
   // Generate trip days when component mounts
   useEffect(() => {
@@ -121,6 +128,57 @@ export default function TargetSpots({
     }
   };
 
+  // Fetch place image using Google Places Photos API
+  const fetchPlaceImage = async (placeName: string): Promise<string | null> => {
+    try {
+      // First search for the place to get place_id
+      const predictions = await searchPlacePredictions(placeName);
+      if (predictions.length === 0) return null;
+
+      const placeId = predictions[0].place_id;
+
+      // Use Google Places Photos API to get image
+      const GOOGLE_PLACES_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+      if (!GOOGLE_PLACES_KEY) return null;
+
+      const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&maxheight=200&photo_reference=&key=${GOOGLE_PLACES_KEY}`;
+
+      // For now, we'll use a placeholder approach since we need the photo_reference
+      // In a real implementation, you'd need to make a Place Details request first
+      return null;
+    } catch (error) {
+      console.error('Error fetching place image:', error);
+      return null;
+    }
+  };
+
+  // Update target spots with images when they change
+  useEffect(() => {
+    const updateTargetSpotsWithImages = async () => {
+      const spotsWithImages: TargetSpotWithImage[] = [];
+
+      // Sort target spots alphabetically
+      const sortedSpots = [...targetSpots].sort((a, b) => a.localeCompare(b));
+
+      for (const spot of sortedSpots) {
+        const image = await fetchPlaceImage(spot);
+        spotsWithImages.push({
+          name: spot,
+          image: image || undefined,
+          hasImage: !!image
+        });
+      }
+
+      setTargetSpotsWithImages(spotsWithImages);
+    };
+
+    if (targetSpots.length > 0) {
+      updateTargetSpotsWithImages();
+    } else {
+      setTargetSpotsWithImages([]);
+    }
+  }, [targetSpots]);
+
   // Fallback function for manual text input (if Google Places fails)
   const handleModalAdd = () => {
     if (searchText.trim()) {
@@ -169,46 +227,66 @@ export default function TargetSpots({
       ) : (
         <ScrollView className="max-h-96">
           <View className="space-y-2">
-            {/* Show individual activities */}
+            {/* Show individual activities with new card design */}
             {activities.map((activity, index) => (
               <View
                 key={activity.id || index}
-                className="flex-row justify-between items-center bg-neutral-background p-3 rounded-lg"
+                className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
               >
-                <Text className="text-neutral-textPrimary flex-1">
-                  {parseLocationName(activity.location_name)}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
-                  className="ml-3"
-                >
-                  <Ionicons name="calendar" size={16} color="#3B82F6" />
-                </TouchableOpacity>
+                <View className="flex-row items-center">
+                  {/* Image or placeholder for activities */}
+                  <View className="w-12 h-12 bg-gray-100 rounded-lg mr-3 items-center justify-center">
+                    <Ionicons name="location" size={20} color="#6B7280" />
+                  </View>
+
+                  {/* Location title */}
+                  <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
+                    {parseLocationName(activity.location_name)}
+                  </Text>
+
+                  {/* Calendar button */}
+                  <TouchableOpacity
+                    onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
+                    className="ml-3"
+                  >
+                    <Ionicons name="calendar" size={16} color="#3B82F6" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
 
-            {/* Show manually added target spots */}
-            {targetSpots.map((spot, index) => (
+            {/* Show manually added target spots with new card design */}
+            {targetSpotsWithImages.map((spot, index) => (
               <View
                 key={`manual-${index}`}
-                className="flex-row justify-between items-center bg-neutral-background p-3 rounded-lg"
+                className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
               >
-                <Text className="text-neutral-textPrimary flex-1">
-                  {spot}
-                </Text>
                 <View className="flex-row items-center">
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSelectedPlace({ location_name: spot });
-                      setShowDayAssignModal(true);
-                    }}
-                    className="mr-3"
-                  >
-                    <Ionicons name="help-circle" size={16} color="#3B82F6" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => onRemoveSpot(index)}>
-                    <Ionicons name="close-circle" size={20} color="#EF4444" />
-                  </TouchableOpacity>
+                  {/* Image or placeholder */}
+                  <View className="w-12 h-12 bg-gray-100 rounded-lg mr-3 items-center justify-center">
+                    <Ionicons name="location" size={20} color="#6B7280" />
+                  </View>
+
+                  {/* Location title */}
+                  <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
+                    {spot.name}
+                  </Text>
+
+                  {/* Action buttons */}
+                  <View className="flex-row items-center">
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedPlace({ location_name: spot.name });
+                        setShowDayAssignModal(true);
+                      }}
+                      className="mr-3"
+                    >
+                      <Ionicons name="help-circle" size={16} color="#3B82F6" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => onRemoveSpot(index)}>
+                      <Ionicons name="close-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             ))}
