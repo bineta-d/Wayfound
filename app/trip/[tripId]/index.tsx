@@ -3,7 +3,8 @@ import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
@@ -30,6 +31,7 @@ export default function TripOverviewScreen() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [members, setMembers] = useState<Trip_member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // State for new components
   const [aiItinerary, setAiItinerary] = useState<string[]>([]);
@@ -160,10 +162,12 @@ export default function TripOverviewScreen() {
       Alert.alert("Error", "Failed to load trip details");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const onRefresh = async () => {
+    setRefreshing(true);
     await loadTripData();
     await loadGroupedActivities();
   };
@@ -245,6 +249,9 @@ export default function TripOverviewScreen() {
         className="flex-1 bg-gray-50"
         horizontal={false}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Overview Tab */}
         {activeTab === 0 && (
@@ -280,20 +287,20 @@ export default function TripOverviewScreen() {
             </View>
             {/* Target Spots Section */}
             <View className="bg-white px-6 mb-2">
-              <TargetSpots
-                targetSpots={targetSpots}
-                onAddSpot={addTargetSpot}
-                onRemoveSpot={removeTargetSpot}
-                activities={Object.values(groupedActivities).flat()}
-                onAssignToDay={handleAssignToDay}
-                tripId={tripId as string}
-                tripStartDate={trip.start_date}
-                tripEndDate={trip.end_date}
-                onRefresh={onRefresh}
-              />
+              {refreshing ? (
+                <TargetSpotsSkeleton />
+              ) : (
+                <TargetSpots
+                  targetSpots={targetSpots}
+                  onAddSpot={addTargetSpot}
+                  onRemoveSpot={removeTargetSpot}
+                  activities={Object.values(groupedActivities).flat()}
+                  onAssignToDay={handleAssignToDay}
+                />
+              )}
             </View>
             {/* Collaborators Section */}
-            <CollaboratorsScreen members={members} />
+            {refreshing ? <CollaboratorsSkeleton /> : <CollaboratorsScreen members={members} />}
             {/* Delete Button - Only for trip owners */}
             {user?.id === trip.owner_id && (
               <View className="px-6 py-4 mb-8">
@@ -316,19 +323,23 @@ export default function TripOverviewScreen() {
             {/* tabs Section */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            <ItineraryScreen
-              tripId={tripId as string}
-              startDate={trip.start_date}
-              destination={trip.destination}
-              endDate={trip.end_date}
-              aiItinerary={aiItinerary}
-              onToggleDayCollapse={toggleDayCollapse}
-              onToggleItineraryCollapse={toggleItineraryCollapse}
-              collapsedDays={collapsedDays}
-              isItineraryCollapsed={isItineraryCollapsed}
-              dayActivities={dayActivities}
-              loadingActivities={loadingActivities}
-            />
+            {refreshing ? (
+              <ItinerarySkeleton />
+            ) : (
+              <ItineraryScreen
+                tripId={tripId as string}
+                startDate={trip.start_date}
+                destination={trip.destination}
+                endDate={trip.end_date}
+                aiItinerary={aiItinerary}
+                onToggleDayCollapse={toggleDayCollapse}
+                onToggleItineraryCollapse={toggleItineraryCollapse}
+                collapsedDays={collapsedDays}
+                isItineraryCollapsed={isItineraryCollapsed}
+                dayActivities={dayActivities}
+                loadingActivities={loadingActivities}
+              />
+            )}
           </View>
         )}
         {/* Reservations Tab */}
