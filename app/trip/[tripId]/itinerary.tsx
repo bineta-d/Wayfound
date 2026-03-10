@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";
-import { SkeletonText } from "../../../components/Skeleton";
 interface ItineraryProps {
   tripId: string;
   startDate: string;
@@ -235,9 +234,9 @@ export default function ItineraryScreen({
                 {!collapsedDays[day.dayNumber] && (
                   <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
                     {loadingActivities[day.dayNumber] ? (
-                      <View className="py-4">
-                        <SkeletonText lines={2} />
-                      </View>
+                      <Text className="text-neutral-textSecondary text-center py-4">
+                        Loading activities...
+                      </Text>
                     ) : dayActivities[day.dayNumber] &&
                       dayActivities[day.dayNumber].length > 0 ? (
                       <View className="space-y-2">

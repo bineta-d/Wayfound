@@ -16,7 +16,6 @@ import {
   PlacePrediction,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
-import { ActivitiesSkeleton } from "../../../components/DayDetailSkeleton";
 
 export default function DayDetailScreen() {
   const { tripId, day } = useLocalSearchParams();
@@ -366,7 +365,10 @@ export default function DayDetailScreen() {
         </View>
 
         {loadingActivities ? (
-          <ActivitiesSkeleton />
+          <View className="py-8 items-center justify-center">
+            <ActivityIndicator />
+            <Text className="text-neutral-textSecondary mt-3">Loading activities...</Text>
+          </View>
         ) : activities.length === 0 ? (
           <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
             <Text className="text-neutral-textSecondary text-center">
