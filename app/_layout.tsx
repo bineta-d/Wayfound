@@ -1,17 +1,15 @@
+import { supabase } from "@/lib/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
-  DarkTheme,
   DefaultTheme,
-  ThemeProvider,
+  ThemeProvider
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import AuthGate from "./AuthGate";
 import "../global.css";
-import { supabase } from "@/lib/supabase";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -30,7 +28,7 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    SplashScreen.preventAutoHideAsync().catch(() => {});
+    SplashScreen.preventAutoHideAsync().catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -38,7 +36,8 @@ export default function RootLayout() {
       if (!loaded) return;
       try {
         await SplashScreen.hideAsync();
-      } catch {
+      } catch (error) {
+        console.warn('SplashScreen hide error:', error);
         // ignore: can happen during fast refresh or if splash isn't registered
       }
     };

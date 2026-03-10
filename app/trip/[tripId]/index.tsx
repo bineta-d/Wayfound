@@ -1,8 +1,8 @@
 import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
@@ -163,6 +163,11 @@ export default function TripOverviewScreen() {
     }
   };
 
+  const onRefresh = async () => {
+    await loadTripData();
+    await loadGroupedActivities();
+  };
+
   useFocusEffect(
     useCallback(() => {
       if (tripId) {
@@ -264,7 +269,7 @@ export default function TripOverviewScreen() {
                 duration={Math.ceil(
                   (new Date(trip.end_date).getTime() -
                     new Date(trip.start_date).getTime()) /
-                    (1000 * 60 * 60 * 24),
+                  (1000 * 60 * 60 * 24),
                 )}
                 onItineraryGenerated={setAiItinerary}
                 loading={loadingAI}
@@ -281,6 +286,10 @@ export default function TripOverviewScreen() {
                 onRemoveSpot={removeTargetSpot}
                 activities={Object.values(groupedActivities).flat()}
                 onAssignToDay={handleAssignToDay}
+                tripId={tripId as string}
+                tripStartDate={trip.start_date}
+                tripEndDate={trip.end_date}
+                onRefresh={onRefresh}
               />
             </View>
             {/* Collaborators Section */}

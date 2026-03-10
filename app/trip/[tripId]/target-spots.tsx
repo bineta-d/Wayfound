@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from 'react';
-import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from 'react';
+import { FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { addTripActivityToDay, getPlaceDetails, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
 
 interface TargetSpotsProps {
   targetSpots: string[];
@@ -8,17 +10,118 @@ interface TargetSpotsProps {
   onRemoveSpot: (index: number) => void;
   activities: any[];
   onAssignToDay: (activity: any, dayNumber: number) => void;
+  tripId: string;
+  tripStartDate: string;
+  tripEndDate: string;
+  onRefresh: () => void;
 }
 
-export default function TargetSpots({ targetSpots, onAddSpot, onRemoveSpot, activities, onAssignToDay }: TargetSpotsProps) {
+export default function TargetSpots({
+  targetSpots,
+  onAddSpot,
+  onRemoveSpot,
+  activities,
+  onAssignToDay,
+  tripId,
+  tripStartDate,
+  tripEndDate,
+  onRefresh,
+}: TargetSpotsProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [googlePlaces, setGooglePlaces] = useState([]);
+  const [googlePlaces, setGooglePlaces] = useState<PlacePrediction[]>([]);
+  const [showDayAssignModal, setShowDayAssignModal] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<any>(null);
+  const [tripDays, setTripDays] = useState<Array<{ dayNumber: number; date: string }>>([]);
+
+  // Generate trip days when component mounts
+  useEffect(() => {
+    if (tripStartDate && tripEndDate) {
+      const start = new Date(tripStartDate);
+      const end = new Date(tripEndDate);
+      const days = [];
+      const current = new Date(start);
+
+      while (current <= end) {
+        days.push({
+          dayNumber: days.length + 1,
+          date: current.toISOString().split('T')[0]
+        });
+        current.setDate(current.getDate() + 1);
+      }
+      setTripDays(days);
+    }
+  }, [tripStartDate, tripEndDate]);
 
   const handleAddSpot = () => {
     setShowAddModal(true);
   };
 
+  // Search Google Places when text changes
+  const handleSearchChange = async (text: string) => {
+    setSearchText(text);
+    if (text.trim().length > 2) {
+      try {
+        const predictions = await searchPlacePredictions(text);
+        setGooglePlaces(predictions);
+      } catch (error) {
+        console.error('Error searching places:', error);
+        setGooglePlaces([]);
+      }
+    } else {
+      setGooglePlaces([]);
+    }
+  };
+
+  // Handle place selection from Google Places
+  const handlePlaceSelect = async (place: PlacePrediction) => {
+    try {
+      const placeDetails = await getPlaceDetails(place.place_id);
+      // Add the place to targetSpots list immediately
+      onAddSpot(placeDetails.location_name);
+      // Store the full place details for potential day assignment
+      setSelectedPlace(placeDetails);
+      setSearchText(place.description);
+      setGooglePlaces([]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error getting place details:', error);
+    }
+  };
+
+  // Handle assignment to a specific day
+  const handleDayAssign = async (day: { dayNumber: number; date: string }) => {
+    if (selectedPlace && tripId) {
+      try {
+        const activityData = {
+          trip_id: tripId,
+          day_date: day.date,
+          location_name: selectedPlace.location_name,
+          latitude: selectedPlace.latitude || null,
+          longitude: selectedPlace.longitude || null,
+        };
+
+        await addTripActivityToDay(activityData);
+
+        // Always remove the spot from targetSpots when assigned to a day
+        const spotIndex = targetSpots.findIndex(spot => spot === selectedPlace.location_name);
+        if (spotIndex !== -1) {
+          onRemoveSpot(spotIndex);
+        }
+
+        // Reset states and refresh
+        setSelectedPlace(null);
+        setShowDayAssignModal(false);
+        setShowAddModal(false);
+        setSearchText('');
+        onRefresh();
+      } catch (error) {
+        console.error('Error adding activity to day:', error);
+      }
+    }
+  };
+
+  // Fallback function for manual text input (if Google Places fails)
   const handleModalAdd = () => {
     if (searchText.trim()) {
       onAddSpot(searchText.trim());
@@ -93,9 +196,20 @@ export default function TargetSpots({ targetSpots, onAddSpot, onRemoveSpot, acti
                 <Text className="text-neutral-textPrimary flex-1">
                   {spot}
                 </Text>
-                <TouchableOpacity onPress={() => onRemoveSpot(index)}>
-                  <Ionicons name="close-circle" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                <View className="flex-row items-center">
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedPlace({ location_name: spot });
+                      setShowDayAssignModal(true);
+                    }}
+                    className="mr-3"
+                  >
+                    <Ionicons name="help-circle" size={16} color="#3B82F6" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => onRemoveSpot(index)}>
+                    <Ionicons name="close-circle" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
@@ -120,8 +234,11 @@ export default function TargetSpots({ targetSpots, onAddSpot, onRemoveSpot, acti
         onRequestClose={() => setShowAddModal(false)}
       >
         <View className="flex-1 justify-end">
-          <View className="w-full h-1/4 bg-white rounded-t-3xl p-6 shadow-lg">
-            <View className="flex-row justify-between items-center mb-4">
+          <SafeAreaView
+            className="w-full bg-white rounded-t-3xl shadow-lg"
+            style={{ height: '50%' }}
+          >
+            <View className="flex-row justify-between items-center mb-4 pt-6 px-6">
               <Text className="text-lg font-semibold text-neutral-textPrimary">
                 Add Target Spot
               </Text>
@@ -130,22 +247,93 @@ export default function TargetSpots({ targetSpots, onAddSpot, onRemoveSpot, acti
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              className="border border-neutral-divider rounded-lg p-3 mb-4 bg-neutral-surface"
-              placeholder="Search for a place..."
-              value={searchText}
-              onChangeText={setSearchText}
-              autoFocus={true}
-            />
+            <View className="flex-1 px-6">
+              <TextInput
+                className="border border-neutral-divider rounded-lg p-3 mb-4 bg-neutral-surface"
+                placeholder="Search for a place..."
+                value={searchText}
+                onChangeText={handleSearchChange}
+                autoFocus={true}
+              />
 
-            <TouchableOpacity
-              className="bg-blue-500 rounded-lg p-4"
-              onPress={handleModalAdd}
-            >
-              <Text className="text-center text-white font-semibold">
-                Add Target Spot
+              {/* Google Places Results - fills all remaining space */}
+              {googlePlaces.length > 0 && (
+                <View className="flex-1">
+                  <FlatList
+                    data={googlePlaces}
+                    keyExtractor={(item: PlacePrediction) => item.place_id}
+                    renderItem={({ item }: { item: PlacePrediction }) => (
+                      <TouchableOpacity
+                        onPress={() => handlePlaceSelect(item)}
+                        className="p-3 border-b border-gray-200 bg-gray-50"
+                      >
+                        <Text className="text-neutral-textPrimary">{item.description}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Fixed Bottom Button */}
+            <View className="px-6 pb-4">
+              <TouchableOpacity
+                className="bg-blue-500 rounded-lg p-4"
+                onPress={handleModalAdd}
+              >
+                <Text className="text-center text-white font-semibold">
+                  Add Target Spot
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Day Assignment Modal */}
+      <Modal
+        visible={showDayAssignModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDayAssignModal(false)}
+      >
+        <View className="flex-1 justify-end">
+          <View className="w-full h-2/3 bg-white rounded-t-3xl p-6 shadow-lg">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-semibold text-neutral-textPrimary">
+                Assign to Day
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowDayAssignModal(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-neutral-textSecondary mb-4">
+              Select which day to add "{selectedPlace?.location_name || 'this location'}"
+            </Text>
+
+            <ScrollView className="flex-1">
+              <View className="space-y-2">
+                {tripDays.map((day) => (
+                  <TouchableOpacity
+                    key={day.dayNumber}
+                    onPress={() => handleDayAssign(day)}
+                    className="bg-neutral-surface p-4 rounded-lg border border-neutral-divider"
+                  >
+                    <Text className="text-neutral-textPrimary font-medium">
+                      Day {day.dayNumber}
+                    </Text>
+                    <Text className="text-neutral-textSecondary text-sm">
+                      {new Date(day.date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
