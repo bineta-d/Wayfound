@@ -1,19 +1,19 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, FlatList } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import MapView, { Marker, Callout, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import MapView, { Callout, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import {
-  getTripById,
-  getTripActivitiesForDay,
   addTripActivityToDay,
   deleteTripActivity,
-  updateTripActivity,
-  Activity as TripActivity,
-  searchPlacePredictions,
   getPlaceDetails,
+  getTripActivitiesForDay,
+  getTripById,
   PlacePrediction,
+  searchPlacePredictions,
+  Activity as TripActivity,
+  updateTripActivity,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
 
@@ -113,8 +113,8 @@ export default function DayDetailScreen() {
   const dayDateStr =
     dayDate
       ? new Date(Date.UTC(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()))
-          .toISOString()
-          .slice(0, 10)
+        .toISOString()
+        .slice(0, 10)
       : null;
 
   const loadActivities = async () => {
@@ -365,10 +365,7 @@ export default function DayDetailScreen() {
         </View>
 
         {loadingActivities ? (
-          <View className="py-8 items-center justify-center">
-            <ActivityIndicator />
-            <Text className="text-neutral-textSecondary mt-3">Loading activities...</Text>
-          </View>
+          <DayDetailSkeleton />
         ) : activities.length === 0 ? (
           <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
             <Text className="text-neutral-textSecondary text-center">

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Stack } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import TripCard from '../../components/TripCard';
+import TripCardSkeleton from '../../components/TripCardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { getSharedTrips } from '../../lib/TripService';
 import { Trip } from '../../lib/types';
-import TripCard from '../../components/TripCard';
-import { Stack } from 'expo-router';
 
 export default function CollaborateScreen() {
     const { user } = useAuth();
@@ -44,8 +45,10 @@ export default function CollaborateScreen() {
         return (
             <>
                 <Stack.Screen options={{ title: "Collaborate", headerShown: true }} />
-                <View className="flex-1 items-center justify-center bg-white">
-                    <Text className="text-gray-600">Loading shared trips...</Text>
+                <View className="flex-1 bg-white px-6 py-6">
+                    <TripCardSkeleton />
+                    <TripCardSkeleton />
+                    <TripCardSkeleton />
                 </View>
             </>
         );

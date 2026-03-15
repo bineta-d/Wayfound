@@ -48,8 +48,10 @@ export default function HomeScreen() {
     return (
       <>
         <Stack.Screen options={{ title: "Home", headerShown: true }} />
-        <View className="flex-1 items-center justify-center bg-white">
-          <Text className="text-gray-600">Loading trips...</Text>
+        <View className="flex-1 bg-white px-6 py-6">
+          <TripCardSkeleton />
+          <TripCardSkeleton />
+          <TripCardSkeleton />
         </View>
       </>
     );
