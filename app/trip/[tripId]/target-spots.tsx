@@ -176,10 +176,8 @@ export default function TargetSpots({
   };
 
   const parseLocationName = (locationName: string) => {
-    // Parse Google address to get the main location name
     if (!locationName) return 'Unknown Location';
 
-    // Split by comma and take the first part (usually the main location name)
     const parts = locationName.split(',');
     return parts[0].trim();
   };
