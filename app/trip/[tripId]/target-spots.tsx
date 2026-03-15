@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from 'react';
 import { FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { addTripActivityToDay, getPlaceDetails, getPlacePhoto, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
+import { getPlaceDetails, getPlacePhoto, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
 
 interface TargetSpotsProps {
   targetSpots: string[];
@@ -40,6 +40,8 @@ export default function TargetSpots({
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [tripDays, setTripDays] = useState<Array<{ dayNumber: number; date: string }>>([]);
   const [targetSpotsWithImages, setTargetSpotsWithImages] = useState<TargetSpotWithImage[]>([]);
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
 
   // Generate trip days when component mounts
   useEffect(() => {
@@ -96,8 +98,76 @@ export default function TargetSpots({
     }
   };
 
+  // Toggle day expansion
+  const toggleDayExpansion = (dayNumber: number) => {
+    setExpandedDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dayNumber)) {
+        newSet.delete(dayNumber);
+      } else {
+        newSet.add(dayNumber);
+      }
+      return newSet;
+    });
+  };
+
+  // Generate unique days from activities for day assignment
+  const getDaysFromActivities = () => {
+    console.log('🔍 getDaysFromActivities called with activities:', activities);
+    console.log('🔍 tripStartDate:', tripStartDate);
+
+    // If no activities, generate days from trip dates
+    if (!activities || activities.length === 0) {
+      const days = [];
+      const start = new Date(tripStartDate);
+      const end = new Date(tripEndDate);
+      const current = new Date(start);
+
+      while (current <= end) {
+        days.push({
+          dayNumber: days.length + 1,
+          date: current.toISOString().split('T')[0],
+          activities: []
+        });
+        current.setDate(current.getDate() + 1);
+      }
+      return days;
+    }
+
+    // If we have activities, group them by day
+    const uniqueDays = new Set<number>();
+    const dayActivities: Record<number, any[]> = {};
+
+    activities.forEach(activity => {
+      if (activity.day_date) {
+        const dayDate = new Date(activity.day_date);
+        const tripStart = new Date(tripStartDate);
+        const diffTime = dayDate.getTime() - tripStart.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const dayNumber = diffDays >= 0 ? diffDays + 1 : 1;
+
+        uniqueDays.add(dayNumber);
+
+        // Group activities by day
+        if (!dayActivities[dayNumber]) {
+          dayActivities[dayNumber] = [];
+        }
+        dayActivities[dayNumber].push(activity);
+      }
+    });
+
+    console.log('🔍 uniqueDays:', Array.from(uniqueDays));
+    console.log('🔍 dayActivities:', dayActivities);
+
+    return Array.from(uniqueDays).sort((a, b) => a - b).map(dayNumber => ({
+      dayNumber,
+      date: new Date(tripStartDate).setDate(new Date(tripStartDate).getDate() + (dayNumber - 1)).toISOString().split('T')[0],
+      activities: dayActivities[dayNumber] || []
+    }));
+  };
+
   // Handle assignment to a specific day
-  const handleDayAssign = async (day: { dayNumber: number; date: string }) => {
+  const handleDayAssign = async (day: { dayNumber: number; date: string; activities?: any[] }) => {
     if (selectedPlace && tripId) {
       try {
         const activityData = {
@@ -108,22 +178,41 @@ export default function TargetSpots({
           longitude: selectedPlace.longitude || null,
         };
 
-        await addTripActivityToDay(activityData);
+        // Add the activity to the day's activities
+        const updatedActivities = [...(day.activities || []), activityData];
 
-        // Always remove the spot from targetSpots when assigned to a day
-        const spotIndex = targetSpots.findIndex(spot => spot === selectedPlace.location_name);
-        if (spotIndex !== -1) {
-          onRemoveSpot(spotIndex);
-        }
+        // Update the day in the getDaysFromActivities function
+        const uniqueDays = new Set<number>();
+        updatedActivities.forEach(activity => {
+          if (activity.day_date) {
+            const dayDate = new Date(activity.day_date);
+            const tripStart = new Date(tripStartDate);
+            const diffTime = dayDate.getTime() - tripStart.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const dayNum = diffDays >= 0 ? diffDays + 1 : 1;
+            uniqueDays.add(dayNum);
+          }
+        });
 
-        // Reset states and refresh
+        // Call onAssignToDay to update backend
+        await onAssignToDay(activityData, day.dayNumber);
+
+        // Update local state to trigger re-render
+        setTargetSpotsWithImages(prev =>
+          prev.map(spot =>
+            spot.name === selectedPlace.location_name
+              ? { ...spot, hasImage: true, image: spot.image }
+              : spot
+          )
+        );
+
+        // Close modal
         setSelectedPlace(null);
         setShowDayAssignModal(false);
-        setShowAddModal(false);
         setSearchText('');
-        onRefresh();
       } catch (error) {
-        console.error('Error adding activity to day:', error);
+        console.error('Error assigning activity to day:', error);
+        Alert.alert('Error', 'Failed to assign activity to day');
       }
     }
   };
@@ -391,22 +480,53 @@ export default function TargetSpots({
 
             <ScrollView className="flex-1">
               <View className="space-y-2">
-                {tripDays.map((day) => (
+                {getDaysFromActivities().map((day) => (
                   <TouchableOpacity
                     key={day.dayNumber}
-                    onPress={() => handleDayAssign(day)}
+                    onPress={() => toggleDayExpansion(day.dayNumber)}
                     className="bg-neutral-surface p-4 rounded-lg border border-neutral-divider"
                   >
-                    <Text className="text-neutral-textPrimary font-medium">
-                      Day {day.dayNumber}
-                    </Text>
-                    <Text className="text-neutral-textSecondary text-sm">
-                      {new Date(day.date).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </Text>
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <Text className="text-neutral-textPrimary font-medium">
+                          Day {day.dayNumber}
+                        </Text>
+                        <Text className="text-neutral-textSecondary text-sm">
+                          {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </Text>
+                      </View>
+
+                      {/* Show existing activities count */}
+                      <Text className="text-neutral-textSecondary text-xs">
+                        {day.activities.length} activities
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center">
+                      {expandedDays.has(day.dayNumber) ? (
+                        <Ionicons name="chevron-up" size={20} color="#6B7280" />
+                      ) : (
+                        <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                      )}
+                    </View>
+
+                    {/* Collapsible activities list */}
+                    {expandedDays.has(day.dayNumber) && (
+                      <View className="mt-2 space-y-1">
+                        {day.activities.map((activity, index) => (
+                          <View key={activity.id || index} className="bg-white border border-neutral-divider rounded-lg p-3">
+                            <View className="flex-row justify-between items-center">
+                              <Text className="text-neutral-textPrimary text-sm font-medium">
+                                {activity.location_name}
+                              </Text>
+                              <Text className="text-neutral-textSecondary text-xs">
+                                {new Date(activity.day_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
