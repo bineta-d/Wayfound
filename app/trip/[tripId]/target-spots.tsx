@@ -213,68 +213,82 @@ export default function TargetSpots({
         <ScrollView className="max-h-96">
           <View className="space-y-2">
             {/* Show individual activities with new card design */}
-            {activities.map((activity, index) => (
-              <View
-                key={activity.id || index}
-                className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
-              >
-                <View className="flex-row items-center">
-                  <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
-                    <Ionicons name="location" size={24} color="#6B7280" />
+            {activities
+              .sort((a, b) => {
+                const dateA = a.day_date ? new Date(a.day_date) : new Date(0);
+                const dateB = b.day_date ? new Date(b.day_date) : new Date(0);
+                return dateB.getTime() - dateA.getTime();
+              })
+              .reverse()
+              .map((activity, index) => (
+                <View
+                  key={activity.id || index}
+                  className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
+                >
+                  <View className="flex-row items-center">
+                    <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
+                      <Ionicons name="location" size={24} color="#6B7280" />
+                    </View>
+
+                    <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
+                      {parseLocationName(activity.location_name)}
+                    </Text>
+
+                    <TouchableOpacity
+                      onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
+                      className="ml-3"
+                    >
+                      <Ionicons name="calendar" size={16} color="#3B82F6" />
+                    </TouchableOpacity>
                   </View>
-
-                  <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
-                    {parseLocationName(activity.location_name)}
-                  </Text>
-
-                  <TouchableOpacity
-                    onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
-                    className="ml-3"
-                  >
-                    <Ionicons name="calendar" size={16} color="#3B82F6" />
-                  </TouchableOpacity>
                 </View>
-              </View>
-            ))}
+              ))}
 
             {/* Show manually added target spots */}
-            {targetSpotsWithImages.map((spot, index) => (
-              <View
-                key={`manual-${index}`}
-                className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
-              >
-                <View className="flex-row items-center">
-                  <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
-                    {spot.image ? (
-                      <View className="w-16 h-16 bg-green-100 rounded-lg items-center justify-center">
-                        <Ionicons name="image" size={24} color="#10B981" />
-                      </View>
-                    ) : (
-                      <Ionicons name="location" size={24} color="#6B7280" />
-                    )}
-                  </View>
-
-                  <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
-                    {spot.name}
-                  </Text>
-
+            {targetSpotsWithImages
+              .sort((a, b) => {
+                // Sort by most recently added (reverse chronological order)
+                const indexA = targetSpots.findIndex(spot => spot.name === a.name);
+                const indexB = targetSpots.findIndex(spot => spot.name === b.name);
+                return indexB - indexA;
+              })
+              .map((spot, index) => (
+                <View
+                  key={`manual-${index}`}
+                  className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
+                >
                   <View className="flex-row items-center">
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSelectedPlace({ location_name: spot.name });
-                        setShowDayAssignModal(true);
-                      }}
-                      className="mr-3"
-                    >
-                      <Ionicons name="help-circle" size={16} color="#3B82F6" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => onRemoveSpot(index)}>
-                      <Ionicons name="close-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
+                    <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
+                      {spot.image ? (
+                        <View className="w-16 h-16 bg-green-100 rounded-lg items-center justify-center">
+                          <Ionicons name="image" size={24} color="#10B981" />
+                        </View>
+                      ) : (
+                        <Ionicons name="location" size={24} color="#6B7280" />
+                      )}
+                    </View>
+
+                    <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
+                      {spot.name}
+                    </Text>
+
+                    <View className="flex-row items-center">
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedPlace({ location_name: spot.name });
+                          setShowDayAssignModal(true);
+                        }}
+                        className="mr-3"
+                      >
+                        <Ionicons name="help-circle" size={16} color="#3B82F6" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => onRemoveSpot(index)}>
+                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              ))}
           </View>
         </ScrollView>
       )}
