@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from 'react';
-import { FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getPlaceDetails, getPlacePhoto, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
 
@@ -10,6 +10,7 @@ interface TargetSpotsProps {
   onRemoveSpot: (index: number) => void;
   activities: any[];
   onAssignToDay: (activity: any, dayNumber: number) => void;
+  onRemoveActivity: (activityId: string) => void;
   tripId: string;
   tripStartDate: string;
   tripEndDate: string;
@@ -28,6 +29,7 @@ export default function TargetSpots({
   onRemoveSpot,
   activities,
   onAssignToDay,
+  onRemoveActivity,
   tripId,
   tripStartDate,
   tripEndDate,
@@ -42,6 +44,29 @@ export default function TargetSpots({
   const [targetSpotsWithImages, setTargetSpotsWithImages] = useState<TargetSpotWithImage[]>([]);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
+
+  const handleRemoveActivity = (activity: any) => {
+    Alert.alert(
+      'Remove Activity',
+      `Are you sure you want to remove "${parseLocationName(activity.location_name)}" from this trip?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            if (onRemoveActivity) {
+              onRemoveActivity(activity.id);
+              onRefresh();
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Generate trip days when component mounts
   useEffect(() => {
@@ -323,12 +348,17 @@ export default function TargetSpots({
                       {parseLocationName(activity.location_name)}
                     </Text>
 
-                    <TouchableOpacity
-                      onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
-                      className="ml-3"
-                    >
-                      <Ionicons name="calendar" size={16} color="#3B82F6" />
-                    </TouchableOpacity>
+                    <View className="flex-row items-center">
+                      <TouchableOpacity
+                        onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
+                        className="mr-3"
+                      >
+                        <Ionicons name="calendar" size={16} color="#3B82F6" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveActivity(activity)}>
+                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               ))}

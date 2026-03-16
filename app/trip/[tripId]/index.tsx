@@ -8,10 +8,11 @@ import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDeta
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
+  deleteTripActivity,
   getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
-  getTripMembers,
+  getTripMembers
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
@@ -68,6 +69,34 @@ export default function TripOverviewScreen() {
 
   const removeTargetSpot = (index: number) => {
     setTargetSpots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeActivity = async (activityId: string) => {
+    console.log('🗑️ Removing activity:', activityId);
+    try {
+      // Delete from database first
+      await deleteTripActivity(activityId);
+      console.log('✅ Activity deleted from database');
+
+      // Then update local state
+      setGroupedActivities((prev) => {
+        const newGrouped = { ...prev };
+
+        // Remove activity from all days
+        Object.keys(newGrouped).forEach(dayKey => {
+          newGrouped[dayKey] = newGrouped[dayKey].filter(
+            (activity: any) => activity.id !== activityId
+          );
+        });
+
+        return newGrouped;
+      });
+
+      console.log('✅ Activity removed from local state');
+    } catch (error) {
+      console.error('❌ Error deleting activity:', error);
+      Alert.alert('Error', 'Failed to delete activity. Please try again.');
+    }
   };
 
   const handleAssignToDay = (activity: any, dayNumber: number) => {
@@ -294,6 +323,11 @@ export default function TripOverviewScreen() {
                   onRemoveSpot={removeTargetSpot}
                   activities={Object.values(groupedActivities).flat()}
                   onAssignToDay={handleAssignToDay}
+                  onRemoveActivity={removeActivity}
+                  tripId={tripId as string}
+                  tripStartDate={trip?.start_date || ''}
+                  tripEndDate={trip?.end_date || ''}
+                  onRefresh={onRefresh}
                 />
               )}
             </View>
