@@ -9,7 +9,9 @@ import {
   addTripActivityToDay,
   deleteTripActivity,
   getPlaceDetails,
+  getItineraryDaysForTrip,
   getTripActivitiesForDay,
+  getTripActivitiesForItineraryDayId,
   getTripById,
   PlacePrediction,
   searchPlacePredictions,
@@ -21,7 +23,19 @@ import { Trip } from "../../../lib/types";
 import { DayDetailSkeleton } from "@/components/DayDetailSkeleton";
 
 export default function DayDetailScreen() {
-  const { tripId, day } = useLocalSearchParams();
+  const { tripId, day, dayDate, itineraryDayId, displayDate } = useLocalSearchParams();
+
+  const getSingleParam = (value: string | string[] | undefined) => {
+    if (Array.isArray(value)) return value[0];
+    return value;
+  };
+
+  const tripIdParam = getSingleParam(tripId);
+  const dayParam = getSingleParam(day);
+  const dayDateParam = getSingleParam(dayDate);
+  const itineraryDayIdParam = getSingleParam(itineraryDayId);
+  const displayDateParam = getSingleParam(displayDate);
+  const [resolvedItineraryDayId, setResolvedItineraryDayId] = useState<string | null>(null);
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,12 +107,12 @@ export default function DayDetailScreen() {
   };
 
   useEffect(() => {
-    if (tripId) {
-      getTripById(tripId as string)
+    if (tripIdParam) {
+      getTripById(tripIdParam)
         .then((data) => setTrip(data))
         .finally(() => setLoading(false));
     }
-  }, [tripId]);
+  }, [tripIdParam]);
 
   const normalizeTime = (t: string): string | null => {
     const s = t.trim();
@@ -130,21 +144,57 @@ export default function DayDetailScreen() {
   };
 
   // calculate the date for the selected day
-  const dayNumber = parseInt(day as string, 10) || 1;
-  let dayDate: Date | null = null;
-  if (trip && trip.start_date) {
+  const dayNumber = parseInt(dayParam ?? "1", 10) || 1;
+  let selectedDayDate: Date | null = null;
+
+  if (displayDateParam) {
+    selectedDayDate = parseLocalDate(displayDateParam);
+  } else if (trip && trip.start_date) {
     const start = parseLocalDate(trip.start_date);
-    dayDate = new Date(start);
-    dayDate.setDate(start.getDate() + (dayNumber - 1));
+    selectedDayDate = new Date(start);
+    selectedDayDate.setDate(start.getDate() + (dayNumber - 1));
+  } else if (dayDateParam) {
+    selectedDayDate = parseLocalDate(dayDateParam);
   }
 
-  const dayDateStr = dayDate ? formatLocalDate(dayDate) : null;
+  const dayDateStr = dayDateParam
+    ? dayDateParam
+    : selectedDayDate
+      ? formatLocalDate(selectedDayDate)
+      : null;
+
+  useEffect(() => {
+    if (itineraryDayIdParam) {
+      setResolvedItineraryDayId(itineraryDayIdParam);
+      return;
+    }
+
+    if (!tripIdParam) return;
+
+    getItineraryDaysForTrip(tripIdParam)
+      .then((days) => {
+        const selected = days[dayNumber - 1];
+        setResolvedItineraryDayId(selected?.id ?? null);
+      })
+      .catch(() => {
+        setResolvedItineraryDayId(null);
+      });
+  }, [tripIdParam, dayNumber, itineraryDayIdParam]);
 
   const loadActivities = async () => {
-    if (!tripId || !dayDateStr) return;
+    if (!tripIdParam) return;
     setLoadingActivities(true);
     try {
-      const data = await getTripActivitiesForDay(tripId as string, dayDateStr);
+      let data: TripActivity[] = [];
+
+      if (resolvedItineraryDayId) {
+        data = await getTripActivitiesForItineraryDayId(resolvedItineraryDayId);
+      }
+
+      // fallback if this itinerary day has no rows and we still need to load by day_date
+      if (data.length === 0 && dayDateStr && tripIdParam) {
+        data = await getTripActivitiesForDay(tripIdParam, dayDateStr);
+      }
       setActivities(sortActivitiesByStartTime(data));
     } finally {
       setLoadingActivities(false);
@@ -152,9 +202,10 @@ export default function DayDetailScreen() {
   };
 
   useEffect(() => {
-    if (!tripId || !dayDateStr) return;
+    if (!tripIdParam) return;
+    if (!resolvedItineraryDayId && !dayDateStr) return;
     loadActivities();
-  }, [tripId, dayDateStr]);
+  }, [tripIdParam, resolvedItineraryDayId, dayDateStr]);
 
   useEffect(() => {
     // If a place was selected, don't refetch predictions for the filled text.
@@ -359,10 +410,10 @@ export default function DayDetailScreen() {
     <ScrollView className="flex-1 bg-neutral-background">
       {/* Trip Header */}
       <View className="bg-neutral-surface px-6 py-6 mb-2">
-        {dayDate && (
+        {selectedDayDate && (
           <Text className="text-2xl font-bold text-neutral-textPrimary mb-2">
             Day {dayNumber} -{" "}
-            {dayDate.toLocaleDateString("en-US", {
+            {selectedDayDate.toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
               day: "numeric",

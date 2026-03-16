@@ -412,6 +412,13 @@ export interface Activity {
   created_at?: string;
 }
 
+export interface ItineraryDay {
+  id: string;
+  trip_id: string;
+  day_date: string;
+  position: number | null;
+}
+
 const sortActivitiesForDisplay = <T extends Activity>(activities: T[]): T[] => {
   return [...activities].sort((a, b) => {
     const aPos = a.position ?? Number.MAX_SAFE_INTEGER;
@@ -715,8 +722,9 @@ export const getTripActivities = async (
   // 1) get itinerary days for trip
   const { data: days, error: daysError } = await supabase
     .from("itinerary_days")
-    .select("id, day_date")
+    .select("id, day_date, position")
     .eq("trip_id", trip_id)
+    .order("position", { ascending: true, nullsFirst: false })
     .order("day_date", { ascending: true });
 
   if (daysError) throw daysError;
@@ -769,3 +777,54 @@ export const getTripActivitiesGroupedByDay = async (
 
   return grouped;
 };
+
+export const getItineraryDaysForTrip = async (
+  trip_id: string,
+): Promise<ItineraryDay[]> => {
+  const { data, error } = await supabase
+    .from("itinerary_days")
+    .select("*")
+    .eq("trip_id", trip_id)
+    .order("position", { ascending: true, nullsFirst: false })
+    .order("day_date", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as ItineraryDay[]) || [];
+};
+
+
+export const updateItineraryDayPositions = async (
+  updates: { id: string; position: number }[],
+): Promise<void> => {
+  if (updates.length === 0) return;
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("itinerary_days")
+      .update({ position: update.position })
+      .eq("id", update.id);
+
+    if (error) {
+      throw error;
+    }
+  }
+};
+
+export const getTripActivitiesForItineraryDayId = async (
+  itinerary_day_id: string,
+): Promise<Activity[]> => {
+  const { data, error } = await supabase
+    .from("activities")
+    .select("*")
+    .eq("itinerary_day_id", itinerary_day_id)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return sortActivitiesForDisplay((data as Activity[]) || []);
+}

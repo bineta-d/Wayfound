@@ -8,10 +8,12 @@ import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDeta
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
+  getItineraryDaysForTrip,
   getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
+  updateItineraryDayPositions,
   updateTripActivity,
   updateTripActivityPositions,
 } from "../../../lib/TripService";
@@ -50,6 +52,7 @@ export default function TripOverviewScreen() {
   const [groupedActivities, setGroupedActivities] = useState<
     Record<string, any[]>
   >({});
+  const [itineraryDays, setItineraryDays] = useState<any[]>([]);
 
   const toLocalDateString = (date: Date) => {
     const year = date.getFullYear();
@@ -67,8 +70,42 @@ export default function TripOverviewScreen() {
     setCollapsedDays({});
     setAiItinerary([]);
     setTargetSpots([]);
+    setItineraryDays([]);
     setLoading(true);
   }, [tripId]);
+  const handleReorderDays = async (reorderedDays: any[]) => {
+    if (!tripId) return;
+
+    const normalized = reorderedDays.map((day, index) => ({
+      ...day,
+      position: index + 1,
+      dayNumber: index + 1,
+    }));
+
+    setItineraryDays(normalized);
+
+    try {
+      await updateItineraryDayPositions(
+        normalized
+          .filter((d) => Boolean(d.id))
+          .map((d) => ({ id: d.id, position: d.position }))
+      );
+
+      const refreshed = await getItineraryDaysForTrip(tripId as string);
+      setItineraryDays(refreshed);
+
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+
+      const rebuilt: Record<number, any[]> = {};
+      refreshed.forEach((day, index) => {
+        rebuilt[index + 1] = grouped[day.day_date] ?? [];
+      });
+
+      setDayActivities(rebuilt);
+    } catch (e) {
+      console.log("Error saving reordered days:", e);
+    }
+  };
 
   const toggleDayCollapse = (dayNumber: number) => {
     setCollapsedDays((prev) => ({
@@ -218,8 +255,18 @@ export default function TripOverviewScreen() {
     try {
       const tripData = await getTripById(tripId as string);
       const membersData = await getTripMembers(tripId as string);
+      const daysData = await getItineraryDaysForTrip(tripId as string);
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+
       setTrip(tripData);
       setMembers(membersData);
+      setItineraryDays(daysData);
+
+      const rebuilt: Record<number, any[]> = {};
+      daysData.forEach((day, index) => {
+        rebuilt[index + 1] = grouped[day.day_date] ?? [];
+      });
+      setDayActivities(rebuilt);
     } catch (error) {
       console.error("Error loading trip:", error);
       Alert.alert("Error", "Failed to load trip details");
@@ -306,14 +353,53 @@ export default function TripOverviewScreen() {
       {/* Tab Bar */}
 
       {/* Tab Content */}
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        horizontal={false}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+      {activeTab === 1 ? (
+        <ScrollView
+          className="flex-1 bg-gray-50"
+          horizontal={false}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <View className="bg-white mb-2">
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} />
+
+            {/* tabs Section */}
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+
+            {refreshing ? (
+              <ItinerarySkeleton />
+            ) : (
+              <ItineraryScreen
+                tripId={tripId as string}
+                startDate={trip.start_date}
+                destination={trip.destination}
+                endDate={trip.end_date}
+                aiItinerary={aiItinerary}
+                itineraryDays={itineraryDays}
+                onReorderDays={handleReorderDays}
+                onToggleDayCollapse={toggleDayCollapse}
+                onToggleItineraryCollapse={toggleItineraryCollapse}
+                collapsedDays={collapsedDays}
+                isItineraryCollapsed={isItineraryCollapsed}
+                dayActivities={dayActivities}
+                loadingActivities={loadingActivities}
+                onReorderDayActivities={handleReorderDayActivities}
+              />
+            )}
+          </View>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          className="flex-1 bg-gray-50"
+          horizontal={false}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
         {/* Overview Tab */}
         {activeTab === 0 && (
           <>
@@ -375,35 +461,6 @@ export default function TripOverviewScreen() {
               </View>
             )}
           </>
-        )}
-        {/* Itinerary Tab */}
-        {activeTab === 1 && (
-          <View className="bg-white mb-2">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
-
-            {/* tabs Section */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-            {refreshing ? (
-              <ItinerarySkeleton />
-            ) : (
-              <ItineraryScreen
-              tripId={tripId as string}
-              startDate={trip.start_date}
-              destination={trip.destination}
-              endDate={trip.end_date}
-              aiItinerary={aiItinerary}
-              onToggleDayCollapse={toggleDayCollapse}
-              onToggleItineraryCollapse={toggleItineraryCollapse}
-              collapsedDays={collapsedDays}
-              isItineraryCollapsed={isItineraryCollapsed}
-              dayActivities={dayActivities}
-              loadingActivities={loadingActivities}
-              onReorderDayActivities={handleReorderDayActivities}
-              />
-            )}
-          </View>
         )}
         {/* Reservations Tab */}
         {activeTab === 2 && (
@@ -490,7 +547,8 @@ export default function TripOverviewScreen() {
             <BudgetScreen />
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      )}
     </>
   );
 }
