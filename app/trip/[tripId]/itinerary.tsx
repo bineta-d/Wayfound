@@ -90,8 +90,8 @@ export default function ItineraryScreen({
   };
 
   const generateDayHeaders = () => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
     const days = [];
     const current = new Date(start);
 
@@ -188,7 +188,10 @@ export default function ItineraryScreen({
       {!isItineraryCollapsed && (
         <ScrollView showsVerticalScrollIndicator={false}>
           {days.map((day) => (
-            <View key={day.date.toISOString()} className="mb-6">
+            <View
+              key={`${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, "0")}-${String(day.date.getDate()).padStart(2, "0")}`}
+              className="mb-6"
+            >
               <TouchableOpacity
                 onPress={() => onToggleDayCollapse(day.dayNumber)}
                 className="bg-neutral-surface rounded-lg p-4"

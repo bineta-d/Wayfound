@@ -49,6 +49,25 @@ export default function TripOverviewScreen() {
     Record<string, any[]>
   >({});
 
+  const toLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  useEffect(() => {
+    setTrip(null);
+    setMembers([]);
+    setDayActivities({});
+    setGroupedActivities({});
+    setLoadingActivities({});
+    setCollapsedDays({});
+    setAiItinerary([]);
+    setTargetSpots([]);
+    setLoading(true);
+  }, [tripId]);
+
   const toggleDayCollapse = (dayNumber: number) => {
     setCollapsedDays((prev) => ({
       ...prev,
@@ -86,13 +105,6 @@ export default function TripOverviewScreen() {
       console.log("📍 Grouped activities loaded:", grouped);
       setGroupedActivities(grouped);
 
-      if (trip) {
-        const days = generateDayHeaders();
-        days.forEach((day) => {
-          loadDayActivities(day.dayNumber);
-        });
-      }
-
       // Log activities with coordinates
       const allActivities = Object.values(grouped).flat();
       const activitiesWithCoords = allActivities.filter(
@@ -113,16 +125,28 @@ export default function TripOverviewScreen() {
     if (!tripId || !trip) return;
     setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
     try {
-      const dayDate = new Date(trip.start_date);
+      const dayDate = new Date(`${trip.start_date}T00:00:00`);
       dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
-      const dateStr = dayDate.toISOString().split("T")[0];
+
+      const dateStr = toLocalDateString(dayDate);
 
       const activities = await getTripActivitiesForDay(
         tripId as string,
         dateStr,
       );
 
-      setDayActivities((prev) => ({ ...prev, [dayNumber]: activities }));
+      const sorted = [...activities].sort((a, b) => {
+        const aTime = a.start_time?.slice(0, 5) ?? null;
+        const bTime = b.start_time?.slice(0, 5) ?? null;
+
+        if (!aTime && !bTime) return 0;
+        if (!aTime) return 1;
+        if (!bTime) return -1;
+
+        return aTime.localeCompare(bTime);
+      });
+
+      setDayActivities((prev) => ({ ...prev, [dayNumber]: sorted }));
       console.log(
         `📅 Loaded ${activities.length} activities for day ${dayNumber}`,
       );
@@ -135,8 +159,8 @@ export default function TripOverviewScreen() {
 
   const generateDayHeaders = () => {
     if (!trip) return [];
-    const start = new Date(trip.start_date);
-    const end = new Date(trip.end_date);
+    const start = new Date(`${trip.start_date}T00:00:00`);
+    const end = new Date(`${trip.end_date}T00:00:00`);
     const days = [];
     const current = new Date(start);
 
@@ -182,18 +206,18 @@ export default function TripOverviewScreen() {
   )
 
   useEffect(() => {
-    if (trip) {
-      const days = generateDayHeaders();
-      days.forEach((day) => {
-        loadDayActivities(day.dayNumber);
-      });
+    if (!trip || String(trip.id) !== String(tripId)) return;
 
-      const defaultCollapsed: Record<number, boolean> = {};
-      days.forEach((day) => {
-        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1;
-      });
-      setCollapsedDays(defaultCollapsed);
-    }
+    const days = generateDayHeaders();
+    days.forEach((day) => {
+      loadDayActivities(day.dayNumber);
+    });
+
+    const defaultCollapsed: Record<number, boolean> = {};
+    days.forEach((day) => {
+      defaultCollapsed[day.dayNumber] = day.dayNumber !== 1;
+    });
+    setCollapsedDays(defaultCollapsed);
   }, [trip, tripId]);
 
   const handleDeleteTrip = () => {
@@ -272,8 +296,8 @@ export default function TripOverviewScreen() {
                 startDate={trip.start_date}
                 endDate={trip.end_date}
                 duration={Math.ceil(
-                  (new Date(trip.end_date).getTime() -
-                    new Date(trip.start_date).getTime()) /
+                  (new Date(`${trip.end_date}T00:00:00`).getTime() -
+                    new Date(`${trip.start_date}T00:00:00`).getTime()) /
                   (1000 * 60 * 60 * 24),
                 )}
                 onItineraryGenerated={setAiItinerary}
@@ -289,12 +313,13 @@ export default function TripOverviewScreen() {
                 <TargetSpotsSkeleton />
               ) : (
                 <TargetSpots
-                  targetSpots={targetSpots}
-                  onAddSpot={addTargetSpot}
-                  onRemoveSpot={removeTargetSpot}
-                  activities={Object.values(groupedActivities).flat()}
-                  onAssignToDay={handleAssignToDay}
-                />
+                    targetSpots={targetSpots}
+                    onAddSpot={addTargetSpot}
+                    onRemoveSpot={removeTargetSpot}
+                    activities={Object.values(groupedActivities).flat()}
+                    onAssignToDay={handleAssignToDay} tripId={""} tripStartDate={""} tripEndDate={""} onRefresh={function (): void {
+                      throw new Error("Function not implemented.");
+                    } }                />
               )}
             </View>
             {/* Collaborators Section */}

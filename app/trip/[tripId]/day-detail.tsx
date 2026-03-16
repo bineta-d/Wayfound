@@ -16,6 +16,7 @@ import {
   updateTripActivity,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
+import { DayDetailSkeleton } from "@/components/DayDetailSkeleton";
 
 export default function DayDetailScreen() {
   const { tripId, day } = useLocalSearchParams();
@@ -43,6 +44,19 @@ export default function DayDetailScreen() {
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [editingLat, setEditingLat] = useState<number | null>(null);
   const [editingLng, setEditingLng] = useState<number | null>(null);
+
+  const sortActivitiesByStartTime = (items: TripActivity[]) => {
+    return [...items].sort((a, b) => {
+      const aTime = a.start_time?.slice(0, 5) ?? null;
+      const bTime = b.start_time?.slice(0, 5) ?? null;
+
+      if (!aTime && !bTime) return 0;
+      if (!aTime) return 1;
+      if (!bTime) return -1;
+
+      return aTime.localeCompare(bTime);
+    });
+  };
 
   const dayMapActivities = activities.filter(
     (a) => typeof a.latitude === 'number' && typeof a.longitude === 'number'
@@ -101,28 +115,34 @@ export default function DayDetailScreen() {
     return "";
   };
 
+  const parseLocalDate = (dateString: string) => {
+    return new Date(`${dateString}T00:00:00`);
+  };
+
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   // calculate the date for the selected day
-  let dayNumber = parseInt(day as string, 10) || 1;
+  const dayNumber = parseInt(day as string, 10) || 1;
   let dayDate: Date | null = null;
   if (trip && trip.start_date) {
-    const start = new Date(trip.start_date);
+    const start = parseLocalDate(trip.start_date);
     dayDate = new Date(start);
     dayDate.setDate(start.getDate() + (dayNumber - 1));
   }
 
-  const dayDateStr =
-    dayDate
-      ? new Date(Date.UTC(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()))
-        .toISOString()
-        .slice(0, 10)
-      : null;
+  const dayDateStr = dayDate ? formatLocalDate(dayDate) : null;
 
   const loadActivities = async () => {
     if (!tripId || !dayDateStr) return;
     setLoadingActivities(true);
     try {
       const data = await getTripActivitiesForDay(tripId as string, dayDateStr);
-      setActivities(data);
+      setActivities(sortActivitiesByStartTime(data));
     } finally {
       setLoadingActivities(false);
     }
@@ -245,7 +265,7 @@ export default function DayDetailScreen() {
           end_time: normalizeTime(activityEndTime),
         });
 
-        setActivities((prev) => [...prev, inserted]);
+        setActivities((prev) => sortActivitiesByStartTime([...prev, inserted]));
         closeAddModal();
         return;
       }
@@ -261,7 +281,7 @@ export default function DayDetailScreen() {
         end_time: normalizeTime(activityEndTime),
       });
 
-      setActivities((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      setActivities((prev) => sortActivitiesByStartTime(prev.map((x) => (x.id === updated.id ? updated : x))));
       closeAddModal();
     } finally {
       setSavingActivity(false);
@@ -410,7 +430,7 @@ export default function DayDetailScreen() {
                   <TouchableOpacity
                     onPress={async () => {
                       await deleteTripActivity(a.id);
-                      setActivities((prev) => prev.filter((x) => x.id !== a.id));
+                      setActivities((prev) => sortActivitiesByStartTime(prev.filter((x) => x.id !== a.id)));
                     }}
                     className="px-3 py-2 rounded-lg bg-accent-hotCoral"
                   >
