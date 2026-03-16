@@ -1,5 +1,7 @@
-import React from 'react';
+import { useLocalSearchParams } from 'expo-router'; // <-- Added to get the Trip ID
+import React, { useState } from 'react'; // <-- Added useState here
 import { Image, Text, TouchableOpacity, View } from 'react-native';
+import InviteModal from '../../../components/InviteModal'; // <-- Added your new Modal
 import { Trip_member } from '../../../lib/types';
 
 interface CollaboratorsScreenProps {
@@ -9,13 +11,20 @@ interface CollaboratorsScreenProps {
 export default function CollaboratorsScreen({ members }: CollaboratorsScreenProps) {
     console.log('🔍 Collaborators received:', members);
 
+    // 1. Add state to control when the pop-up is visible
+    const [isModalVisible, setModalVisible] = useState(false);
+
+    // 2. Grab the exact Trip ID from the screen's background data
+    const { tripId } = useLocalSearchParams();
+
     return (
         <View className="bg-white px-6 py-6 mb-2">
             <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-xl font-bold text-gray-800">Collaborators</Text>
                 <TouchableOpacity
                     className="w-8 h-8 bg-blue-500 rounded-full items-center justify-center"
-                    onPress={() => console.log('Add collaborator pressed')}
+                    // 3. Replaced the console.log with the command to open the pop-up!
+                    onPress={() => setModalVisible(true)}
                 >
                     <Text className="text-white font-semibold text-lg">+</Text>
                 </TouchableOpacity>
@@ -61,6 +70,13 @@ export default function CollaboratorsScreen({ members }: CollaboratorsScreenProp
                     ))}
                 </View>
             )}
+
+            {/* 4. This is the pop-up box. It stays invisible until the + button is clicked */}
+            <InviteModal 
+                isVisible={isModalVisible} 
+                onClose={() => setModalVisible(false)} 
+                tripId={tripId as string} 
+            />
         </View>
     );
 }
