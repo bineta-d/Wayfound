@@ -2,8 +2,18 @@ import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
@@ -24,6 +34,7 @@ import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
+import TripMap from "./trip-map";
 
 export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
@@ -53,6 +64,14 @@ export default function TripOverviewScreen() {
     Record<string, any[]>
   >({});
   const [itineraryDays, setItineraryDays] = useState<any[]>([]);
+  const [isMapSheetOpen, setIsMapSheetOpen] = useState(false);
+  const mapReveal = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get("window").height;
+  const revealedMapHeight = screenHeight * 0.58;
+  const overlayTranslateY = mapReveal.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, revealedMapHeight],
+  });
 
   const toLocalDateString = (date: Date) => {
     const year = date.getFullYear();
@@ -197,6 +216,23 @@ export default function TripOverviewScreen() {
     }
   };
 
+  const allPinnedActivities = useMemo(
+    () => Object.values(groupedActivities).flat(),
+    [groupedActivities],
+  );
+
+  const toggleMapSheet = () => {
+    const next = !isMapSheetOpen;
+    setIsMapSheetOpen(next);
+
+    Animated.spring(mapReveal, {
+      toValue: next ? 1 : 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 12,
+    }).start();
+  };
+
   const loadDayActivities = async (dayNumber: number) => {
     if (!tripId || !trip) return;
     setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
@@ -294,17 +330,16 @@ export default function TripOverviewScreen() {
   useEffect(() => {
     if (!trip || String(trip.id) !== String(tripId)) return;
 
-    const days = generateDayHeaders();
-    days.forEach((day) => {
-      loadDayActivities(day.dayNumber);
-    });
+    const dayCount = itineraryDays.length > 0
+      ? itineraryDays.length
+      : generateDayHeaders().length;
 
     const defaultCollapsed: Record<number, boolean> = {};
-    days.forEach((day) => {
-      defaultCollapsed[day.dayNumber] = day.dayNumber !== 1;
-    });
+    for (let dayNumber = 1; dayNumber <= dayCount; dayNumber++) {
+      defaultCollapsed[dayNumber] = dayNumber !== 1;
+    }
     setCollapsedDays(defaultCollapsed);
-  }, [trip, tripId]);
+  }, [trip, tripId, itineraryDays]);
 
   const handleDeleteTrip = () => {
     Alert.alert(
@@ -348,10 +383,8 @@ export default function TripOverviewScreen() {
     );
   }
 
-  return (
+  const primaryContent = (
     <>
-      {/* Tab Bar */}
-
       {/* Tab Content */}
       {activeTab === 1 ? (
         <ScrollView
@@ -361,6 +394,7 @@ export default function TripOverviewScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          contentContainerStyle={{ paddingBottom: 120 }}
         >
           <View className="bg-white mb-2">
             {/* Trip Header */}
@@ -399,156 +433,271 @@ export default function TripOverviewScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          contentContainerStyle={{ paddingBottom: 120 }}
         >
-        {/* Overview Tab */}
-        {activeTab === 0 && (
-          <>
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+          {/* Overview Tab */}
+          {activeTab === 0 && (
+            <>
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} />
 
-            {/* Tabs Section */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+              {/* Tabs Section */}
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Reservations Section */}
-            <View className="bg-white px-6 mb-1 pt-4">
-              <ReservationsSection />
-            </View>
-            {/* Generate Itinerary Section */}
-            <View className="bg-white px-6 mb-2">
-              <GenerateItinerary
-                tripId={tripId as string}
-                destination={trip.destination}
-                startDate={trip.start_date}
-                endDate={trip.end_date}
-                duration={Math.ceil(
-                  (new Date(`${trip.end_date}T00:00:00`).getTime() -
-                    new Date(`${trip.start_date}T00:00:00`).getTime()) /
-                  (1000 * 60 * 60 * 24),
+              {/* Reservations Section */}
+              <View className="bg-white px-6 mb-1 pt-4">
+                <ReservationsSection />
+              </View>
+              {/* Generate Itinerary Section */}
+              <View className="bg-white px-6 mb-2">
+                {!isMapSheetOpen && (
+                  <GenerateItinerary
+                    tripId={tripId as string}
+                    destination={trip.destination}
+                    startDate={trip.start_date}
+                    endDate={trip.end_date}
+                    duration={Math.ceil(
+                      (new Date(`${trip.end_date}T00:00:00`).getTime() -
+                        new Date(`${trip.start_date}T00:00:00`).getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    )}
+                    onItineraryGenerated={setAiItinerary}
+                    loading={loadingAI}
+                    setLoading={setLoadingAI}
+                    activities={allPinnedActivities}
+                    onMarkerNavigate={handleMarkerNavigate}
+                  />
                 )}
-                onItineraryGenerated={setAiItinerary}
-                loading={loadingAI}
-                setLoading={setLoadingAI}
-                activities={Object.values(groupedActivities).flat()}
-                onMarkerNavigate={handleMarkerNavigate}
-              />
-            </View>
-            {/* Target Spots Section */}
-            <View className="bg-white px-6 mb-2">
-              {refreshing ? (
-                <TargetSpotsSkeleton />
-              ) : (
-                <TargetSpots
+              </View>
+              {/* Target Spots Section */}
+              <View className="bg-white px-6 mb-2">
+                {refreshing ? (
+                  <TargetSpotsSkeleton />
+                ) : (
+                  <TargetSpots
                     targetSpots={targetSpots}
                     onAddSpot={addTargetSpot}
                     onRemoveSpot={removeTargetSpot}
-                    activities={Object.values(groupedActivities).flat()}
-                    onAssignToDay={handleAssignToDay} tripId={""} tripStartDate={""} tripEndDate={""} onRefresh={function (): void {
+                    activities={allPinnedActivities}
+                    onAssignToDay={handleAssignToDay}
+                    tripId={""}
+                    tripStartDate={""}
+                    tripEndDate={""}
+                    onRefresh={function (): void {
                       throw new Error("Function not implemented.");
-                    } }                />
-              )}
-            </View>
-            {/* Collaborators Section */}
-            {refreshing ? <CollaboratorsSkeleton /> : <CollaboratorsScreen members={members} />}
-            {/* Delete Button - Only for trip owners */}
-            {user?.id === trip.owner_id && (
-              <View className="px-6 py-4 mb-8">
-                <TouchableOpacity
-                  onPress={handleDeleteTrip}
-                  className="bg-red-500 px-6 py-3 rounded-lg items-center"
-                >
-                  <Text className="text-white font-semibold">Delete Trip</Text>
-                </TouchableOpacity>
+                    }}
+                  />
+                )}
               </View>
-            )}
-          </>
-        )}
-        {/* Reservations Tab */}
-        {activeTab === 2 && (
-          <View className="bg-white mb-2">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
-
-            {/* Tabs Section  */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-            {/* Reservation Icons Scroll*/}
-            <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
-              {[
-                { label: "Accommodation", icon: "bed" },
-                { label: "Flight", icon: "airplane" },
-                { label: "Train", icon: "train" },
-                { label: "Bus", icon: "bus" },
-                { label: "Car Rental", icon: "car" },
-                { label: "Activities", icon: "ticket" },
-              ].map((tab, idx) => (
-                <TouchableOpacity
-                  key={tab.label}
-                  className="items-center pt-3"
-                  onPress={() => setReservationTab(idx)}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={{
-                      backgroundColor:
-                        reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
-                      borderRadius: 999,
-                      padding: 12,
-                      marginBottom: 4,
-                    }}
+              {/* Collaborators Section */}
+              {refreshing ? (
+                <CollaboratorsSkeleton />
+              ) : (
+                <CollaboratorsScreen members={members} />
+              )}
+              {/* Delete Button - Only for trip owners */}
+              {user?.id === trip.owner_id && (
+                <View className="px-6 py-4 mb-8">
+                  <TouchableOpacity
+                    onPress={handleDeleteTrip}
+                    className="bg-red-500 px-6 py-3 rounded-lg items-center"
                   >
-                    <Text>
-                      <Ionicons
-                        name={tab.icon as any}
-                        size={20}
-                        color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
-                      />
+                    <Text className="text-white font-semibold">Delete Trip</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+          {/* Reservations Tab */}
+          {activeTab === 2 && (
+            <View className="bg-white mb-2">
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} />
+
+              {/* Tabs Section  */}
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+
+              {/* Reservation Icons Scroll*/}
+              <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
+                {[
+                  { label: "Accommodation", icon: "bed" },
+                  { label: "Flight", icon: "airplane" },
+                  { label: "Train", icon: "train" },
+                  { label: "Bus", icon: "bus" },
+                  { label: "Car Rental", icon: "car" },
+                  { label: "Activities", icon: "ticket" },
+                ].map((tab, idx) => (
+                  <TouchableOpacity
+                    key={tab.label}
+                    className="items-center pt-3"
+                    onPress={() => setReservationTab(idx)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={{
+                        backgroundColor:
+                          reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
+                        borderRadius: 999,
+                        padding: 12,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <Text>
+                        <Ionicons
+                          name={tab.icon as any}
+                          size={20}
+                          color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
+                        />
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: reservationTab === idx ? "#D81E5B" : "#6B7280",
+                        fontWeight: reservationTab === idx ? "bold" : "normal",
+                        fontSize: 12,
+                      }}
+                    >
+                      {tab.label}
                     </Text>
-                  </View>
-                  <Text
-                    style={{
-                      color: reservationTab === idx ? "#D81E5B" : "#6B7280",
-                      fontWeight: reservationTab === idx ? "bold" : "normal",
-                      fontSize: 12,
-                    }}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            {/* Active tab content: */}
-            <View
-              className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
-              style={{ minHeight: 200 }}
-            >
-              <Text className="text-xl font-bold text-crimsonMagenta text-center">
-                {
-                  [
-                    "Accommodation Files Page",
-                    "Flights Files Page",
-                    "Train Files Page",
-                    "Bus Files Page",
-                    "Car Rental Files Page",
-                    "Activities Files Page",
-                  ][reservationTab]
-                }
-              </Text>
+              {/* Active tab content: */}
+              <View
+                className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
+                style={{ minHeight: 200 }}
+              >
+                <Text className="text-xl font-bold text-crimsonMagenta text-center">
+                  {
+                    [
+                      "Accommodation Files Page",
+                      "Flights Files Page",
+                      "Train Files Page",
+                      "Bus Files Page",
+                      "Car Rental Files Page",
+                      "Activities Files Page",
+                    ][reservationTab]
+                  }
+                </Text>
+              </View>
             </View>
-          </View>
-        )}
-        {/* Budget Tab */}
-        {activeTab === 3 && (
-          <View className="bg-white mb-2">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+          )}
+          {/* Budget Tab */}
+          {activeTab === 3 && (
+            <View className="bg-white mb-2">
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} />
 
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-            <BudgetScreen />
-          </View>
-        )}
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+              <BudgetScreen />
+            </View>
+          )}
         </ScrollView>
       )}
     </>
   );
+
+  return (
+    <View style={styles.root}>
+      <View style={styles.mapLayer} pointerEvents={isMapSheetOpen ? "auto" : "none"}>
+        <View style={[styles.mapSheet, { height: revealedMapHeight }]}>
+          <View style={styles.mapBody}>
+            <TripMap
+              startDate={trip.start_date}
+              endDate={trip.end_date}
+              destination={trip.destination}
+              activities={allPinnedActivities}
+              onMarkerNavigate={handleMarkerNavigate}
+              fullHeight
+            />
+          </View>
+        </View>
+      </View>
+
+      <Animated.View
+        style={[
+          styles.overlay,
+          {
+            transform: [{ translateY: overlayTranslateY }],
+          },
+        ]}
+      >
+        {primaryContent}
+      </Animated.View>
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={toggleMapSheet}
+        style={styles.floatingMapButton}
+      >
+        <Ionicons
+          name={isMapSheetOpen ? "map-outline" : "map"}
+          size={22}
+          color="#FFFFFF"
+        />
+        <Text style={styles.floatingMapButtonText}>
+          {isMapSheetOpen ? "Close map" : "Open map"}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+  },
+  mapLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-start",
+    backgroundColor: "#F3F4F6",
+  },
+  mapSheet: {
+    marginTop: 0,
+    marginHorizontal: 0,
+    overflow: "hidden",
+    borderRadius: 0,
+  },
+  mapBody: {
+    flex: 1,
+    overflow: "hidden",
+    borderRadius: 0,
+    backgroundColor: "#FFFFFF",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  floatingMapButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#3A1FA8",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+  },
+  floatingMapButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+});

@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import React from "react";
-import { Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
 import MapView, {
   Callout,
   Marker,
@@ -12,6 +12,7 @@ import { Activity as TripActivity } from "../../../lib/TripService";
 interface TripMapProps {
   activities: TripActivity[];
   onMarkerNavigate: (activity: TripActivity) => void;
+  fullHeight?: boolean;
 }
 
 interface GenerateItineraryProps {
@@ -28,6 +29,7 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
   const {
     activities = [],
     onMarkerNavigate = () => {},
+    fullHeight = false,
     tripId,
     startDate,
     endDate,
@@ -39,6 +41,9 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
   } = props;
   const router = useRouter();
 
+  const mapRef = useRef<MapView | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(0.12);
+
   const mapActivities = activities.filter(
     (a) => typeof a.latitude === "number" && typeof a.longitude === "number",
   );
@@ -48,8 +53,8 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
       return {
         latitude: 25.7617,
         longitude: -80.1918,
-        latitudeDelta: 0.15,
-        longitudeDelta: 0.15,
+        latitudeDelta: zoomLevel,
+        longitudeDelta: zoomLevel,
       };
     }
 
@@ -71,8 +76,35 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
 
+  const applyZoom = (nextDelta: number) => {
+    const latitudeDelta = Math.max(0.005, Math.min(1.5, nextDelta));
+    const longitudeDelta = Math.max(0.005, Math.min(1.5, nextDelta));
+
+    setZoomLevel(latitudeDelta);
+
+    const region = computeRegion();
+
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: region.latitude,
+          longitude: region.longitude,
+          latitudeDelta,
+          longitudeDelta,
+        },
+        250,
+      );
+    }
+  };
+
+  const handleZoomIn = () => applyZoom(zoomLevel * 0.6);
+  const handleZoomOut = () => applyZoom(zoomLevel * 1.4);
+
   return (
-    <View className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface">
+    <View
+      className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface"
+      style={fullHeight ? { flex: 1, marginBottom: 0 } : undefined}
+    >
       <View className="px-4 py-3 border-b border-neutral-divider">
         <Text className="text-neutral-textPrimary font-semibold">Trip Map</Text>
         <Text className="text-neutral-textSecondary text-xs mt-1">
@@ -82,7 +114,7 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
         </Text>
       </View>
 
-      <View style={{ height: 180 }}>
+      <View style={fullHeight ? { flex: 1 } : { height: 180 }}>
         {mapActivities.length === 0 ? (
           <View className="flex-1 items-center justify-center">
             <Text className="text-neutral-textSecondary">
@@ -90,43 +122,85 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
             </Text>
           </View>
         ) : (
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={{ flex: 1 }}
-            initialRegion={computeRegion()}
-          >
-            {mapActivities.map((a) => (
-              <Marker
-                key={a.id}
-                coordinate={{
-                  latitude: a.latitude as number,
-                  longitude: a.longitude as number,
+          <>
+            <MapView
+              ref={mapRef}
+              provider={PROVIDER_GOOGLE}
+              style={{ flex: 1 }}
+              initialRegion={computeRegion()}
+            >
+              {mapActivities.map((a) => (
+                <Marker
+                  key={a.id}
+                  coordinate={{
+                    latitude: a.latitude as number,
+                    longitude: a.longitude as number,
+                  }}
+                >
+                  <Callout onPress={() => onMarkerNavigate(a)}>
+                    <View style={{ maxWidth: 220 }}>
+                      <Text style={{ fontWeight: "600" }}>
+                        {(a.location_name ?? "Activity").split(",")[0]}
+                      </Text>
+                      {a.title ? (
+                        <Text style={{ marginTop: 4, color: "#67717B" }}>
+                          {a.title}
+                        </Text>
+                      ) : null}
+                      <Text
+                        style={{
+                          marginTop: 6,
+                          color: "#3A1FA8",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Open activity details
+                      </Text>
+                    </View>
+                  </Callout>
+                </Marker>
+              ))}
+            </MapView>
+            <View
+              style={{
+                position: "absolute",
+                top: 16,
+                right: 16,
+                zIndex: 20,
+                elevation: 20,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleZoomIn}
+                activeOpacity={0.85}
+                style={{
+                  width: 52,
+                  height: 52,
+                  backgroundColor: "rgba(255,255,255,0.96)",
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 8,
                 }}
               >
-                <Callout onPress={() => onMarkerNavigate(a)}>
-                  <View style={{ maxWidth: 220 }}>
-                    <Text style={{ fontWeight: "600" }}>
-                      {(a.location_name ?? "Activity").split(",")[0]}
-                    </Text>
-                    {a.title ? (
-                      <Text style={{ marginTop: 4, color: "#67717B" }}>
-                        {a.title}
-                      </Text>
-                    ) : null}
-                    <Text
-                      style={{
-                        marginTop: 6,
-                        color: "#3A1FA8",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Open activity details
-                    </Text>
-                  </View>
-                </Callout>
-              </Marker>
-            ))}
-          </MapView>
+                <Text style={{ fontSize: 22, fontWeight: "700", color: "#111827" }}>+</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleZoomOut}
+                activeOpacity={0.85}
+                style={{
+                  width: 52,
+                  height: 52,
+                  backgroundColor: "rgba(255,255,255,0.96)",
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontSize: 22, fontWeight: "700", color: "#111827" }}>−</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
       </View>
       <>
