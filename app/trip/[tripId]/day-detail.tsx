@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import MapView, { Callout, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import {
   addTripActivityToDay,
@@ -14,6 +15,7 @@ import {
   searchPlacePredictions,
   Activity as TripActivity,
   updateTripActivity,
+  updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
 import { DayDetailSkeleton } from "@/components/DayDetailSkeleton";
@@ -26,6 +28,7 @@ export default function DayDetailScreen() {
 
   const [activities, setActivities] = useState<TripActivity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [savingActivity, setSavingActivity] = useState(false);
@@ -288,6 +291,70 @@ export default function DayDetailScreen() {
     }
   };
 
+  const renderActivityItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => openEditModal(item)}
+        className="bg-neutral-background rounded-lg p-4 border border-neutral-divider mb-3"
+        style={{ opacity: isActive ? 0.9 : 1 }}
+      >
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1 pr-3">
+            <View>
+              {formatTimeRange(item.start_time, item.end_time) ? (
+                <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mb-2">
+                  <Text className="text-xs text-neutral-textSecondary">
+                    {formatTimeRange(item.start_time, item.end_time)}
+                  </Text>
+                </View>
+              ) : null}
+
+              <Text
+                className="text-neutral-textPrimary font-semibold text-base"
+                numberOfLines={2}
+              >
+                {item.location_name ?? "Activity"}
+              </Text>
+            </View>
+            {!!item.title && (
+              <Text className="text-neutral-textSecondary mt-1">{item.title}</Text>
+            )}
+            {!!item.description && (
+              <Text className="text-neutral-textSecondary mt-1">{item.description}</Text>
+            )}
+          </View>
+
+          <View className="items-end">
+            <TouchableOpacity
+              onLongPress={drag}
+              delayLongPress={120}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="px-2 py-2 mb-2"
+            >
+              <Ionicons
+                name="reorder-three-outline"
+                size={22}
+                color={isActive ? "#3A1FA8" : "#67717B"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={async () => {
+                await deleteTripActivity(item.id);
+                setActivities((prev) => sortActivitiesByStartTime(prev.filter((x) => x.id !== item.id)));
+              }}
+              className="px-3 py-2 rounded-lg bg-accent-hotCoral"
+            >
+              <Text className="text-white font-semibold">Remove</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    ),
+    []
+  );
+
   return (
     <ScrollView className="flex-1 bg-neutral-background">
       {/* Trip Header */}
@@ -393,52 +460,66 @@ export default function DayDetailScreen() {
             </Text>
           </View>
         ) : (
-          <View className="gap-3">
-            {activities.map((a) => (
-              <TouchableOpacity
-                key={a.id}
-                activeOpacity={0.9}
-                onPress={() => openEditModal(a)}
-                className="bg-neutral-background rounded-lg p-4 border border-neutral-divider"
-              >
-                <View className="flex-row justify-between items-start">
-                  <View className="flex-1 pr-3">
-                    <View>
-                      {formatTimeRange(a.start_time, a.end_time) ? (
-                        <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mb-2">
-                          <Text className="text-xs text-neutral-textSecondary">
-                            {formatTimeRange(a.start_time, a.end_time)}
-                          </Text>
-                        </View>
-                      ) : null}
+          <View>
+            <Text className="text-neutral-textSecondary text-sm mb-3">
+              Long press the three-line handle to drag and reorder activities.
+            </Text>
 
-                      <Text
-                        className="text-neutral-textPrimary font-semibold text-base"
-                        numberOfLines={2}
-                      >
-                        {a.location_name ?? "Activity"}
-                      </Text>
-                    </View>
-                    {!!a.title && (
-                      <Text className="text-neutral-textSecondary mt-1">{a.title}</Text>
-                    )}
-                    {!!a.description && (
-                      <Text className="text-neutral-textSecondary mt-1">{a.description}</Text>
-                    )}
-                  </View>
+            <DraggableFlatList
+              data={activities}
+              keyExtractor={(item) => item.id}
+              renderItem={renderActivityItem}
+              scrollEnabled={false}
+              activationDistance={8}
+              onDragEnd={async ({ data }) => {
+                const timeSlots = activities.map((item) => ({
+                  start_time: item.start_time ?? null,
+                  end_time: item.end_time ?? null,
+                }));
 
-                  <TouchableOpacity
-                    onPress={async () => {
-                      await deleteTripActivity(a.id);
-                      setActivities((prev) => sortActivitiesByStartTime(prev.filter((x) => x.id !== a.id)));
-                    }}
-                    className="px-3 py-2 rounded-lg bg-accent-hotCoral"
-                  >
-                    <Text className="text-white font-semibold">Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            ))}
+                const reorderedWithTimes = data.map((item, index) => ({
+                  ...item,
+                  start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
+                  end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
+                }));
+
+                setActivities(reorderedWithTimes);
+
+                try {
+                  setSavingOrder(true);
+
+                  await updateTripActivityPositions(
+                    reorderedWithTimes.map((item, index) => ({
+                      id: item.id,
+                      position: index + 1,
+                    }))
+                  );
+
+                  await Promise.all(
+                    reorderedWithTimes.map((item) =>
+                      updateTripActivity(item.id, {
+                        start_time: item.start_time,
+                        end_time: item.end_time,
+                      })
+                    )
+                  );
+
+                  setActivities(reorderedWithTimes);
+                } catch (error) {
+                  console.error("Error saving reordered activities:", error);
+                  Alert.alert("Error", "Failed to save activity order.");
+                  await loadActivities();
+                } finally {
+                  setSavingOrder(false);
+                }
+              }}
+            />
+
+            {savingOrder ? (
+              <Text className="text-neutral-textSecondary text-xs mt-2">
+                Saving order...
+              </Text>
+            ) : null}
           </View>
         )}
       </View>

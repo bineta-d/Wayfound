@@ -408,8 +408,37 @@ export interface Activity {
   longitude: number | null;
   start_time: string | null;
   end_time: string | null;
+  position: number | null;
   created_at?: string;
 }
+
+const sortActivitiesForDisplay = <T extends Activity>(activities: T[]): T[] => {
+  return [...activities].sort((a, b) => {
+    const aPos = a.position ?? Number.MAX_SAFE_INTEGER;
+    const bPos = b.position ?? Number.MAX_SAFE_INTEGER;
+
+    if (aPos !== bPos) return aPos - bPos;
+
+    const aTime = a.start_time?.slice(0, 5) ?? null;
+    const bTime = b.start_time?.slice(0, 5) ?? null;
+
+    if (!aTime && !bTime) {
+      const aCreated = a.created_at ?? "";
+      const bCreated = b.created_at ?? "";
+      return aCreated.localeCompare(bCreated);
+    }
+
+    if (!aTime) return 1;
+    if (!bTime) return -1;
+
+    const timeCompare = aTime.localeCompare(bTime);
+    if (timeCompare !== 0) return timeCompare;
+
+    const aCreated = a.created_at ?? "";
+    const bCreated = b.created_at ?? "";
+    return aCreated.localeCompare(bCreated);
+  });
+};
 
 const getOrCreateItineraryDayId = async (
   trip_id: string,
@@ -462,7 +491,7 @@ export const getTripActivitiesForDay = async (
     throw error;
   }
 
-  return (data as Activity[]) || [];
+  return sortActivitiesForDisplay((data as Activity[]) || []);
 };
 
 // Add an activity (location) to a specific day
@@ -482,6 +511,21 @@ export const addTripActivityToDay = async (input: {
     input.day_date,
   );
 
+  const { data: existingActivities, error: existingError } = await supabase
+    .from("activities")
+    .select("position")
+    .eq("itinerary_day_id", itinerary_day_id);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const nextPosition =
+    (existingActivities ?? []).reduce((max, item: any) => {
+      const pos = item.position ?? 0;
+      return pos > max ? pos : max;
+    }, 0) + 1;
+
   const { data, error } = await supabase
     .from("activities")
     .insert({
@@ -493,6 +537,7 @@ export const addTripActivityToDay = async (input: {
       longitude: input.longitude,
       start_time: input.start_time ?? null,
       end_time: input.end_time ?? null,
+      position: nextPosition,
     })
     .select("*")
     .single();
@@ -502,6 +547,23 @@ export const addTripActivityToDay = async (input: {
   }
 
   return data as Activity;
+};
+
+export const updateTripActivityPositions = async (
+  updates: { id: string; position: number }[],
+): Promise<void> => {
+  if (updates.length === 0) return;
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("activities")
+      .update({ position: update.position })
+      .eq("id", update.id);
+
+    if (error) {
+      throw error;
+    }
+  }
 };
 
 // Delete an activity
@@ -681,7 +743,7 @@ export const getTripActivities = async (
 
   if (actsError) throw actsError;
 
-  const activities = (acts as Activity[]) || [];
+  const activities = sortActivitiesForDisplay((acts as Activity[]) || []);
 
   // 3) attach day_date for easy grouping / UI
   return activities.map((a) => ({

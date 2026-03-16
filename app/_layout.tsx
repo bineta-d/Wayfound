@@ -10,6 +10,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import "../global.css";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 
 export { ErrorBoundary } from "expo-router";
 
@@ -54,11 +56,13 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <AuthProvider>
-      <ThemeProvider value={DefaultTheme}>
-        <AuthStack />
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ThemeProvider value={DefaultTheme}>
+          <AuthStack />
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

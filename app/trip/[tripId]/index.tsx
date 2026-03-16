@@ -12,6 +12,8 @@ import {
   getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
+  updateTripActivity,
+  updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
@@ -95,6 +97,43 @@ export default function TripOverviewScreen() {
 
   const handleMarkerNavigate = (a: any) => {
     router.push(`/trip/${tripId}/day-detail?day=1`);
+  };
+
+  const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
+    const originalDayActivities = dayActivities[dayNumber] ?? [];
+    const timeSlots = originalDayActivities.map((item) => ({
+      start_time: item.start_time ?? null,
+      end_time: item.end_time ?? null,
+    }));
+
+    const reorderedWithTimes = reordered.map((item, index) => ({
+      ...item,
+      start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
+      end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
+    }));
+
+    setDayActivities((prev) => ({ ...prev, [dayNumber]: reorderedWithTimes }));
+
+    try {
+      await updateTripActivityPositions(
+        reorderedWithTimes.map((item, index) => ({
+          id: item.id,
+          position: index + 1,
+        }))
+      );
+
+      await Promise.all(
+        reorderedWithTimes.map((item) =>
+          updateTripActivity(item.id, {
+            start_time: item.start_time,
+            end_time: item.end_time,
+          })
+        )
+      );
+    } catch (e) {
+      console.log("Error saving reordered activities:", e);
+      await loadDayActivities(dayNumber);
+    }
   };
 
   const loadGroupedActivities = async () => {
@@ -350,17 +389,18 @@ export default function TripOverviewScreen() {
               <ItinerarySkeleton />
             ) : (
               <ItineraryScreen
-                tripId={tripId as string}
-                startDate={trip.start_date}
-                destination={trip.destination}
-                endDate={trip.end_date}
-                aiItinerary={aiItinerary}
-                onToggleDayCollapse={toggleDayCollapse}
-                onToggleItineraryCollapse={toggleItineraryCollapse}
-                collapsedDays={collapsedDays}
-                isItineraryCollapsed={isItineraryCollapsed}
-                dayActivities={dayActivities}
-                loadingActivities={loadingActivities}
+              tripId={tripId as string}
+              startDate={trip.start_date}
+              destination={trip.destination}
+              endDate={trip.end_date}
+              aiItinerary={aiItinerary}
+              onToggleDayCollapse={toggleDayCollapse}
+              onToggleItineraryCollapse={toggleItineraryCollapse}
+              collapsedDays={collapsedDays}
+              isItineraryCollapsed={isItineraryCollapsed}
+              dayActivities={dayActivities}
+              loadingActivities={loadingActivities}
+              onReorderDayActivities={handleReorderDayActivities}
               />
             )}
           </View>
