@@ -335,9 +335,10 @@ export default function TargetSpots({
               })
               .reverse()
               .map((activity, index) => (
-                <View
+                <TouchableOpacity
                   key={activity.id || index}
                   className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
+                  onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
                 >
                   <View className="flex-row items-center">
                     <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
@@ -348,19 +349,18 @@ export default function TargetSpots({
                       {parseLocationName(activity.location_name)}
                     </Text>
 
-                    <View className="flex-row items-center">
-                      <TouchableOpacity
-                        onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
-                        className="mr-3"
-                      >
-                        <Ionicons name="calendar" size={16} color="#3B82F6" />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleRemoveActivity(activity)}>
-                        <Ionicons name="close-circle" size={20} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
+                    {/* Delete button - only show for non-owners */}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleRemoveActivity(activity);
+                      }}
+                      className="bg-red-500 w-6 h-6 rounded-full items-center justify-center ml-2"
+                    >
+                      <Text className="text-white font-bold text-sm">×</Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
 
             {/* Show manually added target spots */}

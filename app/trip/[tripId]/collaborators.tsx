@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { Alert, Image, Text, TouchableOpacity, View } from 'react-native';
 import { Trip_member } from '../../../lib/types';
@@ -31,6 +30,8 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
             ]
         );
     };
+
+    const isOwner = (member: Trip_member) => member.role === 'owner';
 
     return (
         <View className="bg-white px-6 py-6 mb-2">
@@ -83,12 +84,12 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
                                 </View>
 
                                 {/* Delete button - only show for non-owners */}
-                                {member.id !== currentUserId && (
+                                {!isOwner(member) && (
                                     <TouchableOpacity
-                                        className="bg-red-500 w-8 h-8 rounded-full items-center justify-center ml-2"
+                                        className="bg-red-500 w-6 h-6 rounded-full items-center justify-center ml-2"
                                         onPress={() => handleRemoveCollaborator(member.id, member.users?.full_name || member.name || 'Unknown User')}
                                     >
-                                        <Ionicons name="trash" size={16} color="white" />
+                                        <Text className="text-white font-bold text-sm">×</Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
