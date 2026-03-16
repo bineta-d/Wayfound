@@ -17,6 +17,7 @@ import {
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
 import CollaboratorsScreen from "./collaborators";
+import EditTripModal from "./edit-trip-modal";
 import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
@@ -26,6 +27,7 @@ export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
   // Reservation tab state for icons
   const [reservationTab, setReservationTab] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { tripId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -225,6 +227,35 @@ export default function TripOverviewScreen() {
     }
   }, [trip, tripId]);
 
+  const handleEditTrip = () => {
+    console.log('📝 Edit trip clicked');
+    setShowEditModal(true);
+  };
+
+  const handleSaveTrip = async (updatedTrip: Partial<Trip>) => {
+    try {
+      console.log('💾 Saving trip updates:', updatedTrip);
+
+      // Update trip in backend
+      const updatedData = await updateTrip(tripId as string, updatedTrip);
+      console.log('✅ Trip updated in backend:', updatedData);
+
+      // Update local state with new trip data
+      if (updatedData && updatedData.length > 0) {
+        setTrip(updatedData[0]);
+      }
+
+      // Close modal
+      setShowEditModal(false);
+
+      // Show success message
+      Alert.alert('Success', 'Trip updated successfully!');
+    } catch (error) {
+      console.error('❌ Error updating trip:', error);
+      Alert.alert('Error', 'Failed to update trip. Please try again.');
+    }
+  };
+
   const handleDeleteTrip = () => {
     Alert.alert(
       "Delete Trip",
@@ -284,7 +315,7 @@ export default function TripOverviewScreen() {
         {activeTab === 0 && (
           <>
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
             {/* Tabs Section */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -350,7 +381,7 @@ export default function TripOverviewScreen() {
         {activeTab === 1 && (
           <View className="bg-white mb-2">
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
             {/* tabs Section */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -378,7 +409,7 @@ export default function TripOverviewScreen() {
         {activeTab === 2 && (
           <View className="bg-white mb-2">
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
             {/* Tabs Section  */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -453,13 +484,22 @@ export default function TripOverviewScreen() {
         {activeTab === 3 && (
           <View className="bg-white mb-2">
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
             <BudgetScreen />
           </View>
         )}
       </ScrollView>
+
+      {/* Edit Trip Modal */}
+      <EditTripModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveTrip}
+        trip={trip}
+        members={members}
+      />
     </>
   );
 }
