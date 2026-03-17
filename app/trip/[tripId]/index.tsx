@@ -8,14 +8,17 @@ import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDeta
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
+  deleteTripActivity,
   getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
+  updateTrip
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
 import CollaboratorsScreen from "./collaborators";
+import EditTripModal from "./edit-trip-modal";
 import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
@@ -25,6 +28,7 @@ export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
   // Reservation tab state for icons
   const [reservationTab, setReservationTab] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { tripId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -68,6 +72,34 @@ export default function TripOverviewScreen() {
 
   const removeTargetSpot = (index: number) => {
     setTargetSpots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeActivity = async (activityId: string) => {
+    console.log('🗑️ Removing activity:', activityId);
+    try {
+      // Delete from database first
+      await deleteTripActivity(activityId);
+      console.log('✅ Activity deleted from database');
+
+      // Then update local state
+      setGroupedActivities((prev) => {
+        const newGrouped = { ...prev };
+
+        // Remove activity from all days
+        Object.keys(newGrouped).forEach(dayKey => {
+          newGrouped[dayKey] = newGrouped[dayKey].filter(
+            (activity: any) => activity.id !== activityId
+          );
+        });
+
+        return newGrouped;
+      });
+
+      console.log('✅ Activity removed from local state');
+    } catch (error) {
+      console.error('❌ Error deleting activity:', error);
+      Alert.alert('Error', 'Failed to delete activity. Please try again.');
+    }
   };
 
   const handleAssignToDay = (activity: any, dayNumber: number) => {
@@ -196,6 +228,35 @@ export default function TripOverviewScreen() {
     }
   }, [trip, tripId]);
 
+  const handleEditTrip = () => {
+    console.log('📝 Edit trip clicked');
+    setShowEditModal(true);
+  };
+
+  const handleSaveTrip = async (updatedTrip: Partial<Trip>) => {
+    try {
+      console.log('💾 Saving trip updates:', updatedTrip);
+
+      // Update trip in backend
+      const updatedData = await updateTrip(tripId as string, updatedTrip);
+      console.log('✅ Trip updated in backend:', updatedData);
+
+      // Update local state with new trip data
+      if (updatedData && updatedData.length > 0) {
+        setTrip(updatedData[0]);
+      }
+
+      // Close modal
+      setShowEditModal(false);
+
+      // Show success message
+      Alert.alert('Success', 'Trip updated successfully!');
+    } catch (error) {
+      console.error('❌ Error updating trip:', error);
+      Alert.alert('Error', 'Failed to update trip. Please try again.');
+    }
+  };
+
   const handleDeleteTrip = () => {
     Alert.alert(
       "Delete Trip",
@@ -243,11 +304,86 @@ export default function TripOverviewScreen() {
       {/* Tab Bar */}
 
       {/* Tab Content */}
-      {activeTab === 1 ? (
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        horizontal={false}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Overview Tab */}
+        {activeTab === 0 && (
+          <>
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
+
+            {/* Tabs Section */}
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+
+            {/* Reservations Section */}
+            <View className="bg-white px-6 mb-1 pt-4">
+              <ReservationsSection />
+            </View>
+            {/* Generate Itinerary Section */}
+            <View className="bg-white px-6 mb-2">
+              <GenerateItinerary
+                tripId={tripId as string}
+                destination={trip.destination}
+                startDate={trip.start_date}
+                endDate={trip.end_date}
+                duration={Math.ceil(
+                  (new Date(trip.end_date).getTime() -
+                    new Date(trip.start_date).getTime()) /
+                  (1000 * 60 * 60 * 24),
+                )}
+                onItineraryGenerated={setAiItinerary}
+                loading={loadingAI}
+                setLoading={setLoadingAI}
+                activities={Object.values(groupedActivities).flat()}
+                onMarkerNavigate={handleMarkerNavigate}
+              />
+            </View>
+            {/* Target Spots Section */}
+            <View className="bg-white px-6 mb-2">
+              {refreshing ? (
+                <TargetSpotsSkeleton />
+              ) : (
+                <TargetSpots
+                  targetSpots={targetSpots}
+                  onAddSpot={addTargetSpot}
+                  onRemoveSpot={removeTargetSpot}
+                  activities={Object.values(groupedActivities).flat()}
+                  onAssignToDay={handleAssignToDay}
+                  onRemoveActivity={removeActivity}
+                  tripId={tripId as string}
+                  tripStartDate={trip?.start_date || ''}
+                  tripEndDate={trip?.end_date || ''}
+                  onRefresh={onRefresh}
+                />
+              )}
+            </View>
+            {/* Collaborators Section */}
+            {refreshing ? <CollaboratorsSkeleton /> : <CollaboratorsScreen members={members} />}
+            {/* Delete Button - Only for trip owners */}
+            {user?.id === trip.owner_id && (
+              <View className="px-6 py-4 mb-8">
+                <TouchableOpacity
+                  onPress={handleDeleteTrip}
+                  className="bg-red-500 px-6 py-3 rounded-lg items-center"
+                >
+                  <Text className="text-white font-semibold">Delete Trip</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        )}
+        {/* Itinerary Tab */}
+        {activeTab === 1 ? (
         <View className="flex-1 bg-gray-50">
           <View className="bg-white mb-2 flex-1">
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
             {/* tabs Section */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -275,67 +411,40 @@ export default function TripOverviewScreen() {
               </View>
             )}
           </View>
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1 bg-gray-50"
-          horizontal={false}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={{ paddingBottom: 120 }}
-        >
-          {/* Overview Tab */}
-          {activeTab === 0 && (
-            <>
-              {/* Trip Header */}
-              <HeaderSection title={trip.title} trip={trip} />
+          </View>
+        )}
+        {/* Reservations Tab */}
+        {activeTab === 2 && (
+          <View className="bg-white mb-2">
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
-              {/* Tabs Section */}
-              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+            {/* Tabs Section  */}
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-              {/* Reservations Section */}
-              <View className="bg-white px-6 mb-1 pt-4">
-                <ReservationsSection />
-              </View>
-              {/* Generate Itinerary Section */}
-              <View className="bg-white px-6 mb-2">
-                {!isMapSheetOpen && (
-                  <GenerateItinerary
-                    tripId={tripId as string}
-                    destination={trip.destination}
-                    startDate={trip.start_date}
-                    endDate={trip.end_date}
-                    duration={Math.ceil(
-                      (new Date(`${trip.end_date}T00:00:00`).getTime() -
-                        new Date(`${trip.start_date}T00:00:00`).getTime()) /
-                        (1000 * 60 * 60 * 24),
-                    )}
-                    onItineraryGenerated={setAiItinerary}
-                    loading={loadingAI}
-                    setLoading={setLoadingAI}
-                    activities={allPinnedActivities}
-                    onMarkerNavigate={handleMarkerNavigate}
-                  />
-                )}
-              </View>
-              {/* Target Spots Section */}
-              <View className="bg-white px-6 mb-2">
-                {refreshing ? (
-                  <TargetSpotsSkeleton />
-                ) : (
-                  <TargetSpots
-                    targetSpots={targetSpots}
-                    onAddSpot={addTargetSpot}
-                    onRemoveSpot={removeTargetSpot}
-                    activities={allPinnedActivities}
-                    onAssignToDay={handleAssignToDay}
-                    tripId={""}
-                    tripStartDate={""}
-                    tripEndDate={""}
-                    onRefresh={function (): void {
-                      throw new Error("Function not implemented.");
+            {/* Reservation Icons Scroll*/}
+            <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
+              {[
+                { label: "Accommodation", icon: "bed" },
+                { label: "Flight", icon: "airplane" },
+                { label: "Train", icon: "train" },
+                { label: "Bus", icon: "bus" },
+                { label: "Car Rental", icon: "car" },
+                { label: "Activities", icon: "ticket" },
+              ].map((tab, idx) => (
+                <TouchableOpacity
+                  key={tab.label}
+                  className="items-center pt-3"
+                  onPress={() => setReservationTab(idx)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={{
+                      backgroundColor:
+                        reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
+                      borderRadius: 999,
+                      padding: 12,
+                      marginBottom: 4,
                     }}
                   >
                     <Text>
@@ -383,13 +492,22 @@ export default function TripOverviewScreen() {
         {activeTab === 3 && (
           <View className="bg-white mb-2">
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
             <BudgetScreen />
           </View>
         )}
       </ScrollView>
+
+      {/* Edit Trip Modal */}
+      <EditTripModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveTrip}
+        trip={trip}
+        members={members}
+      />
     </>
   );
 }

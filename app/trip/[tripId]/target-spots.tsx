@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from 'react';
-import { FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { addTripActivityToDay, getPlaceDetails, getPlacePhoto, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
+import { getPlaceDetails, getPlacePhoto, PlacePrediction, searchPlacePredictions } from "../../../lib/TripService";
 
 interface TargetSpotsProps {
   targetSpots: string[];
@@ -10,6 +10,7 @@ interface TargetSpotsProps {
   onRemoveSpot: (index: number) => void;
   activities: any[];
   onAssignToDay: (activity: any, dayNumber: number) => void;
+  onRemoveActivity: (activityId: string) => void;
   tripId: string;
   tripStartDate: string;
   tripEndDate: string;
@@ -28,6 +29,7 @@ export default function TargetSpots({
   onRemoveSpot,
   activities,
   onAssignToDay,
+  onRemoveActivity,
   tripId,
   tripStartDate,
   tripEndDate,
@@ -40,6 +42,31 @@ export default function TargetSpots({
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [tripDays, setTripDays] = useState<Array<{ dayNumber: number; date: string }>>([]);
   const [targetSpotsWithImages, setTargetSpotsWithImages] = useState<TargetSpotWithImage[]>([]);
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
+
+  const handleRemoveActivity = (activity: any) => {
+    Alert.alert(
+      'Remove Activity',
+      `Are you sure you want to remove "${parseLocationName(activity.location_name)}" from this trip?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            if (onRemoveActivity) {
+              onRemoveActivity(activity.id);
+              onRefresh();
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Generate trip days when component mounts
   useEffect(() => {
@@ -96,8 +123,76 @@ export default function TargetSpots({
     }
   };
 
+  // Toggle day expansion
+  const toggleDayExpansion = (dayNumber: number) => {
+    setExpandedDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dayNumber)) {
+        newSet.delete(dayNumber);
+      } else {
+        newSet.add(dayNumber);
+      }
+      return newSet;
+    });
+  };
+
+  // Generate unique days from activities for day assignment
+  const getDaysFromActivities = () => {
+    console.log('🔍 getDaysFromActivities called with activities:', activities);
+    console.log('🔍 tripStartDate:', tripStartDate);
+
+    // If no activities, generate days from trip dates
+    if (!activities || activities.length === 0) {
+      const days = [];
+      const start = new Date(tripStartDate);
+      const end = new Date(tripEndDate);
+      const current = new Date(start);
+
+      while (current <= end) {
+        days.push({
+          dayNumber: days.length + 1,
+          date: current.toISOString().split('T')[0],
+          activities: []
+        });
+        current.setDate(current.getDate() + 1);
+      }
+      return days;
+    }
+
+    // If we have activities, group them by day
+    const uniqueDays = new Set<number>();
+    const dayActivities: Record<number, any[]> = {};
+
+    activities.forEach(activity => {
+      if (activity.day_date) {
+        const dayDate = new Date(activity.day_date);
+        const tripStart = new Date(tripStartDate);
+        const diffTime = dayDate.getTime() - tripStart.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const dayNumber = diffDays >= 0 ? diffDays + 1 : 1;
+
+        uniqueDays.add(dayNumber);
+
+        // Group activities by day
+        if (!dayActivities[dayNumber]) {
+          dayActivities[dayNumber] = [];
+        }
+        dayActivities[dayNumber].push(activity);
+      }
+    });
+
+    console.log('🔍 uniqueDays:', Array.from(uniqueDays));
+    console.log('🔍 dayActivities:', dayActivities);
+
+    return Array.from(uniqueDays).sort((a, b) => a - b).map(dayNumber => ({
+      dayNumber,
+      date: new Date(tripStartDate).setDate(new Date(tripStartDate).getDate() + (dayNumber - 1)).toISOString().split('T')[0],
+      activities: dayActivities[dayNumber] || []
+    }));
+  };
+
   // Handle assignment to a specific day
-  const handleDayAssign = async (day: { dayNumber: number; date: string }) => {
+  const handleDayAssign = async (day: { dayNumber: number; date: string; activities?: any[] }) => {
     if (selectedPlace && tripId) {
       try {
         const activityData = {
@@ -108,22 +203,41 @@ export default function TargetSpots({
           longitude: selectedPlace.longitude || null,
         };
 
-        await addTripActivityToDay(activityData);
+        // Add the activity to the day's activities
+        const updatedActivities = [...(day.activities || []), activityData];
 
-        // Always remove the spot from targetSpots when assigned to a day
-        const spotIndex = targetSpots.findIndex(spot => spot === selectedPlace.location_name);
-        if (spotIndex !== -1) {
-          onRemoveSpot(spotIndex);
-        }
+        // Update the day in the getDaysFromActivities function
+        const uniqueDays = new Set<number>();
+        updatedActivities.forEach(activity => {
+          if (activity.day_date) {
+            const dayDate = new Date(activity.day_date);
+            const tripStart = new Date(tripStartDate);
+            const diffTime = dayDate.getTime() - tripStart.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const dayNum = diffDays >= 0 ? diffDays + 1 : 1;
+            uniqueDays.add(dayNum);
+          }
+        });
 
-        // Reset states and refresh
+        // Call onAssignToDay to update backend
+        await onAssignToDay(activityData, day.dayNumber);
+
+        // Update local state to trigger re-render
+        setTargetSpotsWithImages(prev =>
+          prev.map(spot =>
+            spot.name === selectedPlace.location_name
+              ? { ...spot, hasImage: true, image: spot.image }
+              : spot
+          )
+        );
+
+        // Close modal
         setSelectedPlace(null);
         setShowDayAssignModal(false);
-        setShowAddModal(false);
         setSearchText('');
-        onRefresh();
       } catch (error) {
-        console.error('Error adding activity to day:', error);
+        console.error('Error assigning activity to day:', error);
+        Alert.alert('Error', 'Failed to assign activity to day');
       }
     }
   };
@@ -213,68 +327,87 @@ export default function TargetSpots({
         <ScrollView className="max-h-96">
           <View className="space-y-2">
             {/* Show individual activities with new card design */}
-            {activities.map((activity, index) => (
-              <View
-                key={activity.id || index}
-                className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
-              >
-                <View className="flex-row items-center">
-                  <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
-                    <Ionicons name="location" size={24} color="#6B7280" />
+            {activities
+              .sort((a, b) => {
+                const dateA = a.day_date ? new Date(a.day_date) : new Date(0);
+                const dateB = b.day_date ? new Date(b.day_date) : new Date(0);
+                return dateB.getTime() - dateA.getTime();
+              })
+              .reverse()
+              .map((activity, index) => (
+                <TouchableOpacity
+                  key={activity.id || index}
+                  className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
+                  onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
+                >
+                  <View className="flex-row items-center">
+                    <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
+                      <Ionicons name="location" size={24} color="#6B7280" />
+                    </View>
+
+                    <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
+                      {parseLocationName(activity.location_name)}
+                    </Text>
+
+                    {/* Delete button - only show for non-owners */}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleRemoveActivity(activity);
+                      }}
+                      className="bg-red-500 w-6 h-6 rounded-full items-center justify-center ml-2"
+                    >
+                      <Text className="text-white font-bold text-sm">×</Text>
+                    </TouchableOpacity>
                   </View>
-
-                  <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
-                    {parseLocationName(activity.location_name)}
-                  </Text>
-
-                  <TouchableOpacity
-                    onPress={() => onAssignToDay(activity, getDayNumberForActivity(activity))}
-                    className="ml-3"
-                  >
-                    <Ionicons name="calendar" size={16} color="#3B82F6" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+                </TouchableOpacity>
+              ))}
 
             {/* Show manually added target spots */}
-            {targetSpotsWithImages.map((spot, index) => (
-              <View
-                key={`manual-${index}`}
-                className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
-              >
-                <View className="flex-row items-center">
-                  <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
-                    {spot.image ? (
-                      <View className="w-16 h-16 bg-green-100 rounded-lg items-center justify-center">
-                        <Ionicons name="image" size={24} color="#10B981" />
-                      </View>
-                    ) : (
-                      <Ionicons name="location" size={24} color="#6B7280" />
-                    )}
-                  </View>
-
-                  <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
-                    {spot.name}
-                  </Text>
-
+            {targetSpotsWithImages
+              .sort((a, b) => {
+                // Sort by most recently added (reverse chronological order)
+                const indexA = targetSpots.findIndex(spot => spot.name === a.name);
+                const indexB = targetSpots.findIndex(spot => spot.name === b.name);
+                return indexB - indexA;
+              })
+              .map((spot, index) => (
+                <View
+                  key={`manual-${index}`}
+                  className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm"
+                >
                   <View className="flex-row items-center">
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSelectedPlace({ location_name: spot.name });
-                        setShowDayAssignModal(true);
-                      }}
-                      className="mr-3"
-                    >
-                      <Ionicons name="help-circle" size={16} color="#3B82F6" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => onRemoveSpot(index)}>
-                      <Ionicons name="close-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
+                    <View className="w-16 h-16 bg-gray-100 rounded-lg mr-4 items-center justify-center">
+                      {spot.image ? (
+                        <View className="w-16 h-16 bg-green-100 rounded-lg items-center justify-center">
+                          <Ionicons name="image" size={24} color="#10B981" />
+                        </View>
+                      ) : (
+                        <Ionicons name="location" size={24} color="#6B7280" />
+                      )}
+                    </View>
+
+                    <Text className="text-neutral-textPrimary flex-1 text-base font-medium">
+                      {spot.name}
+                    </Text>
+
+                    <View className="flex-row items-center">
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedPlace({ location_name: spot.name });
+                          setShowDayAssignModal(true);
+                        }}
+                        className="mr-3"
+                      >
+                        <Ionicons name="help-circle" size={16} color="#3B82F6" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => onRemoveSpot(index)}>
+                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              ))}
           </View>
         </ScrollView>
       )}
@@ -377,22 +510,53 @@ export default function TargetSpots({
 
             <ScrollView className="flex-1">
               <View className="space-y-2">
-                {tripDays.map((day) => (
+                {getDaysFromActivities().map((day) => (
                   <TouchableOpacity
                     key={day.dayNumber}
-                    onPress={() => handleDayAssign(day)}
+                    onPress={() => toggleDayExpansion(day.dayNumber)}
                     className="bg-neutral-surface p-4 rounded-lg border border-neutral-divider"
                   >
-                    <Text className="text-neutral-textPrimary font-medium">
-                      Day {day.dayNumber}
-                    </Text>
-                    <Text className="text-neutral-textSecondary text-sm">
-                      {new Date(day.date).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </Text>
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <Text className="text-neutral-textPrimary font-medium">
+                          Day {day.dayNumber}
+                        </Text>
+                        <Text className="text-neutral-textSecondary text-sm">
+                          {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </Text>
+                      </View>
+
+                      {/* Show existing activities count */}
+                      <Text className="text-neutral-textSecondary text-xs">
+                        {day.activities.length} activities
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center">
+                      {expandedDays.has(day.dayNumber) ? (
+                        <Ionicons name="chevron-up" size={20} color="#6B7280" />
+                      ) : (
+                        <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                      )}
+                    </View>
+
+                    {/* Collapsible activities list */}
+                    {expandedDays.has(day.dayNumber) && (
+                      <View className="mt-2 space-y-1">
+                        {day.activities.map((activity, index) => (
+                          <View key={activity.id || index} className="bg-white border border-neutral-divider rounded-lg p-3">
+                            <View className="flex-row justify-between items-center">
+                              <Text className="text-neutral-textPrimary text-sm font-medium">
+                                {activity.location_name}
+                              </Text>
+                              <Text className="text-neutral-textSecondary text-xs">
+                                {new Date(activity.day_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
