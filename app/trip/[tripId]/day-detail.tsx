@@ -1,48 +1,30 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Callout, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import {
   addTripActivityToDay,
   deleteTripActivity,
   getPlaceDetails,
-  getItineraryDaysForTrip,
   getTripActivitiesForDay,
-  getTripActivitiesForItineraryDayId,
   getTripById,
   PlacePrediction,
   searchPlacePredictions,
   Activity as TripActivity,
   updateTripActivity,
-  updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
-import { DayDetailSkeleton } from "@/components/DayDetailSkeleton";
 
 export default function DayDetailScreen() {
-  const { tripId, day, dayDate, itineraryDayId, displayDate } = useLocalSearchParams();
-
-  const getSingleParam = (value: string | string[] | undefined) => {
-    if (Array.isArray(value)) return value[0];
-    return value;
-  };
-
-  const tripIdParam = getSingleParam(tripId);
-  const dayParam = getSingleParam(day);
-  const dayDateParam = getSingleParam(dayDate);
-  const itineraryDayIdParam = getSingleParam(itineraryDayId);
-  const displayDateParam = getSingleParam(displayDate);
-  const [resolvedItineraryDayId, setResolvedItineraryDayId] = useState<string | null>(null);
+  const { tripId, day } = useLocalSearchParams();
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [activities, setActivities] = useState<TripActivity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
-  const [savingOrder, setSavingOrder] = useState(false);
 
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [savingActivity, setSavingActivity] = useState(false);
@@ -61,19 +43,6 @@ export default function DayDetailScreen() {
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [editingLat, setEditingLat] = useState<number | null>(null);
   const [editingLng, setEditingLng] = useState<number | null>(null);
-
-  const sortActivitiesByStartTime = (items: TripActivity[]) => {
-    return [...items].sort((a, b) => {
-      const aTime = a.start_time?.slice(0, 5) ?? null;
-      const bTime = b.start_time?.slice(0, 5) ?? null;
-
-      if (!aTime && !bTime) return 0;
-      if (!aTime) return 1;
-      if (!bTime) return -1;
-
-      return aTime.localeCompare(bTime);
-    });
-  };
 
   const dayMapActivities = activities.filter(
     (a) => typeof a.latitude === 'number' && typeof a.longitude === 'number'
@@ -107,12 +76,12 @@ export default function DayDetailScreen() {
   };
 
   useEffect(() => {
-    if (tripIdParam) {
-      getTripById(tripIdParam)
+    if (tripId) {
+      getTripById(tripId as string)
         .then((data) => setTrip(data))
         .finally(() => setLoading(false));
     }
-  }, [tripIdParam]);
+  }, [tripId]);
 
   const normalizeTime = (t: string): string | null => {
     const s = t.trim();
@@ -132,80 +101,37 @@ export default function DayDetailScreen() {
     return "";
   };
 
-  const parseLocalDate = (dateString: string) => {
-    return new Date(`${dateString}T00:00:00`);
-  };
-
-  const formatLocalDate = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
   // calculate the date for the selected day
-  const dayNumber = parseInt(dayParam ?? "1", 10) || 1;
-  let selectedDayDate: Date | null = null;
-
-  if (displayDateParam) {
-    selectedDayDate = parseLocalDate(displayDateParam);
-  } else if (trip && trip.start_date) {
-    const start = parseLocalDate(trip.start_date);
-    selectedDayDate = new Date(start);
-    selectedDayDate.setDate(start.getDate() + (dayNumber - 1));
-  } else if (dayDateParam) {
-    selectedDayDate = parseLocalDate(dayDateParam);
+  let dayNumber = parseInt(day as string, 10) || 1;
+  let dayDate: Date | null = null;
+  if (trip && trip.start_date) {
+    const start = new Date(trip.start_date);
+    dayDate = new Date(start);
+    dayDate.setDate(start.getDate() + (dayNumber - 1));
   }
 
-  const dayDateStr = dayDateParam
-    ? dayDateParam
-    : selectedDayDate
-      ? formatLocalDate(selectedDayDate)
+  const dayDateStr =
+    dayDate
+      ? new Date(Date.UTC(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()))
+        .toISOString()
+        .slice(0, 10)
       : null;
 
-  useEffect(() => {
-    if (itineraryDayIdParam) {
-      setResolvedItineraryDayId(itineraryDayIdParam);
-      return;
-    }
-
-    if (!tripIdParam) return;
-
-    getItineraryDaysForTrip(tripIdParam)
-      .then((days) => {
-        const selected = days[dayNumber - 1];
-        setResolvedItineraryDayId(selected?.id ?? null);
-      })
-      .catch(() => {
-        setResolvedItineraryDayId(null);
-      });
-  }, [tripIdParam, dayNumber, itineraryDayIdParam]);
-
   const loadActivities = async () => {
-    if (!tripIdParam) return;
+    if (!tripId || !dayDateStr) return;
     setLoadingActivities(true);
     try {
-      let data: TripActivity[] = [];
-
-      if (resolvedItineraryDayId) {
-        data = await getTripActivitiesForItineraryDayId(resolvedItineraryDayId);
-      }
-
-      // fallback if this itinerary day has no rows and we still need to load by day_date
-      if (data.length === 0 && dayDateStr && tripIdParam) {
-        data = await getTripActivitiesForDay(tripIdParam, dayDateStr);
-      }
-      setActivities(sortActivitiesByStartTime(data));
+      const data = await getTripActivitiesForDay(tripId as string, dayDateStr);
+      setActivities(data);
     } finally {
       setLoadingActivities(false);
     }
   };
 
   useEffect(() => {
-    if (!tripIdParam) return;
-    if (!resolvedItineraryDayId && !dayDateStr) return;
+    if (!tripId || !dayDateStr) return;
     loadActivities();
-  }, [tripIdParam, resolvedItineraryDayId, dayDateStr]);
+  }, [tripId, dayDateStr]);
 
   useEffect(() => {
     // If a place was selected, don't refetch predictions for the filled text.
@@ -319,7 +245,7 @@ export default function DayDetailScreen() {
           end_time: normalizeTime(activityEndTime),
         });
 
-        setActivities((prev) => sortActivitiesByStartTime([...prev, inserted]));
+        setActivities((prev) => [...prev, inserted]);
         closeAddModal();
         return;
       }
@@ -335,85 +261,21 @@ export default function DayDetailScreen() {
         end_time: normalizeTime(activityEndTime),
       });
 
-      setActivities((prev) => sortActivitiesByStartTime(prev.map((x) => (x.id === updated.id ? updated : x))));
+      setActivities((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       closeAddModal();
     } finally {
       setSavingActivity(false);
     }
   };
 
-  const renderActivityItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => openEditModal(item)}
-        className="bg-neutral-background rounded-lg p-4 border border-neutral-divider mb-3"
-        style={{ opacity: isActive ? 0.9 : 1 }}
-      >
-        <View className="flex-row justify-between items-start">
-          <View className="flex-1 pr-3">
-            <View>
-              {formatTimeRange(item.start_time, item.end_time) ? (
-                <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mb-2">
-                  <Text className="text-xs text-neutral-textSecondary">
-                    {formatTimeRange(item.start_time, item.end_time)}
-                  </Text>
-                </View>
-              ) : null}
-
-              <Text
-                className="text-neutral-textPrimary font-semibold text-base"
-                numberOfLines={2}
-              >
-                {item.location_name ?? "Activity"}
-              </Text>
-            </View>
-            {!!item.title && (
-              <Text className="text-neutral-textSecondary mt-1">{item.title}</Text>
-            )}
-            {!!item.description && (
-              <Text className="text-neutral-textSecondary mt-1">{item.description}</Text>
-            )}
-          </View>
-
-          <View className="items-end">
-            <TouchableOpacity
-              onLongPress={drag}
-              delayLongPress={120}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              className="px-2 py-2 mb-2"
-            >
-              <Ionicons
-                name="reorder-three-outline"
-                size={22}
-                color={isActive ? "#3A1FA8" : "#67717B"}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={async () => {
-                await deleteTripActivity(item.id);
-                setActivities((prev) => sortActivitiesByStartTime(prev.filter((x) => x.id !== item.id)));
-              }}
-              className="px-3 py-2 rounded-lg bg-accent-hotCoral"
-            >
-              <Text className="text-white font-semibold">Remove</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    ),
-    []
-  );
-
   return (
     <ScrollView className="flex-1 bg-neutral-background">
       {/* Trip Header */}
       <View className="bg-neutral-surface px-6 py-6 mb-2">
-        {selectedDayDate && (
+        {dayDate && (
           <Text className="text-2xl font-bold text-neutral-textPrimary mb-2">
             Day {dayNumber} -{" "}
-            {selectedDayDate.toLocaleDateString("en-US", {
+            {dayDate.toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
               day: "numeric",
@@ -511,66 +373,52 @@ export default function DayDetailScreen() {
             </Text>
           </View>
         ) : (
-          <View>
-            <Text className="text-neutral-textSecondary text-sm mb-3">
-              Long press the three-line handle to drag and reorder activities.
-            </Text>
+          <View className="gap-3">
+            {activities.map((a) => (
+              <TouchableOpacity
+                key={a.id}
+                activeOpacity={0.9}
+                onPress={() => openEditModal(a)}
+                className="bg-neutral-background rounded-lg p-4 border border-neutral-divider"
+              >
+                <View className="flex-row justify-between items-start">
+                  <View className="flex-1 pr-3">
+                    <View>
+                      {formatTimeRange(a.start_time, a.end_time) ? (
+                        <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mb-2">
+                          <Text className="text-xs text-neutral-textSecondary">
+                            {formatTimeRange(a.start_time, a.end_time)}
+                          </Text>
+                        </View>
+                      ) : null}
 
-            <DraggableFlatList
-              data={activities}
-              keyExtractor={(item) => item.id}
-              renderItem={renderActivityItem}
-              scrollEnabled={false}
-              activationDistance={8}
-              onDragEnd={async ({ data }) => {
-                const timeSlots = activities.map((item) => ({
-                  start_time: item.start_time ?? null,
-                  end_time: item.end_time ?? null,
-                }));
+                      <Text
+                        className="text-neutral-textPrimary font-semibold text-base"
+                        numberOfLines={2}
+                      >
+                        {a.location_name ?? "Activity"}
+                      </Text>
+                    </View>
+                    {!!a.title && (
+                      <Text className="text-neutral-textSecondary mt-1">{a.title}</Text>
+                    )}
+                    {!!a.description && (
+                      <Text className="text-neutral-textSecondary mt-1">{a.description}</Text>
+                    )}
+                  </View>
 
-                const reorderedWithTimes = data.map((item, index) => ({
-                  ...item,
-                  start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
-                  end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
-                }));
-
-                setActivities(reorderedWithTimes);
-
-                try {
-                  setSavingOrder(true);
-
-                  await updateTripActivityPositions(
-                    reorderedWithTimes.map((item, index) => ({
-                      id: item.id,
-                      position: index + 1,
-                    }))
-                  );
-
-                  await Promise.all(
-                    reorderedWithTimes.map((item) =>
-                      updateTripActivity(item.id, {
-                        start_time: item.start_time,
-                        end_time: item.end_time,
-                      })
-                    )
-                  );
-
-                  setActivities(reorderedWithTimes);
-                } catch (error) {
-                  console.error("Error saving reordered activities:", error);
-                  Alert.alert("Error", "Failed to save activity order.");
-                  await loadActivities();
-                } finally {
-                  setSavingOrder(false);
-                }
-              }}
-            />
-
-            {savingOrder ? (
-              <Text className="text-neutral-textSecondary text-xs mt-2">
-                Saving order...
-              </Text>
-            ) : null}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await deleteTripActivity(a.id);
+                      setActivities((prev) => prev.filter((x) => x.id !== a.id));
+                    }}
+                    className="px-3 py-2 rounded-lg bg-accent-hotCoral"
+                  >
+                    <Text className="text-white font-semibold">Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </View>
