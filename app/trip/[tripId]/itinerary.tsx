@@ -2,15 +2,9 @@ import { deleteItinerary } from "@/lib/itineraryService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import {
-  Alert,
-  PanResponder,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
-} from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
+import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";
 interface ItineraryProps {
@@ -19,12 +13,15 @@ interface ItineraryProps {
   endDate: string;
   aiItinerary: string[];
   destination: string;
+  itineraryDays: any[];
+  onReorderDays?: (reorderedDays: any[]) => void;
   onToggleDayCollapse: (dayNumber: number) => void;
   onToggleItineraryCollapse: () => void;
   collapsedDays: Record<number, boolean>;
   isItineraryCollapsed: boolean;
   dayActivities: Record<number, TripActivity[]>;
   loadingActivities: Record<number, boolean>;
+  onReorderDayActivities?: (dayNumber: number, reordered: TripActivity[]) => void;
 }
 
 export default function ItineraryScreen({
@@ -33,15 +30,17 @@ export default function ItineraryScreen({
   endDate,
   destination,
   aiItinerary,
+  itineraryDays,
+  onReorderDays,
   onToggleDayCollapse,
   onToggleItineraryCollapse,
   collapsedDays,
   isItineraryCollapsed,
   dayActivities,
   loadingActivities,
+  onReorderDayActivities,
 }: ItineraryProps) {
   const router = useRouter();
-  const [draggedItem, setDraggedItem] = useState<number | null>(null);
 
   const handleDeleteItinerary = async () => {
     Alert.alert(
@@ -71,34 +70,31 @@ export default function ItineraryScreen({
   };
 
 
-  const createPanResponder = (index: number) => {
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        setDraggedItem(index);
-        console.log("Start dragging item:", index);
-      },
-      onPanResponderMove: () => {
-        // Handle drag movement
-      },
-      onPanResponderRelease: () => {
-        setDraggedItem(null);
-        console.log("End dragging item:", index);
-      },
-    });
-  };
-
   const generateDayHeaders = () => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const days = [];
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const days: {
+      id?: string;
+      itineraryDayId?: string | null;
+      date: Date;
+      day_date: string;
+      display_date: string;
+      dayNumber: number;
+      position?: number | null;
+    }[] = [];
     const current = new Date(start);
 
     while (current <= end) {
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, "0");
+      const day = String(current.getDate()).padStart(2, "0");
       days.push({
         date: new Date(current),
+        day_date: `${year}-${month}-${day}`,
+        display_date: `${year}-${month}-${day}`,
         dayNumber: days.length + 1,
+        itineraryDayId: null,
+        position: days.length + 1,
       });
       current.setDate(current.getDate() + 1);
     }
@@ -106,14 +102,180 @@ export default function ItineraryScreen({
     return days;
   };
 
-  const days = generateDayHeaders();
+  const [localDayBlocks, setLocalDayBlocks] = useState<any[]>([]);
 
-  const hasItinerary = 
-    Object.values(dayActivities).some((activities) => activities.length > 0) || 
+  const sortActivitiesForDisplay = (items: TripActivity[]) => {
+    return [...items].sort((a, b) => {
+      const aPos = a.position ?? Number.MAX_SAFE_INTEGER;
+      const bPos = b.position ?? Number.MAX_SAFE_INTEGER;
+      if (aPos !== bPos) return aPos - bPos;
+
+      const aTime = a.start_time?.slice(0, 5) ?? null;
+      const bTime = b.start_time?.slice(0, 5) ?? null;
+      if (!aTime && !bTime) return 0;
+      if (!aTime) return 1;
+      if (!bTime) return -1;
+
+      const t = aTime.localeCompare(bTime);
+      if (t !== 0) return t;
+
+      const aCreated = (a as any).created_at ?? "";
+      const bCreated = (b as any).created_at ?? "";
+      return aCreated.localeCompare(bCreated);
+    });
+  };
+
+  const dedupeActivities = (items: TripActivity[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (!item?.id) return false;
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
+
+  const toLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const activitiesByItineraryDayId = useMemo(() => {
+    const map: Record<string, TripActivity[]> = {};
+
+    Object.values(dayActivities)
+      .flat()
+      .forEach((activity) => {
+        const itineraryDayId = activity?.itinerary_day_id;
+        if (!itineraryDayId) return;
+        if (!map[itineraryDayId]) {
+          map[itineraryDayId] = [];
+        }
+        map[itineraryDayId].push(activity);
+      });
+
+    Object.keys(map).forEach((key) => {
+      map[key] = sortActivitiesForDisplay(map[key]);
+    });
+
+    return map;
+  }, [dayActivities]);
+
+  const activitiesByDayDate = useMemo(() => {
+    const map: Record<string, TripActivity[]> = {};
+
+    Object.values(dayActivities)
+      .flat()
+      .forEach((activity: any) => {
+        const dayDate = activity?.day_date;
+        if (!dayDate) return;
+        if (!map[dayDate]) {
+          map[dayDate] = [];
+        }
+        map[dayDate].push(activity);
+      });
+
+    Object.keys(map).forEach((key) => {
+      map[key] = sortActivitiesForDisplay(map[key]);
+    });
+
+    return map;
+  }, [dayActivities]);
+
+  useEffect(() => {
+    const previousActivitiesByDayId = new Map<string, TripActivity[]>();
+    const previousActivitiesByDayDate = new Map<string, TripActivity[]>();
+
+    localDayBlocks.forEach((block: any) => {
+      const blockDayId = block.itineraryDayId ?? block.id;
+      if (blockDayId && Array.isArray(block.activities)) {
+        previousActivitiesByDayId.set(blockDayId, block.activities);
+      }
+      if (block.day_date && Array.isArray(block.activities)) {
+        previousActivitiesByDayDate.set(block.day_date, block.activities);
+      }
+    });
+
+    const baseDays =
+      itineraryDays && itineraryDays.length > 0
+        ? itineraryDays.map((day: any, index: number) => {
+            const displayDate = new Date(`${startDate}T00:00:00`);
+            displayDate.setDate(displayDate.getDate() + index);
+
+            return {
+              ...day,
+              itineraryDayId: day.id,
+              date: displayDate,
+              day_date: day.day_date,
+              display_date: toLocalDateString(displayDate),
+              dayNumber: index + 1,
+              position: day.position ?? index + 1,
+            };
+          })
+        : generateDayHeaders();
+
+    const nextBlocks = baseDays.map((day: any, index: number) => {
+      const itineraryDayId = day.itineraryDayId ?? day.id ?? null;
+      const matchedActivities = itineraryDayId && previousActivitiesByDayId.has(itineraryDayId)
+        ? previousActivitiesByDayId.get(itineraryDayId) ?? []
+        : previousActivitiesByDayDate.has(day.day_date)
+          ? previousActivitiesByDayDate.get(day.day_date) ?? []
+          : itineraryDayId
+            ? activitiesByItineraryDayId[itineraryDayId] ??
+              activitiesByDayDate[day.day_date] ??
+              dayActivities[index + 1] ?? []
+            : activitiesByDayDate[day.day_date] ?? dayActivities[index + 1] ?? [];
+
+      return {
+        ...day,
+        activities: sortActivitiesForDisplay(matchedActivities),
+      };
+    });
+
+    setLocalDayBlocks(nextBlocks);
+  }, [
+    itineraryDays,
+    dayActivities,
+    activitiesByItineraryDayId,
+    activitiesByDayDate,
+    startDate,
+    endDate,
+  ]);
+
+  const days = localDayBlocks;
+
+  const mapActivities = useMemo(() => {
+    const seen = new Set<string>();
+
+    return localDayBlocks
+      .flatMap((day) => day.activities ?? [])
+      .filter((activity) => {
+        if (!activity?.id) return false;
+        if (seen.has(activity.id)) return false;
+        seen.add(activity.id);
+        return true;
+      });
+  }, [localDayBlocks]);
+
+  const hasItinerary =
+    localDayBlocks.some((day) => (day.activities?.length ?? 0) > 0) ||
     aiItinerary?.length > 0;
 
-  const handleDayPress = (dayNumber: number) => {
-    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+  const handleDayPress = (day: any) => {
+    const params = new URLSearchParams({
+      day: String(day.dayNumber),
+      dayDate: String(day.day_date),
+      displayDate: String(day.display_date ?? toLocalDateString(day.date)),
+    });
+
+    const itineraryDayId = String(day.itineraryDayId ?? day.id ?? "");
+    if (itineraryDayId) {
+      params.set("itineraryDayId", itineraryDayId);
+    }
+
+    router.push(`/trip/${tripId}/day-detail?${params.toString()}` as any);
   };
 
   return (
@@ -123,7 +285,7 @@ export default function ItineraryScreen({
         startDate={startDate}
         endDate={endDate}
         destination={destination}
-        activities={Object.values(dayActivities).flat()}
+        activities={mapActivities}
         onMarkerNavigate={(activity) => {
           router.push(`/trip/${tripId}/day-detail?activityId=${activity.id}`);
         }}
@@ -186,40 +348,58 @@ export default function ItineraryScreen({
       </TouchableOpacity>
 
       {!isItineraryCollapsed && (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {days.map((day) => (
-            <View key={day.date.toISOString()} className="mb-6">
-              <TouchableOpacity
-                onPress={() => onToggleDayCollapse(day.dayNumber)}
-                className="bg-neutral-surface rounded-lg p-4"
-              >
+        <DraggableFlatList
+          data={days}
+          keyExtractor={(day) => String(day.id ?? day.itineraryDayId ?? `day-${day.dayNumber}`)}
+          scrollEnabled={true}
+          activationDistance={10}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          renderItem={({ item: day, drag: dragDay, isActive: isDayActive }) => (
+            <View className="mb-6" style={{ opacity: isDayActive ? 0.95 : 1 }}>
+              <View className="bg-neutral-surface rounded-lg p-4">
                 <View className="flex-row justify-between items-center mb-2">
-                  <Text className="text-lg font-semibold text-neutral-textPrimary">
-                    Day {day.dayNumber} -{" "}
-                    {day.date.toLocaleDateString("en-US", {
-                      weekday: "long",
-                    })}{" "}
-                    {day.date.toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </Text>
-                  <View className="flex-row items-center">
-                    <Ionicons
-                      name={
-                        collapsedDays[day.dayNumber]
-                          ? "chevron-down"
-                          : "chevron-up"
-                      }
-                      size={20}
-                      color="#6B7280"
-                    />
+                  <TouchableOpacity
+                    onPress={() => onToggleDayCollapse(day.dayNumber)}
+                    activeOpacity={0.8}
+                    className="flex-1"
+                  >
+                    <Text className="text-lg font-semibold text-neutral-textPrimary">
+                      Day {day.dayNumber} -{" "}
+                      {day.date.toLocaleDateString("en-US", {
+                        weekday: "long",
+                      })}{" "}
+                      {day.date.toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View className="flex-row items-center ml-3">
                     <TouchableOpacity
-                      onPress={() =>
-                        router.push(
-                          `/trip/${tripId}/day-detail?day=${day.dayNumber}`,
-                        )
-                      }
+                      onLongPress={dragDay}
+                      delayLongPress={120}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="mr-2 p-1"
+                    >
+                      <Ionicons name="reorder-four" size={18} color="#6B7280" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => onToggleDayCollapse(day.dayNumber)}
+                      className="p-1"
+                    >
+                      <Ionicons
+                        name={
+                          collapsedDays[day.dayNumber]
+                            ? "chevron-down"
+                            : "chevron-up"
+                        }
+                        size={20}
+                        color="#6B7280"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDayPress(day)}
                       className="ml-3"
                     >
                       <Ionicons
@@ -237,52 +417,59 @@ export default function ItineraryScreen({
                       <Text className="text-neutral-textSecondary text-center py-4">
                         Loading activities...
                       </Text>
-                    ) : dayActivities[day.dayNumber] &&
-                      dayActivities[day.dayNumber].length > 0 ? (
-                      <View className="space-y-2">
+                    ) : dedupeActivities(day.activities ?? []).length > 0 ? (
+                      <View>
                         <Text className="text-sm text-neutral-textSecondary mb-3">
-                          {dayActivities[day.dayNumber].length} activities
+                          {dedupeActivities(day.activities ?? []).length} activities
                         </Text>
-                        {dayActivities[day.dayNumber].map((activity, index) => {
-                          const panResponder = createPanResponder(index);
-                          return (
+                        <DraggableFlatList
+                          data={sortActivitiesForDisplay(
+                            dedupeActivities(day.activities ?? []),
+                          )}
+                          keyExtractor={(item, index) => `${day.dayNumber}-${item.id}-${index}`}
+                          scrollEnabled={false}
+                          activationDistance={8}
+                          renderItem={({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
                             <TouchableOpacity
-                              key={activity.id || index}
+                              activeOpacity={0.9}
                               className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
-                              onPress={() =>
-                                router.push(
-                                  `/trip/${tripId}/day-detail?day=${day.dayNumber}`,
-                                )
-                              }
+                              onPress={() => handleDayPress(day)}
+                              style={{ opacity: isActive ? 0.9 : 1 }}
                             >
                               <View className="flex-row justify-between items-center">
                                 <View className="flex-1">
                                   <Text className="font-medium text-neutral-textPrimary">
-                                    {activity.location_name
-                                      ? activity.location_name
-                                          .split(",")[0]
-                                          .trim()
+                                    {item.location_name
+                                      ? item.location_name.split(",")[0].trim()
                                       : "Unknown Location"}
                                   </Text>
                                 </View>
-                                <View
-                                  {...panResponder.panHandlers}
+                                <TouchableOpacity
+                                  onLongPress={drag}
+                                  delayLongPress={120}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   className="ml-3 p-2"
                                 >
                                   <Ionicons
                                     name="reorder-four"
                                     size={16}
-                                    color={
-                                      draggedItem === index
-                                        ? "#3B82F6"
-                                        : "#6B7280"
-                                    }
+                                    color={isActive ? "#3B82F6" : "#6B7280"}
                                   />
-                                </View>
+                                </TouchableOpacity>
                               </View>
                             </TouchableOpacity>
-                          );
-                        })}
+                          )}
+                          onDragEnd={({ data }) => {
+                            setLocalDayBlocks((prev) =>
+                              prev.map((block) =>
+                                block.dayNumber === day.dayNumber
+                                  ? { ...block, activities: data }
+                                  : block,
+                              ),
+                            );
+                            onReorderDayActivities?.(day.dayNumber, data);
+                          }}
+                        />
                       </View>
                     ) : aiItinerary[day.dayNumber - 1] ? (
                       <Text className="text-neutral-textPrimary">
@@ -295,10 +482,19 @@ export default function ItineraryScreen({
                     )}
                   </View>
                 )}
-              </TouchableOpacity>
+              </View>
             </View>
-          ))}
-        </ScrollView>
+          )}
+          onDragEnd={({ data }) => {
+            const normalized = data.map((day, index) => ({
+              ...day,
+              dayNumber: index + 1,
+              position: index + 1,
+            }));
+            setLocalDayBlocks(normalized);
+            onReorderDays?.(normalized);
+          }}
+        />
       )}
     </View>
   );

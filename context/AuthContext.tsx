@@ -28,8 +28,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Handle deep links for OAuth
     const handleDeepLink = async (url: string) => {
       console.log('🔍 AuthContext: Handling deep link:', url);
-      const { params } = Linking.parse(url as string);
-      const { access_token, refresh_token } = params;
+      const { queryParams } = Linking.parse(url as string);
+
+      if (!queryParams) {
+        console.log('🔍 AuthContext: Deep link has no params, skipping');
+        return;
+      }
+
+      const access_token = typeof queryParams.access_token === 'string' ? queryParams.access_token : undefined;
+      const refresh_token = typeof queryParams.refresh_token === 'string' ? queryParams.refresh_token : undefined;
 
       if (access_token && refresh_token) {
         console.log('🔍 AuthContext: Found tokens in deep link, setting session');
@@ -40,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    Linking.addEventListener('url', (event: { url: string }) => {
+    const linkingSubscription = Linking.addEventListener('url', (event: { url: string }) => {
       if (event.url) {
         handleDeepLink(event.url);
       }
@@ -91,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       console.log('🔍 AuthContext: Cleaning up auth subscription');
       subscription.unsubscribe();
+      linkingSubscription.remove();
     };
   }, []);
 
