@@ -12,7 +12,8 @@ import {
   getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
-  getTripMembers
+  getTripMembers,
+  updateTrip
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
