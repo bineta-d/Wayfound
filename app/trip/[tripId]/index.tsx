@@ -379,8 +379,9 @@ export default function TripOverviewScreen() {
           </>
         )}
         {/* Itinerary Tab */}
-        {activeTab === 1 && (
-          <View className="bg-white mb-2">
+        {activeTab === 1 ? (
+        <View className="flex-1 bg-gray-50">
+          <View className="bg-white mb-2 flex-1">
             {/* Trip Header */}
             <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
@@ -390,20 +391,26 @@ export default function TripOverviewScreen() {
             {refreshing ? (
               <ItinerarySkeleton />
             ) : (
-              <ItineraryScreen
-                tripId={tripId as string}
-                startDate={trip.start_date}
-                destination={trip.destination}
-                endDate={trip.end_date}
-                aiItinerary={aiItinerary}
-                onToggleDayCollapse={toggleDayCollapse}
-                onToggleItineraryCollapse={toggleItineraryCollapse}
-                collapsedDays={collapsedDays}
-                isItineraryCollapsed={isItineraryCollapsed}
-                dayActivities={dayActivities}
-                loadingActivities={loadingActivities}
-              />
+              <View className="flex-1">
+                <ItineraryScreen
+                  tripId={tripId as string}
+                  startDate={trip.start_date}
+                  destination={trip.destination}
+                  endDate={trip.end_date}
+                  aiItinerary={aiItinerary}
+                  itineraryDays={itineraryDays}
+                  onReorderDays={handleReorderDays}
+                  onToggleDayCollapse={toggleDayCollapse}
+                  onToggleItineraryCollapse={toggleItineraryCollapse}
+                  collapsedDays={collapsedDays}
+                  isItineraryCollapsed={isItineraryCollapsed}
+                  dayActivities={dayActivities}
+                  loadingActivities={loadingActivities}
+                  onReorderDayActivities={handleReorderDayActivities}
+                />
+              </View>
             )}
+          </View>
           </View>
         )}
         {/* Reservations Tab */}

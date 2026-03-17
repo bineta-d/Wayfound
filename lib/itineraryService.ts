@@ -72,7 +72,7 @@ export const saveItinerary = async (
       const activitiesToInsert = groupedByDay[dayNumber].map(act => ({
         itinerary_day_id: dayId,
         title: act.name,
-        description: act.rawText ?? null,
+        description: act.description ?? null,
         location_name: act.name ?? null,
         latitude: act.latitude ?? null,
         longitude: act.longitude ?? null,
