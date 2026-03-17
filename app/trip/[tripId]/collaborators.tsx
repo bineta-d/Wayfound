@@ -1,5 +1,7 @@
-import React from 'react';
-import { Alert, Image, Text, TouchableOpacity, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router'; 
+import React, { useState } from 'react'; 
+import { Image, Text, TouchableOpacity, View } from 'react-native';
+import InviteModal from '../../../components/InviteModal'; 
 import { Trip_member } from '../../../lib/types';
 
 interface CollaboratorsScreenProps {
@@ -10,28 +12,11 @@ interface CollaboratorsScreenProps {
 export default function CollaboratorsScreen({ members, currentUserId }: CollaboratorsScreenProps) {
     console.log('🔍 Collaborators received:', members);
 
-    const handleRemoveCollaborator = (memberId: string, memberName: string) => {
-        Alert.alert(
-            'Remove Collaborator',
-            `Are you sure you want to remove ${memberName} from this trip?`,
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Remove',
-                    style: 'destructive',
-                    onPress: () => {
-                        // TODO: Implement remove collaborator logic
-                        console.log(`Removing collaborator: ${memberId} (${memberName})`);
-                    },
-                },
-            ]
-        );
-    };
+    // add state to control when the pop-up is visible
+    const [isModalVisible, setModalVisible] = useState(false);
 
-    const isOwner = (member: Trip_member) => member.role === 'owner';
+    // Grab  exact Trip ID from the screen background data
+    const { tripId } = useLocalSearchParams();
 
     return (
         <View className="bg-white px-6 py-6 mb-2">
@@ -39,7 +24,7 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
                 <Text className="text-xl font-bold text-gray-800">Collaborators</Text>
                 <TouchableOpacity
                     className="w-8 h-8 bg-blue-500 rounded-full items-center justify-center"
-                    onPress={() => console.log('Add collaborator pressed')}
+                    onPress={() => setModalVisible(true)}
                 >
                     <Text className="text-white font-semibold text-lg">+</Text>
                 </TouchableOpacity>
@@ -97,6 +82,13 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
                     })}
                 </View>
             )}
+
+            {/*  pop-up box stays invisible until the + button is clicked */}
+            <InviteModal 
+                isVisible={isModalVisible} 
+                onClose={() => setModalVisible(false)} 
+                tripId={tripId as string} 
+            />
         </View>
     );
 }
