@@ -1,20 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-
-// IMPORTS
 import { decode } from 'base64-arraybuffer';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { supabase } from '../../lib/supabase';
 
-export default function ScannerScreen() {
-  const router = useRouter();
-  const { bucket, type } = useLocalSearchParams(); 
+// 1. Tell the component to accept instructions from the Reservations page!
+interface ScannerProps {
+  bucket: string;
+  type: string;
+}
 
+export default function ScannerScreen({ bucket, type }: ScannerProps) {
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [statusText, setStatusText] = useState<string>(`Ready to scan ${type || 'document'}`);
+  const [statusText, setStatusText] = useState<string>('');
   const [extractedText, setExtractedText] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +42,7 @@ export default function ScannerScreen() {
     setStatusText('Uploading secure file...');
     setExtractedText(''); 
 
-    const targetBucket = (bucket as string) || 'trip-uploads';
+    const targetBucket = bucket || 'trip-uploads';
     await uploadToSupabase(base64Data, targetBucket);
     
     setStatusText('Analyzing with AI...');
@@ -62,20 +62,17 @@ export default function ScannerScreen() {
     }
   };
 
-  // 🧠 USER STORY 17: Parse Text & Push to Database
   const extractAndSaveData = async (rawText: string) => {
     setStatusText('Saving details to database...');
     try {
-      // 1. Basic parsing based on Bineta's exact requirements
       const isHotel = rawText.toLowerCase().includes('hotel') || rawText.toLowerCase().includes('resort');
-      const finalName = isHotel ? "Scanned Hotel Booking" : "Home in {destination city}";
+      const finalName = isHotel ? "Scanned Hotel Booking" : `Home in Destination`;
 
-      // 2. Insert into the correct table based on the UI button they clicked
       if (bucket === 'accommodations') {
         const { error } = await supabase.from('accommodations').insert([{
           name: finalName,
-          address: "Address extracted from scan", // Placeholder for AI enrichment
-          check_in_time: "15:00", // Defaulting to standard check-in for the demo
+          address: "Address extracted from scan", 
+          check_in_time: "15:00", 
           check_out_time: "11:00",
         }]);
         if (error) console.log("DB Insert Notice:", error);
@@ -87,7 +84,6 @@ export default function ScannerScreen() {
         }]);
         if (error) console.log("DB Insert Notice:", error);
       }
-
       setStatusText('✅ Saved to Database!');
     } catch (error) {
       console.error("DB Save Error:", error);
@@ -114,10 +110,7 @@ export default function ScannerScreen() {
       if (data.responses && data.responses[0].fullTextAnnotation) {
         const text = data.responses[0].fullTextAnnotation.text;
         setExtractedText(text);
-        
-        // 🚀 Trigger the database push right after reading the text!
         await extractAndSaveData(text);
-
       } else {
         setExtractedText('Could not read text from this image.');
         setStatusText('Analysis Failed');
@@ -129,56 +122,46 @@ export default function ScannerScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="px-6 pt-4 pb-2 flex-row items-center justify-between">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 bg-white rounded-full shadow-sm">
-           <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-gray-800">Scan {type}</Text>
-        <View className="w-10" /> 
-      </View>
-
-      <ScrollView className="flex-1 px-6 pt-6">
-        <View className="bg-white rounded-2xl shadow-sm p-4 mb-6 items-center justify-center min-h-[250px] border border-gray-100">
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} className="w-full h-64 rounded-xl" resizeMode="contain" />
-          ) : (
-            <View className="items-center justify-center py-10">
-               <View className="bg-blue-50 p-6 rounded-full mb-4">
-                 <Ionicons name="image-outline" size={40} color="#3B82F6" />
-               </View>
-               <Text className="text-gray-400 text-center">Select a screenshot of your{"\n"}{type} confirmation</Text>
-            </View>
-          )}
-          
-          {loading && (
-            <View className="absolute inset-0 bg-white/80 items-center justify-center rounded-2xl">
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text className="text-blue-600 font-bold mt-2 text-center">{statusText}</Text>
-            </View>
-          )}
-        </View>
-
-        {extractedText ? (
-          <View className="bg-white rounded-2xl shadow-sm p-5 mb-20 border border-gray-100">
-            <View className="flex-row items-center mb-4 border-b border-gray-100 pb-3">
-              <Ionicons name="document-text-outline" size={20} color="#3B82F6" />
-              <Text className="text-gray-800 font-bold ml-2 text-lg">Extracted Details</Text>
-            </View>
-            <Text className="text-gray-600 leading-6 font-mono text-sm">
-              {extractedText}
-            </Text>
+    // 2. This is the gray box Bineta designed in her screenshot!
+    <View className="flex-1 bg-gray-50 rounded-2xl p-4 border border-gray-200">
+      <Text className="text-lg font-bold text-gray-800 mb-4 text-center">{type} Files Page</Text>
+      
+      <View className="bg-white rounded-xl shadow-sm p-4 mb-4 items-center justify-center min-h-[150px] border border-gray-100">
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} className="w-full h-32 rounded-xl" resizeMode="contain" />
+        ) : (
+          <View className="items-center justify-center py-4">
+             <View className="bg-blue-50 p-4 rounded-full mb-3">
+               <Ionicons name="cloud-upload-outline" size={32} color="#3B82F6" />
+             </View>
+             <Text className="text-gray-400 text-center">Upload a screenshot of your{"\n"}{type} confirmation</Text>
           </View>
-        ) : null}
-
-      </ScrollView>
-
-      <View className="absolute bottom-10 left-6 right-6">
-        <PrimaryButton 
-          title={imageUri ? "Scan Another Image" : "Select Image"}
-          onPress={pickImage}
-        />
+        )}
+        
+        {loading && (
+          <View className="absolute inset-0 bg-white/90 items-center justify-center rounded-xl p-4">
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text className="text-blue-600 font-bold mt-2 text-center">{statusText}</Text>
+          </View>
+        )}
       </View>
-    </SafeAreaView>
+
+      {extractedText ? (
+        <ScrollView className="bg-white rounded-xl shadow-sm p-3 mb-4 border border-gray-100 max-h-32">
+          <View className="flex-row items-center mb-2 border-b border-gray-100 pb-2">
+            <Ionicons name="document-text-outline" size={16} color="#3B82F6" />
+            <Text className="text-gray-800 font-bold ml-2">Extracted Details</Text>
+          </View>
+          <Text className="text-gray-600 leading-5 font-mono text-xs">
+            {extractedText}
+          </Text>
+        </ScrollView>
+      ) : null}
+
+      <PrimaryButton 
+        title={imageUri ? "Upload Another File" : "Select File"}
+        onPress={pickImage}
+      />
+    </View>
   );
 }
