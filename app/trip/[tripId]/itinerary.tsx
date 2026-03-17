@@ -17,15 +17,12 @@ interface ItineraryProps {
   endDate: string;
   aiItinerary: string[];
   destination: string;
-  itineraryDays: any[];
-  onReorderDays?: (reorderedDays: any[]) => void;
   onToggleDayCollapse: (dayNumber: number) => void;
   onToggleItineraryCollapse: () => void;
   collapsedDays: Record<number, boolean>;
   isItineraryCollapsed: boolean;
   dayActivities: Record<number, TripActivity[]>;
   loadingActivities: Record<number, boolean>;
-  onReorderDayActivities?: (dayNumber: number, reordered: TripActivity[]) => void;
 }
 
 export default function ItineraryScreen({
@@ -34,17 +31,15 @@ export default function ItineraryScreen({
   endDate,
   destination,
   aiItinerary,
-  itineraryDays,
-  onReorderDays,
   onToggleDayCollapse,
   onToggleItineraryCollapse,
   collapsedDays,
   isItineraryCollapsed,
   dayActivities,
   loadingActivities,
-  onReorderDayActivities,
 }: ItineraryProps) {
   const router = useRouter();
+  const [draggedItem, setDraggedItem] = useState<number | null>(null);
 
   useEffect(() => {
     LogBox.ignoreLogs([
@@ -114,31 +109,34 @@ export default function ItineraryScreen({
   };
 
 
+  const createPanResponder = (index: number) => {
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        setDraggedItem(index);
+        console.log("Start dragging item:", index);
+      },
+      onPanResponderMove: () => {
+        // Handle drag movement
+      },
+      onPanResponderRelease: () => {
+        setDraggedItem(null);
+        console.log("End dragging item:", index);
+      },
+    });
+  };
+
   const generateDayHeaders = () => {
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    const days: {
-      id?: string;
-      itineraryDayId?: string | null;
-      date: Date;
-      day_date: string;
-      display_date: string;
-      dayNumber: number;
-      position?: number | null;
-    }[] = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = [];
     const current = new Date(start);
 
     while (current <= end) {
-      const year = current.getFullYear();
-      const month = String(current.getMonth() + 1).padStart(2, "0");
-      const day = String(current.getDate()).padStart(2, "0");
       days.push({
         date: new Date(current),
-        day_date: `${year}-${month}-${day}`,
-        display_date: `${year}-${month}-${day}`,
         dayNumber: days.length + 1,
-        itineraryDayId: null,
-        position: days.length + 1,
       });
       current.setDate(current.getDate() + 1);
     }
@@ -146,180 +144,14 @@ export default function ItineraryScreen({
     return days;
   };
 
-  const [localDayBlocks, setLocalDayBlocks] = useState<any[]>([]);
+  const days = generateDayHeaders();
 
-  const sortActivitiesForDisplay = (items: TripActivity[]) => {
-    return [...items].sort((a, b) => {
-      const aPos = a.position ?? Number.MAX_SAFE_INTEGER;
-      const bPos = b.position ?? Number.MAX_SAFE_INTEGER;
-      if (aPos !== bPos) return aPos - bPos;
-
-      const aTime = a.start_time?.slice(0, 5) ?? null;
-      const bTime = b.start_time?.slice(0, 5) ?? null;
-      if (!aTime && !bTime) return 0;
-      if (!aTime) return 1;
-      if (!bTime) return -1;
-
-      const t = aTime.localeCompare(bTime);
-      if (t !== 0) return t;
-
-      const aCreated = (a as any).created_at ?? "";
-      const bCreated = (b as any).created_at ?? "";
-      return aCreated.localeCompare(bCreated);
-    });
-  };
-
-  const dedupeActivities = (items: TripActivity[]) => {
-    const seen = new Set<string>();
-    return items.filter((item) => {
-      if (!item?.id) return false;
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  };
-
-  const toLocalDateString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const activitiesByItineraryDayId = useMemo(() => {
-    const map: Record<string, TripActivity[]> = {};
-
-    Object.values(dayActivities)
-      .flat()
-      .forEach((activity) => {
-        const itineraryDayId = activity?.itinerary_day_id;
-        if (!itineraryDayId) return;
-        if (!map[itineraryDayId]) {
-          map[itineraryDayId] = [];
-        }
-        map[itineraryDayId].push(activity);
-      });
-
-    Object.keys(map).forEach((key) => {
-      map[key] = sortActivitiesForDisplay(map[key]);
-    });
-
-    return map;
-  }, [dayActivities]);
-
-  const activitiesByDayDate = useMemo(() => {
-    const map: Record<string, TripActivity[]> = {};
-
-    Object.values(dayActivities)
-      .flat()
-      .forEach((activity: any) => {
-        const dayDate = activity?.day_date;
-        if (!dayDate) return;
-        if (!map[dayDate]) {
-          map[dayDate] = [];
-        }
-        map[dayDate].push(activity);
-      });
-
-    Object.keys(map).forEach((key) => {
-      map[key] = sortActivitiesForDisplay(map[key]);
-    });
-
-    return map;
-  }, [dayActivities]);
-
-  useEffect(() => {
-    const previousActivitiesByDayId = new Map<string, TripActivity[]>();
-    const previousActivitiesByDayDate = new Map<string, TripActivity[]>();
-
-    localDayBlocks.forEach((block: any) => {
-      const blockDayId = block.itineraryDayId ?? block.id;
-      if (blockDayId && Array.isArray(block.activities)) {
-        previousActivitiesByDayId.set(blockDayId, block.activities);
-      }
-      if (block.day_date && Array.isArray(block.activities)) {
-        previousActivitiesByDayDate.set(block.day_date, block.activities);
-      }
-    });
-
-    const baseDays =
-      itineraryDays && itineraryDays.length > 0
-        ? itineraryDays.map((day: any, index: number) => {
-            const displayDate = new Date(`${startDate}T00:00:00`);
-            displayDate.setDate(displayDate.getDate() + index);
-
-            return {
-              ...day,
-              itineraryDayId: day.id,
-              date: displayDate,
-              day_date: day.day_date,
-              display_date: toLocalDateString(displayDate),
-              dayNumber: index + 1,
-              position: day.position ?? index + 1,
-            };
-          })
-        : generateDayHeaders();
-
-    const nextBlocks = baseDays.map((day: any, index: number) => {
-      const itineraryDayId = day.itineraryDayId ?? day.id ?? null;
-      const matchedActivities = itineraryDayId && previousActivitiesByDayId.has(itineraryDayId)
-        ? previousActivitiesByDayId.get(itineraryDayId) ?? []
-        : previousActivitiesByDayDate.has(day.day_date)
-          ? previousActivitiesByDayDate.get(day.day_date) ?? []
-          : itineraryDayId
-            ? activitiesByItineraryDayId[itineraryDayId] ??
-              activitiesByDayDate[day.day_date] ??
-              dayActivities[index + 1] ?? []
-            : activitiesByDayDate[day.day_date] ?? dayActivities[index + 1] ?? [];
-
-      return {
-        ...day,
-        activities: sortActivitiesForDisplay(matchedActivities),
-      };
-    });
-
-    setLocalDayBlocks(nextBlocks);
-  }, [
-    itineraryDays,
-    dayActivities,
-    activitiesByItineraryDayId,
-    activitiesByDayDate,
-    startDate,
-    endDate,
-  ]);
-
-  const days = localDayBlocks;
-
-  const mapActivities = useMemo(() => {
-    const seen = new Set<string>();
-
-    return localDayBlocks
-      .flatMap((day) => day.activities ?? [])
-      .filter((activity) => {
-        if (!activity?.id) return false;
-        if (seen.has(activity.id)) return false;
-        seen.add(activity.id);
-        return true;
-      });
-  }, [localDayBlocks]);
-
-  const hasItinerary =
-    localDayBlocks.some((day) => (day.activities?.length ?? 0) > 0) ||
+  const hasItinerary = 
+    Object.values(dayActivities).some((activities) => activities.length > 0) || 
     aiItinerary?.length > 0;
 
-  const handleDayPress = (day: any) => {
-    const params = new URLSearchParams({
-      day: String(day.dayNumber),
-      dayDate: String(day.day_date),
-      displayDate: String(day.display_date ?? toLocalDateString(day.date)),
-    });
-
-    const itineraryDayId = String(day.itineraryDayId ?? day.id ?? "");
-    if (itineraryDayId) {
-      params.set("itineraryDayId", itineraryDayId);
-    }
-
-    router.push(`/trip/${tripId}/day-detail?${params.toString()}` as any);
+  const handleDayPress = (dayNumber: number) => {
+    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
   };
 
   const listHeader = (
@@ -329,7 +161,7 @@ export default function ItineraryScreen({
         startDate={startDate}
         endDate={endDate}
         destination={destination}
-        activities={mapActivities}
+        activities={Object.values(dayActivities).flat()}
         onMarkerNavigate={(activity) => {
           router.push(`/trip/${tripId}/day-detail?activityId=${activity.id}`);
         }}

@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Alert } from "react-native";
 import { generateTripPlan } from "@/lib/ai";
-import { parseAIItinerary } from "@/lib/aiParser";
 import { enrichActivities } from "@/lib/enrichActivities";
 import { saveItinerary } from "@/lib/itineraryService";
 import { getTripContext } from "@/lib/tripContextService";
@@ -126,13 +125,23 @@ export default function AIPlannerScreen() {
         context: contextText,
       });
 
-      //  Step 1 — parse raw itinerary
-      const parsed = parseAIItinerary(result.itinerary);
+      //  Step 1 — AI already returns structured JSON
+      const parsed = result.itinerary.days;
       console.log("🧠 PARSED ACTIVITIES:", parsed);
+
+      const flattenedActivities = parsed.flatMap((day) =>
+        day.activities.map((activity) => ({
+          dayNumber: day.day,
+          name: activity.name,
+          description: activity.description,
+          start_time: activity.start_time,
+          end_time: activity.end_time,
+        }))
+      );
 
       //  Step 2 — enrich with Google Places
       const enriched = await enrichActivities(
-        parsed,
+        flattenedActivities,
         params.destination as string,
       );
 

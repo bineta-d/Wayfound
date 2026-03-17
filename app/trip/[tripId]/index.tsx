@@ -2,30 +2,16 @@ import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Animated,
-  Dimensions,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
-  getItineraryDaysForTrip,
   getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
-  updateItineraryDayPositions,
-  updateTripActivity,
-  updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
@@ -34,7 +20,6 @@ import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
-import TripMap from "./trip-map";
 
 export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
@@ -63,68 +48,6 @@ export default function TripOverviewScreen() {
   const [groupedActivities, setGroupedActivities] = useState<
     Record<string, any[]>
   >({});
-  const [itineraryDays, setItineraryDays] = useState<any[]>([]);
-  const [isMapSheetOpen, setIsMapSheetOpen] = useState(false);
-  const mapReveal = useRef(new Animated.Value(0)).current;
-  const screenHeight = Dimensions.get("window").height;
-  const revealedMapHeight = screenHeight * 0.58;
-  const overlayTranslateY = mapReveal.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, revealedMapHeight],
-  });
-
-  const toLocalDateString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  useEffect(() => {
-    setTrip(null);
-    setMembers([]);
-    setDayActivities({});
-    setGroupedActivities({});
-    setLoadingActivities({});
-    setCollapsedDays({});
-    setAiItinerary([]);
-    setTargetSpots([]);
-    setItineraryDays([]);
-    setLoading(true);
-  }, [tripId]);
-  const handleReorderDays = async (reorderedDays: any[]) => {
-    if (!tripId) return;
-
-    const normalized = reorderedDays.map((day, index) => ({
-      ...day,
-      position: index + 1,
-      dayNumber: index + 1,
-    }));
-
-    setItineraryDays(normalized);
-
-    try {
-      await updateItineraryDayPositions(
-        normalized
-          .filter((d) => Boolean(d.id))
-          .map((d) => ({ id: d.id, position: d.position }))
-      );
-
-      const refreshed = await getItineraryDaysForTrip(tripId as string);
-      setItineraryDays(refreshed);
-
-      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
-
-      const rebuilt: Record<number, any[]> = {};
-      refreshed.forEach((day, index) => {
-        rebuilt[index + 1] = grouped[day.day_date] ?? [];
-      });
-
-      setDayActivities(rebuilt);
-    } catch (e) {
-      console.log("Error saving reordered days:", e);
-    }
-  };
 
   const toggleDayCollapse = (dayNumber: number) => {
     setCollapsedDays((prev) => ({
@@ -155,43 +78,6 @@ export default function TripOverviewScreen() {
     router.push(`/trip/${tripId}/day-detail?day=1`);
   };
 
-  const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
-    const originalDayActivities = dayActivities[dayNumber] ?? [];
-    const timeSlots = originalDayActivities.map((item) => ({
-      start_time: item.start_time ?? null,
-      end_time: item.end_time ?? null,
-    }));
-
-    const reorderedWithTimes = reordered.map((item, index) => ({
-      ...item,
-      start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
-      end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
-    }));
-
-    setDayActivities((prev) => ({ ...prev, [dayNumber]: reorderedWithTimes }));
-
-    try {
-      await updateTripActivityPositions(
-        reorderedWithTimes.map((item, index) => ({
-          id: item.id,
-          position: index + 1,
-        }))
-      );
-
-      await Promise.all(
-        reorderedWithTimes.map((item) =>
-          updateTripActivity(item.id, {
-            start_time: item.start_time,
-            end_time: item.end_time,
-          })
-        )
-      );
-    } catch (e) {
-      console.log("Error saving reordered activities:", e);
-      await loadDayActivities(dayNumber);
-    }
-  };
-
   const loadGroupedActivities = async () => {
     if (!tripId) return;
     try {
@@ -199,6 +85,13 @@ export default function TripOverviewScreen() {
       const grouped = await getTripActivitiesGroupedByDay(tripId as string);
       console.log("📍 Grouped activities loaded:", grouped);
       setGroupedActivities(grouped);
+
+      if (trip) {
+        const days = generateDayHeaders();
+        days.forEach((day) => {
+          loadDayActivities(day.dayNumber);
+        });
+      }
 
       // Log activities with coordinates
       const allActivities = Object.values(grouped).flat();
@@ -216,49 +109,20 @@ export default function TripOverviewScreen() {
     }
   };
 
-  const allPinnedActivities = useMemo(
-    () => Object.values(groupedActivities).flat(),
-    [groupedActivities],
-  );
-
-  const toggleMapSheet = () => {
-    const next = !isMapSheetOpen;
-    setIsMapSheetOpen(next);
-
-    Animated.spring(mapReveal, {
-      toValue: next ? 1 : 0,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 12,
-    }).start();
-  };
-
   const loadDayActivities = async (dayNumber: number) => {
     if (!tripId || !trip) return;
     setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
     try {
-      const dayDate = new Date(`${trip.start_date}T00:00:00`);
+      const dayDate = new Date(trip.start_date);
       dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
-
-      const dateStr = toLocalDateString(dayDate);
+      const dateStr = dayDate.toISOString().split("T")[0];
 
       const activities = await getTripActivitiesForDay(
         tripId as string,
         dateStr,
       );
 
-      const sorted = [...activities].sort((a, b) => {
-        const aTime = a.start_time?.slice(0, 5) ?? null;
-        const bTime = b.start_time?.slice(0, 5) ?? null;
-
-        if (!aTime && !bTime) return 0;
-        if (!aTime) return 1;
-        if (!bTime) return -1;
-
-        return aTime.localeCompare(bTime);
-      });
-
-      setDayActivities((prev) => ({ ...prev, [dayNumber]: sorted }));
+      setDayActivities((prev) => ({ ...prev, [dayNumber]: activities }));
       console.log(
         `📅 Loaded ${activities.length} activities for day ${dayNumber}`,
       );
@@ -271,8 +135,8 @@ export default function TripOverviewScreen() {
 
   const generateDayHeaders = () => {
     if (!trip) return [];
-    const start = new Date(`${trip.start_date}T00:00:00`);
-    const end = new Date(`${trip.end_date}T00:00:00`);
+    const start = new Date(trip.start_date);
+    const end = new Date(trip.end_date);
     const days = [];
     const current = new Date(start);
 
@@ -291,18 +155,8 @@ export default function TripOverviewScreen() {
     try {
       const tripData = await getTripById(tripId as string);
       const membersData = await getTripMembers(tripId as string);
-      const daysData = await getItineraryDaysForTrip(tripId as string);
-      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
-
       setTrip(tripData);
       setMembers(membersData);
-      setItineraryDays(daysData);
-
-      const rebuilt: Record<number, any[]> = {};
-      daysData.forEach((day, index) => {
-        rebuilt[index + 1] = grouped[day.day_date] ?? [];
-      });
-      setDayActivities(rebuilt);
     } catch (error) {
       console.error("Error loading trip:", error);
       Alert.alert("Error", "Failed to load trip details");
@@ -328,18 +182,19 @@ export default function TripOverviewScreen() {
   )
 
   useEffect(() => {
-    if (!trip || String(trip.id) !== String(tripId)) return;
+    if (trip) {
+      const days = generateDayHeaders();
+      days.forEach((day) => {
+        loadDayActivities(day.dayNumber);
+      });
 
-    const dayCount = itineraryDays.length > 0
-      ? itineraryDays.length
-      : generateDayHeaders().length;
-
-    const defaultCollapsed: Record<number, boolean> = {};
-    for (let dayNumber = 1; dayNumber <= dayCount; dayNumber++) {
-      defaultCollapsed[dayNumber] = dayNumber !== 1;
+      const defaultCollapsed: Record<number, boolean> = {};
+      days.forEach((day) => {
+        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1;
+      });
+      setCollapsedDays(defaultCollapsed);
     }
-    setCollapsedDays(defaultCollapsed);
-  }, [trip, tripId, itineraryDays]);
+  }, [trip, tripId]);
 
   const handleDeleteTrip = () => {
     Alert.alert(
@@ -383,8 +238,10 @@ export default function TripOverviewScreen() {
     );
   }
 
-  const primaryContent = (
+  return (
     <>
+      {/* Tab Bar */}
+
       {/* Tab Content */}
       {activeTab === 1 ? (
         <View className="flex-1 bg-gray-50">
@@ -480,218 +337,59 @@ export default function TripOverviewScreen() {
                     onRefresh={function (): void {
                       throw new Error("Function not implemented.");
                     }}
-                  />
-                )}
-              </View>
-              {/* Collaborators Section */}
-              {refreshing ? (
-                <CollaboratorsSkeleton />
-              ) : (
-                <CollaboratorsScreen members={members} />
-              )}
-              {/* Delete Button - Only for trip owners */}
-              {user?.id === trip.owner_id && (
-                <View className="px-6 py-4 mb-8">
-                  <TouchableOpacity
-                    onPress={handleDeleteTrip}
-                    className="bg-red-500 px-6 py-3 rounded-lg items-center"
                   >
-                    <Text className="text-white font-semibold">Delete Trip</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </>
-          )}
-          {/* Reservations Tab */}
-          {activeTab === 2 && (
-            <View className="bg-white mb-2">
-              {/* Trip Header */}
-              <HeaderSection title={trip.title} trip={trip} />
-
-              {/* Tabs Section  */}
-              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-              {/* Reservation Icons Scroll*/}
-              <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
-                {[
-                  { label: "Accommodation", icon: "bed" },
-                  { label: "Flight", icon: "airplane" },
-                  { label: "Train", icon: "train" },
-                  { label: "Bus", icon: "bus" },
-                  { label: "Car Rental", icon: "car" },
-                  { label: "Activities", icon: "ticket" },
-                ].map((tab, idx) => (
-                  <TouchableOpacity
-                    key={tab.label}
-                    className="items-center pt-3"
-                    onPress={() => setReservationTab(idx)}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={{
-                        backgroundColor:
-                          reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
-                        borderRadius: 999,
-                        padding: 12,
-                        marginBottom: 4,
-                      }}
-                    >
-                      <Text>
-                        <Ionicons
-                          name={tab.icon as any}
-                          size={20}
-                          color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
-                        />
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        color: reservationTab === idx ? "#D81E5B" : "#6B7280",
-                        fontWeight: reservationTab === idx ? "bold" : "normal",
-                        fontSize: 12,
-                      }}
-                    >
-                      {tab.label}
+                    <Text>
+                      <Ionicons
+                        name={tab.icon as any}
+                        size={20}
+                        color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
+                      />
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Active tab content: */}
-              <View
-                className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
-                style={{ minHeight: 200 }}
-              >
-                <Text className="text-xl font-bold text-crimsonMagenta text-center">
-                  {
-                    [
-                      "Accommodation Files Page",
-                      "Flights Files Page",
-                      "Train Files Page",
-                      "Bus Files Page",
-                      "Car Rental Files Page",
-                      "Activities Files Page",
-                    ][reservationTab]
-                  }
-                </Text>
-              </View>
+                  </View>
+                  <Text
+                    style={{
+                      color: reservationTab === idx ? "#D81E5B" : "#6B7280",
+                      fontWeight: reservationTab === idx ? "bold" : "normal",
+                      fontSize: 12,
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          )}
-          {/* Budget Tab */}
-          {activeTab === 3 && (
-            <View className="bg-white mb-2">
-              {/* Trip Header */}
-              <HeaderSection title={trip.title} trip={trip} />
 
-              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-              <BudgetScreen />
+            {/* Active tab content: */}
+            <View
+              className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
+              style={{ minHeight: 200 }}
+            >
+              <Text className="text-xl font-bold text-crimsonMagenta text-center">
+                {
+                  [
+                    "Accommodation Files Page",
+                    "Flights Files Page",
+                    "Train Files Page",
+                    "Bus Files Page",
+                    "Car Rental Files Page",
+                    "Activities Files Page",
+                  ][reservationTab]
+                }
+              </Text>
             </View>
-          )}
-        </ScrollView>
-      )}
+          </View>
+        )}
+        {/* Budget Tab */}
+        {activeTab === 3 && (
+          <View className="bg-white mb-2">
+            {/* Trip Header */}
+            <HeaderSection title={trip.title} trip={trip} />
+
+            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+            <BudgetScreen />
+          </View>
+        )}
+      </ScrollView>
     </>
   );
-
-  return (
-    <View style={styles.root}>
-      <View style={styles.mapLayer} pointerEvents={isMapSheetOpen ? "auto" : "none"}>
-        <View style={[styles.mapSheet, { height: revealedMapHeight }]}>
-          <View style={styles.mapBody}>
-            <TripMap
-              startDate={trip.start_date}
-              endDate={trip.end_date}
-              destination={trip.destination}
-              activities={allPinnedActivities}
-              onMarkerNavigate={handleMarkerNavigate}
-              fullHeight
-            />
-          </View>
-        </View>
-      </View>
-
-      <Animated.View
-        style={[
-          styles.overlay,
-          {
-            transform: [{ translateY: overlayTranslateY }],
-          },
-        ]}
-      >
-        {primaryContent}
-      </Animated.View>
-
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={toggleMapSheet}
-        style={styles.floatingMapButton}
-      >
-        <Ionicons
-          name={isMapSheetOpen ? "map-outline" : "map"}
-          size={22}
-          color="#FFFFFF"
-        />
-        <Text style={styles.floatingMapButtonText}>
-          {isMapSheetOpen ? "Close map" : "Open map"}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-  },
-  mapLayer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-start",
-    backgroundColor: "#F3F4F6",
-  },
-  mapSheet: {
-    marginTop: 0,
-    marginHorizontal: 0,
-    overflow: "hidden",
-    borderRadius: 0,
-  },
-  mapBody: {
-    flex: 1,
-    overflow: "hidden",
-    borderRadius: 0,
-    backgroundColor: "#FFFFFF",
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
-  },
-  floatingMapButton: {
-    position: "absolute",
-    right: 20,
-    bottom: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#3A1FA8",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    shadowColor: "#000000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 10,
-  },
-  floatingMapButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-});
