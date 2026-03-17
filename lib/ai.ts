@@ -12,8 +12,22 @@ interface TripPlanRequest {
   context?: string;
 }
 
+interface AIActivity {
+  name: string;
+  description: string;
+  start_time: string;
+  end_time: string;
+}
+
+interface AIDay {
+  day: number;
+  activities: AIActivity[];
+}
+
 interface TripPlan {
-  itinerary: string[];
+  itinerary: {
+    days: AIDay[];
+  };
   recommendations: string[];
   estimatedCost: number;
 }
@@ -40,8 +54,6 @@ export async function generateTripPlan(
 
     return {
       itinerary: data.itinerary,
-      recommendations: data.recommendations || [],
-      estimatedCost: data.estimatedCost || 0,
     };
   } catch (error) {
     console.error("AI generation error:", error);
@@ -50,9 +62,9 @@ export async function generateTripPlan(
 }
 
 export async function optimizeItinerary(
-  currentPlan: string[],
+  currentPlan: AIDay[],
   constraints: string[],
-): Promise<string[]> {
+): Promise<AIDay[]> {
   // AI optimization logic will be implemented here
   return currentPlan;
 }

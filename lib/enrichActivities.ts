@@ -1,68 +1,6 @@
 import { ParsedActivity } from "@/types/activity";
 import { searchPlace } from "./googlePlaces";
 
-function cleanPlaceName(name: string) {
-  if (!name) return "";
-
-  let cleaned = name;
-
-  // Remove time blocks (Morning 8:00-12:00 etc)
-  cleaned = cleaned.replace(
-    /(morning|afternoon|evening|night)\s*\([^)]*\)\s*:/gi,
-    ""
-  );
-
-  // Remove starting verbs only (NOT inside sentence)
-  cleaned = cleaned.replace(
-    /^(visit|explore|enjoy|walk|discover|experience|take|wander|head to|go to|stop at)\s+/i,
-    ""
-  );
-
-  // Remove "lunch at", "dinner at", but KEEP place
-  cleaned = cleaned.replace(
-    /^(lunch|dinner|breakfast|brunch)\s+(at|in)\s+/i,
-    ""
-  );
-
-  // Remove travel/logistics beginnings
-  cleaned = cleaned.replace(
-    /^(arrive at|depart from|return to|check into|check-in at)\s+/i,
-    ""
-  );
-
-  // Remove filler connectors
-  cleaned = cleaned.replace(
-    /\b(afterward|afterwards|then|later|followed by|before heading to)\b/gi,
-    ""
-  );
-
-  // Remove extra punctuation but keep names
-  cleaned = cleaned.replace(/[.]/g, " ");
-
-  // Remove long descriptions in parentheses
-  cleaned = cleaned.replace(/\(.*?\)/g, "").trim();
-
-  // Collapse spaces
-  cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
-
-
-
-  // If multiple places in sentence → keep first chunk
-  if (cleaned.includes(" and ")) {
-    cleaned = cleaned.split(" and ")[0];
-  }
-
-  if (cleaned.includes(" then ")) {
-    cleaned = cleaned.split(" then ")[0];
-  }
-
-  // If quoted place exists → use it directly
-  const quoted = cleaned.match(/"([^"]+)"/);
-  if (quoted && quoted[1]) {
-    return quoted[1].trim();
-  }
-  return cleaned;
-}
 
 export async function enrichActivities(
   activities: ParsedActivity[],
@@ -88,15 +26,18 @@ export async function enrichActivities(
       continue;
     }
 
-    // Clean name
-    let cleaned = cleanPlaceName(act.name);
+    // Clean search query slightly
+    let cleaned = act.name?.trim();
 
     if (!cleaned || cleaned.length < 3) {
       enriched.push(act);
       continue;
     }
 
-    // Add destination for better search
+    cleaned = cleaned
+      .replace(/complex|area|district|park|square/gi, "")
+      .trim();
+
     const searchQuery = destination
       ? `${cleaned} ${destination}`
       : cleaned;
