@@ -243,78 +243,9 @@ export default function TripOverviewScreen() {
       {/* Tab Bar */}
 
       {/* Tab Content */}
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        horizontal={false}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Overview Tab */}
-        {activeTab === 0 && (
-          <>
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
-
-            {/* Tabs Section */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-            {/* Reservations Section */}
-            <View className="bg-white px-6 mb-1 pt-4">
-              <ReservationsSection />
-            </View>
-            {/* Generate Itinerary Section */}
-            <View className="bg-white px-6 mb-2">
-              <GenerateItinerary
-                tripId={tripId as string}
-                destination={trip.destination}
-                startDate={trip.start_date}
-                endDate={trip.end_date}
-                duration={Math.ceil(
-                  (new Date(trip.end_date).getTime() -
-                    new Date(trip.start_date).getTime()) /
-                  (1000 * 60 * 60 * 24),
-                )}
-                onItineraryGenerated={setAiItinerary}
-                loading={loadingAI}
-                setLoading={setLoadingAI}
-                activities={Object.values(groupedActivities).flat()}
-                onMarkerNavigate={handleMarkerNavigate}
-              />
-            </View>
-            {/* Target Spots Section */}
-            <View className="bg-white px-6 mb-2">
-              {refreshing ? (
-                <TargetSpotsSkeleton />
-              ) : (
-                <TargetSpots
-                  targetSpots={targetSpots}
-                  onAddSpot={addTargetSpot}
-                  onRemoveSpot={removeTargetSpot}
-                  activities={Object.values(groupedActivities).flat()}
-                  onAssignToDay={handleAssignToDay}
-                />
-              )}
-            </View>
-            {/* Collaborators Section */}
-            {refreshing ? <CollaboratorsSkeleton /> : <CollaboratorsScreen members={members} />}
-            {/* Delete Button - Only for trip owners */}
-            {user?.id === trip.owner_id && (
-              <View className="px-6 py-4 mb-8">
-                <TouchableOpacity
-                  onPress={handleDeleteTrip}
-                  className="bg-red-500 px-6 py-3 rounded-lg items-center"
-                >
-                  <Text className="text-white font-semibold">Delete Trip</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        )}
-        {/* Itinerary Tab */}
-        {activeTab === 1 && (
-          <View className="bg-white mb-2">
+      {activeTab === 1 ? (
+        <View className="flex-1 bg-gray-50">
+          <View className="bg-white mb-2 flex-1">
             {/* Trip Header */}
             <HeaderSection title={trip.title} trip={trip} />
 
@@ -324,54 +255,87 @@ export default function TripOverviewScreen() {
             {refreshing ? (
               <ItinerarySkeleton />
             ) : (
-              <ItineraryScreen
-                tripId={tripId as string}
-                startDate={trip.start_date}
-                destination={trip.destination}
-                endDate={trip.end_date}
-                aiItinerary={aiItinerary}
-                onToggleDayCollapse={toggleDayCollapse}
-                onToggleItineraryCollapse={toggleItineraryCollapse}
-                collapsedDays={collapsedDays}
-                isItineraryCollapsed={isItineraryCollapsed}
-                dayActivities={dayActivities}
-                loadingActivities={loadingActivities}
-              />
+              <View className="flex-1">
+                <ItineraryScreen
+                  tripId={tripId as string}
+                  startDate={trip.start_date}
+                  destination={trip.destination}
+                  endDate={trip.end_date}
+                  aiItinerary={aiItinerary}
+                  itineraryDays={itineraryDays}
+                  onReorderDays={handleReorderDays}
+                  onToggleDayCollapse={toggleDayCollapse}
+                  onToggleItineraryCollapse={toggleItineraryCollapse}
+                  collapsedDays={collapsedDays}
+                  isItineraryCollapsed={isItineraryCollapsed}
+                  dayActivities={dayActivities}
+                  loadingActivities={loadingActivities}
+                  onReorderDayActivities={handleReorderDayActivities}
+                />
+              </View>
             )}
           </View>
-        )}
-        {/* Reservations Tab */}
-        {activeTab === 2 && (
-          <View className="bg-white mb-2">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} />
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1 bg-gray-50"
+          horizontal={false}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={{ paddingBottom: 120 }}
+        >
+          {/* Overview Tab */}
+          {activeTab === 0 && (
+            <>
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} />
 
-            {/* Tabs Section  */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+              {/* Tabs Section */}
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Reservation Icons Scroll*/}
-            <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
-              {[
-                { label: "Accommodation", icon: "bed" },
-                { label: "Flight", icon: "airplane" },
-                { label: "Train", icon: "train" },
-                { label: "Bus", icon: "bus" },
-                { label: "Car Rental", icon: "car" },
-                { label: "Activities", icon: "ticket" },
-              ].map((tab, idx) => (
-                <TouchableOpacity
-                  key={tab.label}
-                  className="items-center pt-3"
-                  onPress={() => setReservationTab(idx)}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={{
-                      backgroundColor:
-                        reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
-                      borderRadius: 999,
-                      padding: 12,
-                      marginBottom: 4,
+              {/* Reservations Section */}
+              <View className="bg-white px-6 mb-1 pt-4">
+                <ReservationsSection />
+              </View>
+              {/* Generate Itinerary Section */}
+              <View className="bg-white px-6 mb-2">
+                {!isMapSheetOpen && (
+                  <GenerateItinerary
+                    tripId={tripId as string}
+                    destination={trip.destination}
+                    startDate={trip.start_date}
+                    endDate={trip.end_date}
+                    duration={Math.ceil(
+                      (new Date(`${trip.end_date}T00:00:00`).getTime() -
+                        new Date(`${trip.start_date}T00:00:00`).getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    )}
+                    onItineraryGenerated={setAiItinerary}
+                    loading={loadingAI}
+                    setLoading={setLoadingAI}
+                    activities={allPinnedActivities}
+                    onMarkerNavigate={handleMarkerNavigate}
+                  />
+                )}
+              </View>
+              {/* Target Spots Section */}
+              <View className="bg-white px-6 mb-2">
+                {refreshing ? (
+                  <TargetSpotsSkeleton />
+                ) : (
+                  <TargetSpots
+                    targetSpots={targetSpots}
+                    onAddSpot={addTargetSpot}
+                    onRemoveSpot={removeTargetSpot}
+                    activities={allPinnedActivities}
+                    onAssignToDay={handleAssignToDay}
+                    tripId={""}
+                    tripStartDate={""}
+                    tripEndDate={""}
+                    onRefresh={function (): void {
+                      throw new Error("Function not implemented.");
                     }}
                   >
                     <Text>
