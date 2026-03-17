@@ -5,52 +5,9 @@ import CalendarPicker from 'react-native-calendar-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Trip, Trip_member } from '../../../lib/types';
 
-// Date range picker component
-const DateRangePicker = ({
-  startDate,
-  endDate,
-  onStartChange,
-  onEndChange,
-  placeholder
-}: {
-  startDate: string;
-  endDate: string;
-  onStartChange: (date: string) => void;
-  onEndChange: (date: string) => void;
-  placeholder: string;
-}) => {
+// Date picker component
+const DatePicker = ({ value, onChange, placeholder }: { value: string; onChange: (date: string) => void; placeholder: string }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const [selectedStart, setSelectedStart] = useState(startDate ? new Date(startDate) : new Date());
-  const [selectedEnd, setSelectedEnd] = useState(endDate ? new Date(endDate) : new Date());
-
-  const isDateInRange = (date: Date) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return date >= start && date <= end;
-  };
-
-  const isStartDate = (date: Date) => {
-    const start = new Date(startDate);
-    return date.toDateString() === start.toDateString();
-  };
-
-  const isEndDate = (date: Date) => {
-    const end = new Date(endDate);
-    return date.toDateString() === end.toDateString();
-  };
-
-  const handleDateSelect = (date: Date) => {
-    if (!startDate || (startDate && endDate)) {
-      // Set start date
-      onStartChange(date.toISOString().split('T')[0]);
-      setSelectedStart(date);
-      setSelectedEnd(new Date());
-    } else if (startDate && !endDate) {
-      // Set end date
-      onEndChange(date.toISOString().split('T')[0]);
-      setSelectedEnd(date);
-    }
-  };
 
   return (
     <View>
@@ -58,12 +15,7 @@ const DateRangePicker = ({
         onPress={() => setShowPicker(true)}
         className="bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-800"
       >
-        <Text className="text-gray-800">
-          {startDate && endDate
-            ? `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`
-            : placeholder
-          }
-        </Text>
+        <Text className="text-gray-800">{value || placeholder}</Text>
       </TouchableOpacity>
 
       <Modal
@@ -74,11 +26,16 @@ const DateRangePicker = ({
       >
         <View className="flex-1 justify-center items-center bg-black/50 px-4">
           <View className="bg-white rounded-2xl p-4 w-full max-w-sm">
-            <Text className="text-lg font-semibold mb-4 text-gray-800">Select Date Range</Text>
+            <Text className="text-lg font-semibold mb-4 text-gray-800">Select Date</Text>
             <CalendarPicker
               mode="calendar"
-              date={selectedStart || new Date(startDate) || new Date()}
-              onDateChange={handleDateSelect}
+              date={value ? new Date(value) : new Date()}
+              onDateChange={(date: Date) => {
+                if (date) {
+                  const dateStr = date.toISOString().split('T')[0];
+                  onChange(dateStr);
+                }
+              }}
               maximumDate={new Date()}
               minimumDate={new Date()}
               themeVariant="light"
@@ -92,52 +49,21 @@ const DateRangePicker = ({
               todayTextColor="#000000"
               width={280}
               height={320}
+              current={value ? new Date(value) : undefined}
               customDatesStyles={[
-                ...(startDate && endDate ? [
-                  {
-                    date: new Date(startDate),
-                    style: { backgroundColor: '#10B981', borderRadius: 4 },
-                    textStyle: { color: '#FFFFFF', fontWeight: 'bold' },
-                  },
-                  {
-                    date: new Date(endDate),
-                    style: { backgroundColor: '#3B82F6', borderRadius: 4 },
-                    textStyle: { color: '#FFFFFF', fontWeight: 'bold' },
-                  },
-                  // Highlight all dates between start and end
-                  ...(() => {
-                    const dates = [];
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    const current = new Date(start);
-
-                    while (current <= end) {
-                      dates.push({
-                        date: new Date(current),
-                        style: { backgroundColor: '#DBEAFE', borderRadius: 4 },
-                        textStyle: { color: '#1E40AF', fontWeight: 'bold' },
-                      });
-                      current.setDate(current.getDate() + 1);
-                    }
-                    return dates;
-                  })()
-                ] : [])
+                ...(value ? [{
+                  date: new Date(value),
+                  style: { backgroundColor: '#10B981', borderRadius: 4 },
+                  textStyle: { color: '#FFFFFF', fontWeight: 'bold' },
+                }] : [])
               ]}
             />
-            <View className="flex-row gap-2 mt-4">
-              <TouchableOpacity
-                onPress={() => setShowPicker(false)}
-                className="flex-1 bg-gray-500 px-4 py-2 rounded-lg"
-              >
-                <Text className="text-white font-medium text-center">Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowPicker(false)}
-                className="flex-1 bg-blue-500 px-4 py-2 rounded-lg"
-              >
-                <Text className="text-white font-medium text-center">Done</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => setShowPicker(false)}
+              className="bg-blue-500 px-4 py-2 rounded-lg mt-4"
+            >
+              <Text className="text-white font-medium">Done</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -255,13 +181,18 @@ export default function EditTripModal({
 
           {/* Dates */}
           <View className="mb-6">
-            <Text className="text-gray-700 text-sm font-medium mb-2">Trip Dates</Text>
-            <DateRangePicker
-              startDate={startDate}
-              endDate={endDate}
-              onStartChange={setStartDate}
-              onEndChange={setEndDate}
-              placeholder="Select trip dates"
+            <Text className="text-gray-700 text-sm font-medium mb-2">Start Date</Text>
+            <DatePicker
+              value={startDate}
+              onChange={setStartDate}
+              placeholder="Select start date"
+            />
+
+            <Text className="text-gray-700 text-sm font-medium mb-2">End Date</Text>
+            <DatePicker
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="Select end date"
             />
           </View>
 
