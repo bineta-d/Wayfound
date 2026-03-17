@@ -387,16 +387,8 @@ export default function TripOverviewScreen() {
     <>
       {/* Tab Content */}
       {activeTab === 1 ? (
-        <ScrollView
-          className="flex-1 bg-gray-50"
-          horizontal={false}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={{ paddingBottom: 120 }}
-        >
-          <View className="bg-white mb-2">
+        <View className="flex-1 bg-gray-50">
+          <View className="bg-white mb-2 flex-1">
             {/* Trip Header */}
             <HeaderSection title={trip.title} trip={trip} />
 
@@ -406,25 +398,27 @@ export default function TripOverviewScreen() {
             {refreshing ? (
               <ItinerarySkeleton />
             ) : (
-              <ItineraryScreen
-                tripId={tripId as string}
-                startDate={trip.start_date}
-                destination={trip.destination}
-                endDate={trip.end_date}
-                aiItinerary={aiItinerary}
-                itineraryDays={itineraryDays}
-                onReorderDays={handleReorderDays}
-                onToggleDayCollapse={toggleDayCollapse}
-                onToggleItineraryCollapse={toggleItineraryCollapse}
-                collapsedDays={collapsedDays}
-                isItineraryCollapsed={isItineraryCollapsed}
-                dayActivities={dayActivities}
-                loadingActivities={loadingActivities}
-                onReorderDayActivities={handleReorderDayActivities}
-              />
+              <View className="flex-1">
+                <ItineraryScreen
+                  tripId={tripId as string}
+                  startDate={trip.start_date}
+                  destination={trip.destination}
+                  endDate={trip.end_date}
+                  aiItinerary={aiItinerary}
+                  itineraryDays={itineraryDays}
+                  onReorderDays={handleReorderDays}
+                  onToggleDayCollapse={toggleDayCollapse}
+                  onToggleItineraryCollapse={toggleItineraryCollapse}
+                  collapsedDays={collapsedDays}
+                  isItineraryCollapsed={isItineraryCollapsed}
+                  dayActivities={dayActivities}
+                  loadingActivities={loadingActivities}
+                  onReorderDayActivities={handleReorderDayActivities}
+                />
+              </View>
             )}
           </View>
-        </ScrollView>
+        </View>
       ) : (
         <ScrollView
           className="flex-1 bg-gray-50"
