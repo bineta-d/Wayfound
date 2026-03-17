@@ -8,6 +8,7 @@ export interface Trip {
   end_date: string;
   created_at: string;
   updated_at: string;
+  budget?: string;
 }
 
 export interface Trip_member {

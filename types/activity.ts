@@ -2,7 +2,7 @@
 export interface ParsedActivity {
   dayNumber: number;
   name: string;
-  rawText: string;
+  description?: string;
 
   //Optional google data
   address?: string;
