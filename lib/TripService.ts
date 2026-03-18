@@ -408,7 +408,15 @@ export interface Activity {
   longitude: number | null;
   start_time: string | null;
   end_time: string | null;
+  position?: number | null;
   created_at?: string;
+}
+
+export interface ItineraryDay {
+  id: string;
+  trip_id: string;
+  day_date: string;
+  position: number | null;
 }
 
 const getOrCreateItineraryDayId = async (
@@ -706,4 +714,58 @@ export const getTripActivitiesGroupedByDay = async (
   }
 
   return grouped;
+};
+
+// Get itinerary days for a trip
+export const getItineraryDaysForTrip = async (
+  trip_id: string,
+): Promise<ItineraryDay[]> => {
+  const { data, error } = await supabase
+    .from("itinerary_days")
+    .select("*")
+    .eq("trip_id", trip_id)
+    .order("position", { ascending: true, nullsFirst: false })
+    .order("day_date", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as ItineraryDay[]) || [];
+};
+
+// Update itinerary day positions
+export const updateItineraryDayPositions = async (
+  updates: { id: string; position: number }[],
+): Promise<void> => {
+  if (updates.length === 0) return;
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("itinerary_days")
+      .update({ position: update.position })
+      .eq("id", update.id);
+
+    if (error) {
+      throw error;
+    }
+  }
+};
+
+// Update activity positions
+export const updateTripActivityPositions = async (
+  updates: { id: string; position: number }[],
+): Promise<void> => {
+  if (updates.length === 0) return;
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("activities")
+      .update({ position: update.position })
+      .eq("id", update.id);
+
+    if (error) {
+      throw error;
+    }
+  }
 };

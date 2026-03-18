@@ -12,6 +12,7 @@ import { Activity as TripActivity } from "../../../lib/TripService";
 interface TripMapProps {
   activities: TripActivity[];
   onMarkerNavigate: (activity: TripActivity) => void;
+  fullHeight?: boolean;
 }
 
 interface GenerateItineraryProps {
@@ -27,7 +28,7 @@ interface GenerateItineraryProps {
 export default function TripMap(props: TripMapProps & Partial<GenerateItineraryProps>) {
   const {
     activities = [],
-    onMarkerNavigate = () => {},
+    onMarkerNavigate = () => { },
     tripId,
     startDate,
     endDate,
