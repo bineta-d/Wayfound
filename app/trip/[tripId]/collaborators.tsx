@@ -1,7 +1,7 @@
-import { useLocalSearchParams } from 'expo-router'; 
-import React, { useState } from 'react'; 
+import { useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
-import InviteModal from '../../../components/InviteModal'; 
+import InviteModal from '../../../components/InviteModal';
 import { Trip_member } from '../../../lib/types';
 
 interface CollaboratorsScreenProps {
@@ -17,6 +17,11 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
 
     // Grab  exact Trip ID from the screen background data
     const { tripId } = useLocalSearchParams();
+
+    // Function to check if current user is the trip owner
+    const isOwner = (member: Trip_member) => {
+        return currentUserId === member.trip_owner_id;
+    };
 
     return (
         <View className="bg-white px-6 py-6 mb-2">
@@ -84,10 +89,10 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
             )}
 
             {/*  pop-up box stays invisible until the + button is clicked */}
-            <InviteModal 
-                isVisible={isModalVisible} 
-                onClose={() => setModalVisible(false)} 
-                tripId={tripId as string} 
+            <InviteModal
+                isVisible={isModalVisible}
+                onClose={() => setModalVisible(false)}
+                tripId={tripId as string}
             />
         </View>
     );
