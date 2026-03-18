@@ -7,7 +7,8 @@ import {
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import "../global.css";
 
@@ -112,41 +113,42 @@ function AuthStack() {
     return false;
   };
 
-  // For now, we'll handle onboarding in the auth state change listener
   console.log("🔍 AuthStack: User authenticated, showing main app with AuthGate");
   return (
-    <Stack>
-      {/* Auth + Main */}
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="AuthGate" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <GestureHandlerRootView>
+      <Stack>
+        {/* Auth + Main */}
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="AuthGate" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-      {/* Trip routes */}
-      <Stack.Screen name="trip/[tripId]" options={{ headerShown: true }} />
-      <Stack.Screen
-        name="trip/[tripId]/day-detail"
-        options={{ headerShown: true, title: "Day Details" }}
-      />
+        {/* Trip routes */}
+        <Stack.Screen name="trip/[tripId]" options={{ headerShown: true }} />
+        <Stack.Screen
+          name="trip/[tripId]/day-detail"
+          options={{ headerShown: true, title: "Day Details" }}
+        />
 
-      {/* Modals */}
-      <Stack.Screen
-        name="modal/add-activity"
-        options={{ presentation: "modal", headerShown: false }}
-      />
-      <Stack.Screen
-        name="modal/create-trip"
-        options={{ presentation: "modal", headerShown: false }}
-      />
+        {/* Modals */}
+        <Stack.Screen
+          name="modal/add-activity"
+          options={{ presentation: "modal", headerShown: false }}
+        />
+        <Stack.Screen
+          name="modal/create-trip"
+          options={{ presentation: "modal", headerShown: false }}
+        />
 
-      {/* Other screens */}
-      <Stack.Screen
-        name="screens/editProfile"
-        options={{
-          title: "Edit Profile",
-          headerShown: true,
-          headerBackTitle: "",
-        }}
-      />
-    </Stack>
+        {/* Other screens */}
+        <Stack.Screen
+          name="screens/editProfile"
+          options={{
+            title: "Edit Profile",
+            headerShown: true,
+            headerBackTitle: "",
+          }}
+        />
+      </Stack>
+    </GestureHandlerRootView>
   );
 }
