@@ -2,8 +2,17 @@ import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
@@ -13,7 +22,8 @@ import {
   getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
-  updateTrip
+  updateTrip,
+  updateTripActivity,
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
@@ -52,6 +62,95 @@ export default function TripOverviewScreen() {
   const [groupedActivities, setGroupedActivities] = useState<
     Record<string, any[]>
   >({});
+  const [itineraryDays, setItineraryDays] = useState<any[]>([]);
+  const [isMapSheetOpen, setIsMapSheetOpen] = useState(false);
+  const mapReveal = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get("window").height;
+  const revealedMapHeight = screenHeight * 0.58;
+  const overlayTranslateY = mapReveal.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, revealedMapHeight],
+  });
+
+  const toLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleReorderDays = async (reorderedDays: any[]) => {
+    if (!tripId) return;
+
+    const normalized = reorderedDays.map((day, index) => ({
+      ...day,
+      position: index + 1,
+      dayNumber: index + 1,
+    }));
+
+    setItineraryDays(normalized);
+
+    try {
+      // Note: These functions don't exist in TripService yet, so we'll handle locally
+      // await updateItineraryDayPositions(
+      //   normalized
+      //     .filter((d) => Boolean(d.id))
+      //     .map((d) => ({ id: d.id, position: d.position }))
+      // );
+
+      // const refreshed = await getItineraryDaysForTrip(tripId as string);
+      // setItineraryDays(refreshed);
+
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+
+      const rebuilt: Record<number, any[]> = {};
+      normalized.forEach((day, index) => {
+        rebuilt[index + 1] = grouped[day.day_date] ?? [];
+      });
+
+      setDayActivities(rebuilt);
+    } catch (e) {
+      console.log("Error saving reordered days:", e);
+    }
+  };
+
+  const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
+    const originalDayActivities = dayActivities[dayNumber] ?? [];
+    const timeSlots = originalDayActivities.map((item) => ({
+      start_time: item.start_time ?? null,
+      end_time: item.end_time ?? null,
+    }));
+
+    const reorderedWithTimes = reordered.map((item, index) => ({
+      ...item,
+      start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
+      end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
+    }));
+
+    setDayActivities((prev) => ({ ...prev, [dayNumber]: reorderedWithTimes }));
+
+    try {
+      // Note: These functions don't exist in TripService yet, so we'll handle locally
+      // await updateTripActivityPositions(
+      //   reorderedWithTimes.map((item, index) => ({
+      //     id: item.id,
+      //     position: index + 1,
+      //   }))
+      // );
+
+      await Promise.all(
+        reorderedWithTimes.map((item) =>
+          updateTripActivity(item.id, {
+            start_time: item.start_time,
+            end_time: item.end_time,
+          })
+        )
+      );
+    } catch (e) {
+      console.log("Error saving reordered activities:", e);
+      await loadDayActivities(dayNumber);
+    }
+  };
 
   const toggleDayCollapse = (dayNumber: number) => {
     setCollapsedDays((prev) => ({
@@ -73,6 +172,166 @@ export default function TripOverviewScreen() {
   const removeTargetSpot = (index: number) => {
     setTargetSpots((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const handleAssignToDay = (activity: any, dayNumber: number) => {
+    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+  };
+
+  const handleMarkerNavigate = (a: any) => {
+    router.push(`/trip/${tripId}/day-detail?day=1`);
+  };
+
+  const loadGroupedActivities = async () => {
+    if (!tripId) return;
+    try {
+      console.log("🔍 Loading grouped activities for trip:", tripId);
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+      console.log("📍 Grouped activities loaded:", grouped);
+      setGroupedActivities(grouped);
+
+      // Log activities with coordinates
+      const allActivities = Object.values(grouped).flat();
+      const activitiesWithCoords = allActivities.filter(
+        (a) =>
+          typeof a.latitude === "number" && typeof a.longitude === "number",
+      );
+      console.log(
+        "🗺️ Activities with coordinates:",
+        activitiesWithCoords.length,
+      );
+      console.log("📊 Total activities:", allActivities.length);
+    } catch (e) {
+      console.log("Error loading grouped activities:", e);
+    }
+  };
+
+  const allPinnedActivities = useMemo(
+    () => Object.values(groupedActivities).flat(),
+    [groupedActivities],
+  );
+
+  const toggleMapSheet = () => {
+    const next = !isMapSheetOpen;
+    setIsMapSheetOpen(next);
+
+    Animated.spring(mapReveal, {
+      toValue: next ? 1 : 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 12,
+    }).start();
+  };
+
+  const loadDayActivities = async (dayNumber: number) => {
+    if (!tripId || !trip) return;
+    setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
+    try {
+      const dayDate = new Date(`${trip.start_date}T00:00:00`);
+      dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
+
+      const dateStr = toLocalDateString(dayDate);
+
+      const activities = await getTripActivitiesForDay(
+        tripId as string,
+        dateStr,
+      );
+
+      const sorted = [...activities].sort((a, b) => {
+        const aTime = a.start_time?.slice(0, 5) ?? null;
+        const bTime = b.start_time?.slice(0, 5) ?? null;
+
+        if (!aTime && !bTime) return 0;
+        if (!aTime) return 1;
+        if (!bTime) return -1;
+
+        return aTime.localeCompare(bTime);
+      });
+
+      setDayActivities((prev) => ({ ...prev, [dayNumber]: sorted }));
+      console.log(
+        `📅 Loaded ${activities.length} activities for day ${dayNumber}`,
+      );
+    } catch (e) {
+      console.log(`Error loading day ${dayNumber} activities:`, e);
+    } finally {
+      setLoadingActivities((prev) => ({ ...prev, [dayNumber]: false }));
+    }
+  };
+
+  const generateDayHeaders = () => {
+    if (!trip) return [];
+    const start = new Date(`${trip.start_date}T00:00:00`);
+    const end = new Date(`${trip.end_date}T00:00:00`);
+    const days = [];
+    const current = new Date(start);
+
+    while (current <= end) {
+      days.push({
+        date: new Date(current),
+        dayNumber: days.length + 1,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+
+    return days;
+  };
+
+  const loadTripData = async () => {
+    try {
+      const tripData = await getTripById(tripId as string);
+      const membersData = await getTripMembers(tripId as string);
+      // Note: getItineraryDaysForTrip doesn't exist in TripService yet
+      // const daysData = await getItineraryDaysForTrip(tripId as string);
+      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
+
+      setTrip(tripData);
+      setMembers(membersData);
+      // setItineraryDays(daysData);
+
+      // Use generated day headers as fallback
+      const dayHeaders = generateDayHeaders();
+      const rebuilt: Record<number, any[]> = {};
+      dayHeaders.forEach((day, index) => {
+        rebuilt[index + 1] = [];
+      });
+      setDayActivities(rebuilt);
+    } catch (error) {
+      console.error("Error loading trip:", error);
+      Alert.alert("Error", "Failed to load trip details");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadTripData();
+    await loadGroupedActivities();
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tripId) {
+        loadTripData();
+        loadGroupedActivities();
+      }
+    }, [tripId])
+  )
+
+  useEffect(() => {
+    if (!trip || String(trip.id) !== String(tripId)) return;
+
+    const dayCount = itineraryDays.length > 0
+      ? itineraryDays.length
+      : generateDayHeaders().length;
+
+    const defaultCollapsed: Record<number, boolean> = {};
+    for (let dayNumber = 1; dayNumber <= dayCount; dayNumber++) {
+      defaultCollapsed[dayNumber] = dayNumber !== 1;
+    }
+    setCollapsedDays(defaultCollapsed);
+  }, [trip, tripId, itineraryDays]);
 
   const removeActivity = async (activityId: string) => {
     console.log('🗑️ Removing activity:', activityId);
@@ -102,131 +361,29 @@ export default function TripOverviewScreen() {
     }
   };
 
-  const handleAssignToDay = (activity: any, dayNumber: number) => {
-    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+  const handleDeleteTrip = () => {
+    Alert.alert(
+      "Delete Trip",
+      "Are you sure you want to delete this trip? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTrip(tripId as string);
+              Alert.alert("Success", "Trip deleted successfully");
+              router.back();
+            } catch (error) {
+              console.error("Error deleting trip:", error);
+              Alert.alert("Error", "Failed to delete trip");
+            }
+          },
+        },
+      ],
+    );
   };
-
-  const handleMarkerNavigate = (a: any) => {
-    router.push(`/trip/${tripId}/day-detail?day=1`);
-  };
-
-  const loadGroupedActivities = async () => {
-    if (!tripId) return;
-    try {
-      console.log("🔍 Loading grouped activities for trip:", tripId);
-      const grouped = await getTripActivitiesGroupedByDay(tripId as string);
-      console.log("📍 Grouped activities loaded:", grouped);
-      setGroupedActivities(grouped);
-
-      if (trip) {
-        const days = generateDayHeaders();
-        days.forEach((day) => {
-          loadDayActivities(day.dayNumber);
-        });
-      }
-
-      // Log activities with coordinates
-      const allActivities = Object.values(grouped).flat();
-      const activitiesWithCoords = allActivities.filter(
-        (a) =>
-          typeof a.latitude === "number" && typeof a.longitude === "number",
-      );
-      console.log(
-        "🗺️ Activities with coordinates:",
-        activitiesWithCoords.length,
-      );
-      console.log("📊 Total activities:", allActivities.length);
-    } catch (e) {
-      console.log("Error loading grouped activities:", e);
-    }
-  };
-
-  const loadDayActivities = async (dayNumber: number) => {
-    if (!tripId || !trip) return;
-    setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
-    try {
-      const dayDate = new Date(trip.start_date);
-      dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
-      const dateStr = dayDate.toISOString().split("T")[0];
-
-      const activities = await getTripActivitiesForDay(
-        tripId as string,
-        dateStr,
-      );
-
-      setDayActivities((prev) => ({ ...prev, [dayNumber]: activities }));
-      console.log(
-        `📅 Loaded ${activities.length} activities for day ${dayNumber}`,
-      );
-    } catch (e) {
-      console.log(`Error loading day ${dayNumber} activities:`, e);
-    } finally {
-      setLoadingActivities((prev) => ({ ...prev, [dayNumber]: false }));
-    }
-  };
-
-  const generateDayHeaders = () => {
-    if (!trip) return [];
-    const start = new Date(trip.start_date);
-    const end = new Date(trip.end_date);
-    const days = [];
-    const current = new Date(start);
-
-    while (current <= end) {
-      days.push({
-        date: new Date(current),
-        dayNumber: days.length + 1,
-      });
-      current.setDate(current.getDate() + 1);
-    }
-
-    return days;
-  };
-
-  const loadTripData = async () => {
-    try {
-      const tripData = await getTripById(tripId as string);
-      const membersData = await getTripMembers(tripId as string);
-      setTrip(tripData);
-      setMembers(membersData);
-    } catch (error) {
-      console.error("Error loading trip:", error);
-      Alert.alert("Error", "Failed to load trip details");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadTripData();
-    await loadGroupedActivities();
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      if (tripId) {
-        loadTripData();
-        loadGroupedActivities();
-      }
-    }, [tripId])
-  )
-
-  useEffect(() => {
-    if (trip) {
-      const days = generateDayHeaders();
-      days.forEach((day) => {
-        loadDayActivities(day.dayNumber);
-      });
-
-      const defaultCollapsed: Record<number, boolean> = {};
-      days.forEach((day) => {
-        defaultCollapsed[day.dayNumber] = day.dayNumber !== 1;
-      });
-      setCollapsedDays(defaultCollapsed);
-    }
-  }, [trip, tripId]);
 
   const handleEditTrip = () => {
     console.log('📝 Edit trip clicked');
@@ -255,30 +412,6 @@ export default function TripOverviewScreen() {
       console.error('❌ Error updating trip:', error);
       Alert.alert('Error', 'Failed to update trip. Please try again.');
     }
-  };
-
-  const handleDeleteTrip = () => {
-    Alert.alert(
-      "Delete Trip",
-      "Are you sure you want to delete this trip? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteTrip(tripId as string);
-              Alert.alert("Success", "Trip deleted successfully");
-              router.back();
-            } catch (error) {
-              console.error("Error deleting trip:", error);
-              Alert.alert("Error", "Failed to delete trip");
-            }
-          },
-        },
-      ],
-    );
   };
 
   if (loading) {
@@ -380,39 +513,40 @@ export default function TripOverviewScreen() {
         )}
         {/* Itinerary Tab */}
         {activeTab === 1 ? (
-        <View className="flex-1 bg-gray-50">
-          <View className="bg-white mb-2 flex-1">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
+          <View className="flex-1 bg-gray-50">
+            <View className="bg-white mb-2 flex-1">
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
 
-            {/* tabs Section */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+              {/* tabs Section */}
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {refreshing ? (
-              <ItinerarySkeleton />
-            ) : (
-              <View className="flex-1">
-                <ItineraryScreen
-                  tripId={tripId as string}
-                  startDate={trip.start_date}
-                  destination={trip.destination}
-                  endDate={trip.end_date}
-                  aiItinerary={aiItinerary}
-                  itineraryDays={itineraryDays}
-                  onReorderDays={handleReorderDays}
-                  onToggleDayCollapse={toggleDayCollapse}
-                  onToggleItineraryCollapse={toggleItineraryCollapse}
-                  collapsedDays={collapsedDays}
-                  isItineraryCollapsed={isItineraryCollapsed}
-                  dayActivities={dayActivities}
-                  loadingActivities={loadingActivities}
-                  onReorderDayActivities={handleReorderDayActivities}
-                />
-              </View>
-            )}
+              {refreshing ? (
+                <ItinerarySkeleton />
+              ) : (
+                <View className="flex-1">
+                  <ItineraryScreen
+                    tripId={tripId as string}
+                    startDate={trip.start_date}
+                    destination={trip.destination}
+                    endDate={trip.end_date}
+                    aiItinerary={aiItinerary}
+                    itineraryDays={itineraryDays}
+                    onReorderDays={handleReorderDays}
+                    onToggleDayCollapse={toggleDayCollapse}
+                    onToggleItineraryCollapse={toggleItineraryCollapse}
+                    collapsedDays={collapsedDays}
+                    isItineraryCollapsed={isItineraryCollapsed}
+                    dayActivities={dayActivities}
+                    loadingActivities={loadingActivities}
+                    onReorderDayActivities={handleReorderDayActivities}
+                  />
+                </View>
+              )}
+            </View>
           </View>
-          </View>
-        )}
+        ) : null}
+
         {/* Reservations Tab */}
         {activeTab === 2 && (
           <View className="bg-white mb-2">
