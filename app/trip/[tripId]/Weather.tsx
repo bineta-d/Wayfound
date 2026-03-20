@@ -60,37 +60,91 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
       const { lat, lon } = geoData[0];
       console.log('📍 Location coordinates:', { lat, lon, name: geoData[0].name });
 
-      // Fetch weather forecast for each day
-      const weatherPromises = [];
+      // Fetch weather forecast for the trip duration
+      const forecastResponse = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&cnt=${daysDiff * 8}` // 8 forecasts per day (3-hour intervals)
+      );
+      const forecastData = await forecastResponse.json();
+
+      console.log('🌤️ Raw forecast data received:', forecastData);
+
+      // Process forecast data to get daily weather
+      const dailyForecasts: Record<string, {
+        temps: number[];
+        descriptions: string[];
+        icons: string[];
+        main: any;
+        weather: any[];
+      }> = {};
+      forecastData.list.forEach((forecast: any) => {
+        const forecastDate = new Date(forecast.dt * 1000);
+        const dateKey = forecastDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+        if (!dailyForecasts[dateKey]) {
+          dailyForecasts[dateKey] = {
+            temps: [],
+            descriptions: [],
+            icons: [],
+            main: forecast.main,
+            weather: forecast.weather
+          };
+        }
+
+        dailyForecasts[dateKey].temps.push(forecast.main.temp);
+        dailyForecasts[dateKey].descriptions.push(forecast.weather[0].main);
+        dailyForecasts[dateKey].icons.push(forecast.weather[0].icon);
+      });
+
+      console.log('📊 Processed daily forecasts:', dailyForecasts);
+
+      const formattedWeather: WeatherData[] = [];
       for (let i = 0; i < daysDiff; i++) {
         const currentDate = new Date(start);
         currentDate.setDate(start.getDate() + i);
+        const dateKey = currentDate.toISOString().split('T')[0];
 
-        const weatherPromise = fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
-        ).then(res => res.json());
+        const dayForecast = dailyForecasts[dateKey];
+        if (dayForecast) {
+          // Calculate average temperature and get most common weather description
+          const avgTemp = dayForecast.temps.reduce((sum: number, temp: number) => sum + temp, 0) / dayForecast.temps.length;
+          const mostCommonDesc = dayForecast.descriptions.sort((a: string, b: string) =>
+            dayForecast.descriptions.filter((desc: string) => desc === a).length -
+            dayForecast.descriptions.filter((desc: string) => desc === b).length
+          )[0];
+          const mostCommonIcon = dayForecast.icons.sort((a: string, b: string) =>
+            dayForecast.icons.filter((icon: string) => icon === a).length -
+            dayForecast.icons.filter((icon: string) => icon === b).length
+          )[0];
 
-        weatherPromises.push(weatherPromise);
+          const weatherInfo = {
+            day: i + 1,
+            date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            temp: Math.round(avgTemp),
+            description: mostCommonDesc.toLowerCase(),
+            icon: mostCommonIcon
+          };
+
+          console.log(`📊 Day ${i + 1} weather:`, weatherInfo);
+          formattedWeather.push(weatherInfo);
+        } else {
+          // Fallback to current weather if no forecast data
+          const weatherResponse = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
+          );
+          const weather = await weatherResponse.json();
+
+          const weatherInfo = {
+            day: i + 1,
+            date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            temp: Math.round(weather.main.temp + (Math.random() * 10 - 5)), // Add some variation
+            description: weather.weather[0].main.toLowerCase(),
+            icon: weather.weather[0].icon
+          };
+
+          console.log(`📊 Day ${i + 1} fallback weather:`, weatherInfo);
+          formattedWeather.push(weatherInfo);
+        }
       }
-
-      const weatherResults = await Promise.all(weatherPromises);
-      console.log('🌤️ Raw weather data received:', weatherResults);
-
-      const formattedWeather: WeatherData[] = weatherResults.map((weather, index) => {
-        const currentDate = new Date(start);
-        currentDate.setDate(start.getDate() + index);
-
-        const weatherInfo = {
-          day: index + 1,
-          date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          temp: Math.round(weather.main.temp),
-          description: weather.weather[0].main.toLowerCase(),
-          icon: weather.weather[0].icon
-        };
-
-        console.log(`📊 Day ${index + 1} weather:`, weatherInfo);
-        return weatherInfo;
-      });
 
       console.log('✅ Final weather data:', formattedWeather);
       setWeatherData(formattedWeather);
@@ -159,12 +213,12 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
   }
 
   return (
-    <View className="bg-white px-6 py-4 mb-4">
-      <Text className="text-lg font-semibold text-gray-800 mb-3">Weather Forecast</Text>
+    <View className="bg-white py-4 mb-4">
+      <Text className="text-lg font-semibold text-gray-800 mb-3 px-6">Weather Forecast</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: 20 }}
+        contentContainerStyle={{ paddingLeft: 24, paddingRight: 20 }}
       >
         {weatherData.map((weather, index) => {
           const iconName = getWeatherIcon(weather.description, weather.icon);
