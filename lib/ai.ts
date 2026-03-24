@@ -36,7 +36,8 @@ export async function generateTripPlan(
   request: TripPlanRequest,
 ): Promise<TripPlan> {
   try {
-    const { data, error } = await supabase.functions.invoke(
+    console.log("Calling EDGE FUNCTION");
+    const { data, error } = await supabase.functions.invoke<TripPlan>(
       "generate-itinerary",
       {
         body: request,
@@ -48,13 +49,17 @@ export async function generateTripPlan(
       throw new Error("Failed to generate itinerary");
     }
 
-    if (!data?.itinerary) {
+    if (!data?.itinerary?.days) {
+      console.log("RAW AI RESPONSE:", data)
       throw new Error("Invalid AI response");
     }
 
     return {
       itinerary: data.itinerary,
+      recommendations: data.recommendations || [],
+      estimatedCost: data.estimatedCost || 0,
     };
+    
   } catch (error) {
     console.error("AI generation error:", error);
     throw error;

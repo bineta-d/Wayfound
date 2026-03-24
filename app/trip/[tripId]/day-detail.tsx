@@ -18,6 +18,8 @@ import {
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
 
+import ActivityCard from "@/components/ActivityCard";
+
 export default function DayDetailScreen() {
   const { tripId, day } = useLocalSearchParams();
   const router = useRouter();
@@ -376,55 +378,21 @@ export default function DayDetailScreen() {
         ) : (
           <View className="gap-3">
             {activities.map((a) => (
-              <TouchableOpacity
-                key={a.id}
-                activeOpacity={0.9}
-                onPress={() => openEditModal(a)}
-                className="bg-neutral-background rounded-lg p-4 border border-neutral-divider"
-              >
-                <View className="flex-row justify-between items-start">
-                  <View className="flex-1 pr-3">
-                    <View>
-                      {formatTimeRange(a.start_time, a.end_time) ? (
-                        <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mb-2">
-                          <Text className="text-xs text-neutral-textSecondary">
-                            {formatTimeRange(a.start_time, a.end_time)}
-                          </Text>
-                        </View>
-                      ) : null}
+              <View key = {a.id}>
+                <TouchableOpacity onPress={() => openEditModal(a)}>
+                  <ActivityCard activity={a} />
+                </TouchableOpacity>
 
-                      <Text
-                        className="text-neutral-textPrimary font-semibold text-base"
-                        numberOfLines={2}
-                      >
-                        {a.location_name ?? "Activity"}
-                      </Text>
-                    </View>
-                    {!!a.title && (
-                      <Text className="text-neutral-textSecondary mt-1">{a.title}</Text>
-                    )}
-                    {!!a.description && (
-                      <Text 
-                        className="text-neutral-textSecondary mt-1"
-                        numberOfLines={3}
-                        ellipsizeMode="tail"
-                      >
-                        {a.description}
-                      </Text>
-                    )}
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={async () => {
-                      await deleteTripActivity(a.id);
-                      setActivities((prev) => prev.filter((x) => x.id !== a.id));
-                    }}
-                    className="px-3 py-2 rounded-lg bg-accent-hotCoral"
-                  >
-                    <Text className="text-white font-semibold">Remove</Text>
+                {/* REMOVE BUTTON */}
+                <TouchableOpacity onPress={async () => {
+                    await deleteTripActivity(a.id);
+                    setActivities((prev) => prev.filter((x) => x.id !== a.id));
+                  }}
+                  className="mt-1 mb-2 self-end px-3 py-1 rounded-lg bg-accent-hotCoral"
+                >
+                <Text className="text-white text-xs font-semibold">Remove</Text>
                   </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
+              </View> 
             ))}
           </View>
         )}

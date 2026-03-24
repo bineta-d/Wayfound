@@ -28,6 +28,10 @@ export async function searchPlace(place: string) {
       lat: result.geometry.location.lat,
       lng: result.geometry.location.lng,
       place_id: result.place_id,
+
+      rating: place.rating ?? null,
+      photo: place.photos?.[0]?.photo_reference ?? null,
+      types: place.types ?? []
     };
 
   } catch (err) {

@@ -410,6 +410,9 @@ export interface Activity {
   end_time: string | null;
   position?: number | null;
   created_at?: string;
+  rating?: number | null;
+  photo?: string | null;
+  category?: string | null;
 }
 
 export interface ItineraryDay {
@@ -768,4 +771,46 @@ export const updateTripActivityPositions = async (
       throw error;
     }
   }
+};
+
+//Get Trip Budget
+export const getTripBudget = async (trip_id: string) => {
+  const { data, error } = await supabase
+    .from("budgets")
+    .select("*")
+    .eq("trip_id", trip_id)
+    .maybeSingle();
+
+    if (error) throw error;
+    return data;
+};
+
+//Upsert Trip Budget
+export const upsertTripBudget = async (
+  trip_id: string,
+  budget: {
+    accommodation: number;
+    transport: number;
+    activities: number;
+  }
+) => {
+  const total =
+    budget.accommodation +
+    budget.transport +
+    budget.activities;
+
+  const { data, error } = await supabase
+    .from("budgets")
+    .upsert({
+      trip_id,
+      accommodation: budget.accommodation,
+      transport: budget.transport,
+      activities: budget.activities,
+      total_amount: total,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };
