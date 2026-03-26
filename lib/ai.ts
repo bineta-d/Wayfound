@@ -1,6 +1,6 @@
+import { buildTripContext } from "./contextBuilder";
 import { supabase } from "./supabase";
 import { getWeather } from "./weatherService";
-import { buildTripContext } from "./contextBuilder";
 
 interface TripPlanRequest {
   tripId: string;
