@@ -1,6 +1,9 @@
 import { supabase } from "./supabase";
+import { getWeather } from "./weatherService";
+import { buildTripContext } from "./contextBuilder";
 
 interface TripPlanRequest {
+  tripId: string;
   startDate: string;
   endDate: string;
   destination: string;
@@ -37,10 +40,20 @@ export async function generateTripPlan(
 ): Promise<TripPlan> {
   try {
     console.log("Calling EDGE FUNCTION");
+
+    // Get weather before calling AI
+    const weather  = await getWeather (request.destination);
+
+    const context = await buildTripContext(request.tripId);
+
     const { data, error } = await supabase.functions.invoke<TripPlan>(
       "generate-itinerary",
       {
-        body: request,
+        body: {
+          request,
+          weather,
+          context,
+        }
       },
     );
 
