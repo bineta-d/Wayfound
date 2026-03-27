@@ -11,7 +11,7 @@ export default function TabsSection({
 }: TabsSectionProps) {
   return (
     <View className="flex-row bg-white px-6 pt-4 pb-2 border-b border-gray-200">
-      {["Overview", "Itinerary", "Reservations", "Budget"].map((tab, idx) => (
+      {["Overview", "Itinerary", "Reservations", "Budget", "Polls"].map((tab, idx) => (
         <TouchableOpacity
           key={tab}
           onPress={() => setActiveTab(idx)}
