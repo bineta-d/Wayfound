@@ -150,6 +150,76 @@ export default function WeatherDetail() {
         <View className="bg-gray-50 rounded-lg p-4">
           <Text className="text-lg font-semibold text-gray-800 mb-3">Temperature Timeline</Text>
 
+          {/* Temperature Graph */}
+          <View className="bg-white rounded-lg p-4 mb-4">
+            <View className="h-32 relative">
+              {/* Temperature Line Graph */}
+              <View className="absolute inset-0 justify-center">
+                {/* Find min and max temps */}
+                {(() => {
+                  const temps = weatherData.hourlyData?.map(h => h.temp) || [];
+                  const minTemp = Math.min(...temps);
+                  const maxTemp = Math.max(...temps);
+                  const tempRange = maxTemp - minTemp || 1;
+
+                  return (
+                    <View className="relative h-full">
+                      {/* Draw connecting line */}
+                      <View className="absolute inset-0 justify-center">
+                        <View
+                          className="absolute"
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '10%',
+                            right: '10%',
+                            height: 2,
+                            backgroundColor: '#10B981',
+                            transform: [{ translateY: -1 }]
+                          }}
+                        />
+                      </View>
+
+                      {/* Temperature points */}
+                      {weatherData.hourlyData?.map((hour, index) => {
+                        const tempPosition = ((hour.temp - minTemp) / tempRange) * 80; // 80% of height
+                        const isMax = hour.temp === maxTemp;
+                        const isMin = hour.temp === minTemp;
+                        const pointColor = isMax ? '#EF4444' : isMin ? '#3B82F6' : '#10B981';
+
+                        return (
+                          <View
+                            key={index}
+                            className="absolute w-3 h-3 rounded-full border-2 border-white"
+                            style={{
+                              backgroundColor: pointColor,
+                              left: `${10 + (index * 10)}%`,
+                              bottom: `${10 + tempPosition}%`,
+                              transform: [{ translateX: -6 }, { translateY: 6 }]
+                            }}
+                          />
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {/* Time labels below graph */}
+              <View className="absolute bottom-0 left-0 right-0 flex-row justify-between px-2">
+                {weatherData.hourlyData?.map((hour, index) => (
+                  <Text
+                    key={index}
+                    className="text-xs text-gray-500"
+                    style={{ width: '10%', textAlign: 'center' }}
+                  >
+                    {hour.time.split(':')[0]}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          </View>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
