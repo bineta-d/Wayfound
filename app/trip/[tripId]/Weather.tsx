@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface WeatherData {
   day: number;
@@ -20,6 +21,7 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
   const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetchWeatherData();
@@ -104,17 +106,27 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
         const dateKey = currentDate.toISOString().split('T')[0];
 
         const dayForecast = dailyForecasts[dateKey];
-        if (dayForecast) {
+        if (dayForecast && dayForecast.descriptions.length > 0) {
           // Calculate average temperature and get most common weather description
           const avgTemp = dayForecast.temps.reduce((sum: number, temp: number) => sum + temp, 0) / dayForecast.temps.length;
-          const mostCommonDesc = dayForecast.descriptions.sort((a: string, b: string) =>
-            dayForecast.descriptions.filter((desc: string) => desc === a).length -
-            dayForecast.descriptions.filter((desc: string) => desc === b).length
-          )[0];
-          const mostCommonIcon = dayForecast.icons.sort((a: string, b: string) =>
-            dayForecast.icons.filter((icon: string) => icon === a).length -
-            dayForecast.icons.filter((icon: string) => icon === b).length
-          )[0];
+
+          // Get most common description and icon
+          const descriptionCounts: Record<string, number> = {};
+          const iconCounts: Record<string, number> = {};
+
+          dayForecast.descriptions.forEach((desc: string) => {
+            descriptionCounts[desc] = (descriptionCounts[desc] || 0) + 1;
+          });
+          dayForecast.icons.forEach((icon: string) => {
+            iconCounts[icon] = (iconCounts[icon] || 0) + 1;
+          });
+
+          const mostCommonDesc = Object.keys(descriptionCounts).reduce((a, b) =>
+            descriptionCounts[a] > descriptionCounts[b] ? a : b
+          );
+          const mostCommonIcon = Object.keys(iconCounts).reduce((a, b) =>
+            iconCounts[a] > iconCounts[b] ? a : b
+          );
 
           const weatherInfo = {
             day: i + 1,
@@ -127,6 +139,7 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
           console.log(`📊 Day ${i + 1} weather:`, weatherInfo);
           formattedWeather.push(weatherInfo);
         } else {
+          console.log(`⚠️ No forecast data for ${dateKey}, using fallback`);
           // Fallback to current weather if no forecast data
           const weatherResponse = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
@@ -157,22 +170,54 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
   };
 
   const getWeatherIcon = (description: string, icon: string) => {
-    // Map OpenWeather icons to Ionicons
-    if (icon.includes('01')) return 'sunny'; // clear sky
-    if (icon.includes('02')) return 'partly-sunny'; // few clouds
-    if (icon.includes('03') || icon.includes('04')) return 'cloudy'; // scattered/broken clouds
-    if (icon.includes('09') || icon.includes('10')) return 'rainy'; // shower rain/rain
-    if (icon.includes('11')) return 'thunderstorm'; // thunderstorm
-    if (icon.includes('13')) return 'snowy'; // snow
-    if (icon.includes('50')) return 'foggy'; // mist
+    // Map OpenWeather icons to Ionicons - comprehensive mapping
+    const iconMap: Record<string, string> = {
+      '01d': 'sunny', '01n': 'moon', // clear sky day/night
+      '02d': 'partly-sunny', '02n': 'cloud', // few clouds day/night
+      '03d': 'cloudy', '03n': 'cloudy', // scattered clouds
+      '04d': 'cloud', '04n': 'cloud', // broken clouds
+      '09d': 'rainy', '09n': 'rainy', // shower rain
+      '10d': 'rainy-outline', '10n': 'rainy-outline', // rain
+      '11d': 'thunderstorm', '11n': 'thunderstorm', // thunderstorm
+      '13d': 'snow', '13n': 'snow', // snow
+      '50d': 'cloudy-outline', '50n': 'cloudy-outline', // mist/fog
+    };
+
+    // Direct icon mapping first
+    if (iconMap[icon]) {
+      return iconMap[icon];
+    }
+
+    // Fallback by icon pattern
+    if (icon.includes('01')) return 'sunny';
+    if (icon.includes('02')) return 'partly-sunny';
+    if (icon.includes('03')) return 'cloudy';
+    if (icon.includes('04')) return 'cloud';
+    if (icon.includes('09')) return 'rainy';
+    if (icon.includes('10')) return 'rainy-outline';
+    if (icon.includes('11')) return 'thunderstorm';
+    if (icon.includes('13')) return 'snow';
+    if (icon.includes('50')) return 'cloudy-outline';
 
     // Fallback to description
     if (description.includes('clear')) return 'sunny';
-    if (description.includes('cloud')) return 'cloudy';
+    if (description.includes('cloud')) {
+      if (description.includes('few') || description.includes('partly')) return 'partly-sunny';
+      return 'cloudy';
+    }
     if (description.includes('rain')) return 'rainy';
-    if (description.includes('snow')) return 'snowy';
+    if (description.includes('snow')) return 'snow';
+    if (description.includes('thunderstorm')) return 'thunderstorm';
+    if (description.includes('mist') || description.includes('fog')) return 'cloudy-outline';
 
     return 'partly-sunny'; // default
+  };
+
+  const getWeatherIconColor = (description: string, icon: string) => {
+    // Make sun icon yellow, others blue
+    if (icon.includes('01')) return '#FCD34D'; // yellow for clear sky
+    if (description.includes('clear')) return '#FCD34D'; // yellow for clear weather
+    return '#3B82F6'; // blue for other weather
   };
 
   const getWeatherDescription = (description: string) => {
@@ -191,11 +236,24 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
 
   if (loading) {
     return (
-      <View className="bg-white px-6 py-4 mb-4">
-        <View className="flex-row justify-center items-center">
-          <ActivityIndicator size="small" color="#3B82F6" />
-          <Text className="ml-2 text-gray-600">Loading weather...</Text>
-        </View>
+      <View className="bg-white py-4 mb-4">
+        <Text className="text-lg font-semibold text-gray-800 mb-3 px-6">Weather Forecast</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 24, paddingRight: 20 }}
+        >
+          {[1, 2, 3, 4, 5].map((index) => (
+            <View
+              key={index}
+              className="bg-gray-100 rounded-lg p-4 mr-3 min-w-[100px] items-center border border-gray-200"
+            >
+              <View className="bg-gray-200 rounded-full w-10 h-10 mb-2 animate-pulse" />
+              <View className="bg-gray-200 h-4 w-12 rounded mb-1 animate-pulse" />
+              <View className="bg-gray-200 h-3 w-16 rounded animate-pulse" />
+            </View>
+          ))}
+        </ScrollView>
       </View>
     );
   }
@@ -223,11 +281,13 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
         {weatherData.map((weather, index) => {
           const iconName = getWeatherIcon(weather.description, weather.icon);
           const description = getWeatherDescription(weather.description);
+          const iconColor = getWeatherIconColor(weather.description, weather.icon);
 
           return (
-            <View
+            <TouchableOpacity
               key={index}
               className="bg-blue-50 rounded-lg p-4 mr-3 min-w-[100px] items-center border border-blue-100"
+              onPress={() => router.push(`/trip/[tripId]/weather-detail?day=${weather.day}&date=${weather.date}&temp=${weather.temp}&description=${weather.description}&icon=${weather.icon}&destination=${encodeURIComponent(destination)}`)}
             >
               <Text className="text-sm font-semibold text-gray-700 mb-1">Day {weather.day}</Text>
               <Text className="text-xs text-gray-500 mb-2">{weather.date}</Text>
@@ -236,13 +296,13 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
                 <Ionicons
                   name={iconName as any}
                   size={24}
-                  color="#3B82F6"
+                  color={iconColor}
                 />
               </View>
 
               <Text className="text-sm font-medium text-gray-800 mb-1">{description}</Text>
               <Text className="text-xs text-gray-600">{weather.temp}°C</Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>
