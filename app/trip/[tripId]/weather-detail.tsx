@@ -154,8 +154,7 @@ export default function WeatherDetail() {
           <View className="bg-white rounded-lg p-4 mb-4">
             <View className="h-32 relative">
               {/* Temperature Line Graph */}
-              <View className="absolute inset-0 justify-center">
-                {/* Find min and max temps */}
+              <View className="absolute inset-0">
                 {(() => {
                   const temps = weatherData.hourlyData?.map(h => h.temp) || [];
                   const minTemp = Math.min(...temps);
@@ -164,20 +163,43 @@ export default function WeatherDetail() {
 
                   return (
                     <View className="relative h-full">
-                      {/* Draw connecting line */}
-                      <View className="absolute inset-0 justify-center">
-                        <View
-                          className="absolute"
-                          style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '10%',
-                            right: '10%',
-                            height: 2,
-                            backgroundColor: '#10B981',
-                            transform: [{ translateY: -1 }]
-                          }}
-                        />
+                      {/* Create curved line with segments */}
+                      <View className="absolute inset-0">
+                        {weatherData.hourlyData?.map((hour, index) => {
+                          if (index === 0) return null;
+
+                          const prevHour = weatherData.hourlyData[index - 1];
+                          const prevTempPosition = ((prevHour.temp - minTemp) / tempRange) * 80;
+                          const currTempPosition = ((hour.temp - minTemp) / tempRange) * 80;
+
+                          const prevLeft = 10 + ((index - 1) * 10);
+                          const currLeft = 10 + (index * 10);
+
+                          // Calculate control points for curve
+                          const midLeft = (prevLeft + currLeft) / 2;
+                          const midTop = 50 + ((prevTempPosition + currTempPosition) / 2) - 40; // Adjust for centering
+
+                          return (
+                            <View key={index} className="absolute">
+                              {/* Create curve approximation with multiple small segments */}
+                              <View
+                                className="absolute bg-green-500"
+                                style={{
+                                  left: `${prevLeft}%`,
+                                  top: `${50 + prevTempPosition - 40}%`,
+                                  width: `${currLeft - prevLeft}%`,
+                                  height: 2,
+                                  backgroundColor: '#10B981',
+                                  transform: [
+                                    { rotate: `${Math.atan2((currTempPosition - prevTempPosition) * 0.8, (currLeft - prevLeft) * 0.8) * 180 / Math.PI}deg` },
+                                    { translateX: 0 },
+                                    { translateY: -1 }
+                                  ]
+                                }}
+                              />
+                            </View>
+                          );
+                        })}
                       </View>
 
                       {/* Temperature points */}
@@ -190,12 +212,13 @@ export default function WeatherDetail() {
                         return (
                           <View
                             key={index}
-                            className="absolute w-3 h-3 rounded-full border-2 border-white"
+                            className="absolute w-3 h-3 rounded-full border-2 border-white shadow-sm"
                             style={{
                               backgroundColor: pointColor,
                               left: `${10 + (index * 10)}%`,
                               bottom: `${10 + tempPosition}%`,
-                              transform: [{ translateX: -6 }, { translateY: 6 }]
+                              transform: [{ translateX: -6 }, { translateY: 6 }],
+                              zIndex: 10
                             }}
                           />
                         );
