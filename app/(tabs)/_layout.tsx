@@ -1,6 +1,6 @@
-import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, Tabs } from 'expo-router';
+import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 function TabBarIcon(props: {
@@ -23,7 +23,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
           headerRight: () => (
-            <Link href="/modal" asChild>
+            <Link href="/modal/add-activity" asChild>
               <Pressable>
                 {({ pressed }) => (
                   <FontAwesome

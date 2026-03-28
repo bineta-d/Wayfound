@@ -3,9 +3,8 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, LogBox, Text, TouchableOpacity, View } from "react-native";
+import { Alert, LogBox, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";
 import Weather from "./Weather";
@@ -382,158 +381,163 @@ export default function ItineraryScreen({
   );
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View className="mb-0 px-6">
+    <View className="flex-1">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+      >
         {listHeader}
 
         {!isItineraryCollapsed && (
-          <DraggableFlatList
-            data={days}
-            keyExtractor={(day) => String(day.id ?? day.itineraryDayId ?? `day-${day.dayNumber}`)}
-            scrollEnabled={true}
-            activationDistance={10}
-            contentContainerStyle={{ paddingBottom: 24 }}
-            renderItem={({ item: day, drag: dragDay, isActive: isDayActive }) => (
-              <View className="mb-6" style={{ opacity: isDayActive ? 0.95 : 1 }}>
-                <View className="bg-neutral-surface rounded-lg p-4">
-                  <View className="flex-row justify-between items-center mb-2">
-                    <TouchableOpacity
-                      onPress={() => onToggleDayCollapse(day.dayNumber)}
-                      activeOpacity={0.8}
-                      className="flex-1"
-                    >
-                      <Text className="text-lg font-semibold text-neutral-textPrimary">
-                        Day {day.dayNumber} -{" "}
-                        {day.date.toLocaleDateString("en-US", {
-                          weekday: "long",
-                        })}{" "}
-                        {day.date.toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View className="flex-row items-center ml-3">
-                      <TouchableOpacity
-                        onLongPress={dragDay}
-                        delayLongPress={120}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        className="mr-2 p-1"
-                      >
-                        <Ionicons name="reorder-four" size={18} color="#6B7280" />
-                      </TouchableOpacity>
+          <View className="px-6">
+            <DraggableFlatList
+              data={days}
+              keyExtractor={(day: any) => String(day.id ?? day.itineraryDayId ?? `day-${day.dayNumber}`)}
+              scrollEnabled={false}
+              activationDistance={10}
+              renderItem={({ item: day, drag: dragDay, isActive: isDayActive }: RenderItemParams<any>) => (
+                <View className="mb-6" style={{ opacity: isDayActive ? 0.95 : 1 }}>
+                  <View className="bg-neutral-surface rounded-lg p-4">
+                    <View className="flex-row justify-between items-center mb-2">
                       <TouchableOpacity
                         onPress={() => onToggleDayCollapse(day.dayNumber)}
-                        className="p-1"
+                        activeOpacity={0.8}
+                        className="flex-1"
                       >
-                        <Ionicons
-                          name={
-                            collapsedDays[day.dayNumber]
-                              ? "chevron-down"
-                              : "chevron-up"
-                          }
-                          size={20}
-                          color="#6B7280"
-                        />
+                        <Text className="text-lg font-semibold text-neutral-textPrimary">
+                          Day {day.dayNumber} -{" "}
+                          {day.date.toLocaleDateString("en-US", {
+                            weekday: "long",
+                          })}{" "}
+                          {day.date.toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleDayPress(day)}
-                        className="ml-3"
-                      >
-                        <Ionicons
-                          name="chevron-forward"
-                          size={20}
-                          color="#67717B"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
 
-                  {!collapsedDays[day.dayNumber] && (
-                    <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
-                      {loadingActivities[day.dayNumber] ? (
-                        <Text className="text-neutral-textSecondary text-center py-4">
-                          Loading activities...
-                        </Text>
-                      ) : dedupeActivities(day.activities ?? []).length > 0 ? (
-                        <View>
-                          <Text className="text-sm text-neutral-textSecondary mb-3">
-                            {dedupeActivities(day.activities ?? []).length} activities
-                          </Text>
-                          <DraggableFlatList
-                            data={sortActivitiesForDisplay(
-                              dedupeActivities(day.activities ?? []),
-                            )}
-                            keyExtractor={(item, index) => `${day.dayNumber}-${item.id}-${index}`}
-                            scrollEnabled={false}
-                            activationDistance={8}
-                            renderItem={({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
-                              <TouchableOpacity
-                                activeOpacity={0.9}
-                                className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
-                                onPress={() => handleDayPress(day)}
-                                style={{ opacity: isActive ? 0.9 : 1 }}
-                              >
-                                <View className="flex-row justify-between items-center">
-                                  <View className="flex-1">
-                                    <Text className="font-medium text-neutral-textPrimary">
-                                      {item.location_name
-                                        ? item.location_name.split(",")[0].trim()
-                                        : "Unknown Location"}
-                                    </Text>
-                                  </View>
-                                  <TouchableOpacity
-                                    onLongPress={drag}
-                                    delayLongPress={120}
-                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    className="ml-3 p-2"
-                                  >
-                                    <Ionicons
-                                      name="reorder-four"
-                                      size={16}
-                                      color={isActive ? "#3B82F6" : "#6B7280"}
-                                    />
-                                  </TouchableOpacity>
-                                </View>
-                              </TouchableOpacity>
-                            )}
-                            onDragEnd={({ data }) => {
-                              setLocalDayBlocks((prev) =>
-                                prev.map((block) =>
-                                  block.dayNumber === day.dayNumber
-                                    ? { ...block, activities: data }
-                                    : block,
-                                ),
-                              );
-                              onReorderDayActivities?.(day.dayNumber, data);
-                            }}
+                      <View className="flex-row items-center ml-3">
+                        <TouchableOpacity
+                          onLongPress={dragDay}
+                          delayLongPress={120}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          className="mr-2 p-1"
+                        >
+                          <Ionicons name="reorder-four" size={18} color="#6B7280" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => onToggleDayCollapse(day.dayNumber)}
+                          className="p-1"
+                        >
+                          <Ionicons
+                            name={
+                              collapsedDays[day.dayNumber]
+                                ? "chevron-down"
+                                : "chevron-up"
+                            }
+                            size={20}
+                            color="#6B7280"
                           />
-                        </View>
-                      ) : aiItinerary[day.dayNumber - 1] ? (
-                        <Text className="text-neutral-textPrimary">
-                          {aiItinerary[day.dayNumber - 1]}
-                        </Text>
-                      ) : (
-                        <Text className="text-neutral-textSecondary text-center py-4">
-                          Tap to add activities
-                        </Text>
-                      )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDayPress(day)}
+                          className="ml-3"
+                        >
+                          <Ionicons
+                            name="chevron-forward"
+                            size={20}
+                            color="#67717B"
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  )}
+
+                    {!collapsedDays[day.dayNumber] && (
+                      <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
+                        {loadingActivities[day.dayNumber] ? (
+                          <Text className="text-neutral-textSecondary text-center py-4">
+                            Loading activities...
+                          </Text>
+                        ) : dedupeActivities(day.activities ?? []).length > 0 ? (
+                          <View>
+                            <Text className="text-sm text-neutral-textSecondary mb-3">
+                              {dedupeActivities(day.activities ?? []).length} activities
+                            </Text>
+                            <DraggableFlatList
+                              data={sortActivitiesForDisplay(
+                                dedupeActivities(day.activities ?? []),
+                              )}
+                              keyExtractor={(item: any, index: any) => `${day.dayNumber}-${item.id}-${index}`}
+                              scrollEnabled={false}
+                              activationDistance={8}
+                              renderItem={({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
+                                <TouchableOpacity
+                                  activeOpacity={0.9}
+                                  className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
+                                  onPress={() => handleDayPress(day)}
+                                  style={{ opacity: isActive ? 0.9 : 1 }}
+                                >
+                                  <View className="flex-row justify-between items-center">
+                                    <View className="flex-1">
+                                      <Text className="font-medium text-neutral-textPrimary">
+                                        {item.location_name
+                                          ? item.location_name.split(",")[0].trim()
+                                          : "Unknown Location"}
+                                      </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                      onLongPress={drag}
+                                      delayLongPress={120}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      className="ml-3 p-2"
+                                    >
+                                      <Ionicons
+                                        name="reorder-four"
+                                        size={16}
+                                        color={isActive ? "#3B82F6" : "#6B7280"}
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+                                </TouchableOpacity>
+                              )}
+                              onDragEnd={({ data }: any) => {
+                                setLocalDayBlocks((prev) =>
+                                  prev.map((block) =>
+                                    block.dayNumber === day.dayNumber
+                                      ? { ...block, activities: data }
+                                      : block,
+                                  ),
+                                );
+                                onReorderDayActivities?.(day.dayNumber, data);
+                              }}
+                            />
+                          </View>
+                        ) : aiItinerary[day.dayNumber - 1] ? (
+                          <Text className="text-neutral-textPrimary">
+                            {aiItinerary[day.dayNumber - 1]}
+                          </Text>
+                        ) : (
+                          <Text className="text-neutral-textSecondary text-center py-4">
+                            Tap to add activities
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
-            onDragEnd={({ data }) => {
-              const normalized = data.map((day, index) => ({
-                ...day,
-                dayNumber: index + 1,
-                position: index + 1,
-              }));
-              setLocalDayBlocks(normalized);
-              onReorderDays?.(normalized);
-            }}
-          />
+              )}
+              onDragEnd={({ data }: any) => {
+                const normalized = data.map((day: any, index: number) => ({
+                  ...day,
+                  dayNumber: index + 1,
+                  position: index + 1,
+                }));
+                setLocalDayBlocks(normalized);
+                onReorderDays?.(normalized);
+              }}
+            />
+          </View>
         )}
 
         {/* Delete Itinerary Button - moved to bottom */}

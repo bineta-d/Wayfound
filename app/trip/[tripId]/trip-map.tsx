@@ -12,6 +12,7 @@ import { Activity as TripActivity } from "../../../lib/TripService";
 interface TripMapProps {
   activities: TripActivity[];
   onMarkerNavigate: (activity: TripActivity) => void;
+  fullHeight?: boolean;
 }
 
 interface GenerateItineraryProps {
@@ -27,7 +28,8 @@ interface GenerateItineraryProps {
 export default function TripMap(props: TripMapProps & Partial<GenerateItineraryProps>) {
   const {
     activities = [],
-    onMarkerNavigate = () => {},
+    onMarkerNavigate = () => { },
+    fullHeight = false,
     tripId,
     startDate,
     endDate,
@@ -72,7 +74,10 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
   };
 
   return (
-    <View className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface">
+    <View
+      className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface"
+      style={fullHeight ? { flex: 1, marginBottom: 0 } : undefined}
+    >
       <View className="px-4 py-3 border-b border-neutral-divider">
         <Text className="text-neutral-textPrimary font-semibold">Trip Map</Text>
         <Text className="text-neutral-textSecondary text-xs mt-1">
@@ -82,7 +87,7 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
         </Text>
       </View>
 
-      <View style={{ height: 180 }}>
+      <View style={fullHeight ? { flex: 1 } : { height: 180 }}>
         {mapActivities.length === 0 ? (
           <View className="flex-1 items-center justify-center">
             <Text className="text-neutral-textSecondary">

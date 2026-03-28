@@ -9,36 +9,38 @@ import {
   Dimensions,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
   deleteTripActivity,
+  getItineraryDaysForTrip,
   getTripActivitiesForDay,
   getTripActivitiesGroupedByDay,
   getTripById,
   getTripMembers,
-  updateTrip,
+  updateItineraryDayPositions,
   updateTripActivity,
+  updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip, Trip_member } from "../../../lib/types";
 import BudgetScreen from "./budget";
 import CollaboratorsScreen from "./collaborators";
-import EditTripModal from "./edit-trip-modal";
 import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
 import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
+import TripMap from "./trip-map";
 
 export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
   // Reservation tab state for icons
   const [reservationTab, setReservationTab] = useState(0);
-  const [showEditModal, setShowEditModal] = useState(false);
   const { tripId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -79,6 +81,18 @@ export default function TripOverviewScreen() {
     return `${year}-${month}-${day}`;
   };
 
+  useEffect(() => {
+    setTrip(null);
+    setMembers([]);
+    setDayActivities({});
+    setGroupedActivities({});
+    setLoadingActivities({});
+    setCollapsedDays({});
+    setAiItinerary([]);
+    setTargetSpots([]);
+    setItineraryDays([]);
+    setLoading(true);
+  }, [tripId]);
   const handleReorderDays = async (reorderedDays: any[]) => {
     if (!tripId) return;
 
@@ -91,64 +105,25 @@ export default function TripOverviewScreen() {
     setItineraryDays(normalized);
 
     try {
-      // Note: These functions don't exist in TripService yet, so we'll handle locally
-      // await updateItineraryDayPositions(
-      //   normalized
-      //     .filter((d) => Boolean(d.id))
-      //     .map((d) => ({ id: d.id, position: d.position }))
-      // );
+      await updateItineraryDayPositions(
+        normalized
+          .filter((d) => Boolean(d.id))
+          .map((d) => ({ id: d.id, position: d.position }))
+      );
 
-      // const refreshed = await getItineraryDaysForTrip(tripId as string);
-      // setItineraryDays(refreshed);
+      const refreshed = await getItineraryDaysForTrip(tripId as string);
+      setItineraryDays(refreshed);
 
       const grouped = await getTripActivitiesGroupedByDay(tripId as string);
 
       const rebuilt: Record<number, any[]> = {};
-      normalized.forEach((day, index) => {
+      refreshed.forEach((day, index) => {
         rebuilt[index + 1] = grouped[day.day_date] ?? [];
       });
 
       setDayActivities(rebuilt);
     } catch (e) {
       console.log("Error saving reordered days:", e);
-    }
-  };
-
-  const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
-    const originalDayActivities = dayActivities[dayNumber] ?? [];
-    const timeSlots = originalDayActivities.map((item) => ({
-      start_time: item.start_time ?? null,
-      end_time: item.end_time ?? null,
-    }));
-
-    const reorderedWithTimes = reordered.map((item, index) => ({
-      ...item,
-      start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
-      end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
-    }));
-
-    setDayActivities((prev) => ({ ...prev, [dayNumber]: reorderedWithTimes }));
-
-    try {
-      // Note: These functions don't exist in TripService yet, so we'll handle locally
-      // await updateTripActivityPositions(
-      //   reorderedWithTimes.map((item, index) => ({
-      //     id: item.id,
-      //     position: index + 1,
-      //   }))
-      // );
-
-      await Promise.all(
-        reorderedWithTimes.map((item) =>
-          updateTripActivity(item.id, {
-            start_time: item.start_time,
-            end_time: item.end_time,
-          })
-        )
-      );
-    } catch (e) {
-      console.log("Error saving reordered activities:", e);
-      await loadDayActivities(dayNumber);
     }
   };
 
@@ -179,6 +154,43 @@ export default function TripOverviewScreen() {
 
   const handleMarkerNavigate = (a: any) => {
     router.push(`/trip/${tripId}/day-detail?day=1`);
+  };
+
+  const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
+    const originalDayActivities = dayActivities[dayNumber] ?? [];
+    const timeSlots = originalDayActivities.map((item) => ({
+      start_time: item.start_time ?? null,
+      end_time: item.end_time ?? null,
+    }));
+
+    const reorderedWithTimes = reordered.map((item, index) => ({
+      ...item,
+      start_time: timeSlots[index]?.start_time ?? item.start_time ?? null,
+      end_time: timeSlots[index]?.end_time ?? item.end_time ?? null,
+    }));
+
+    setDayActivities((prev) => ({ ...prev, [dayNumber]: reorderedWithTimes }));
+
+    try {
+      await updateTripActivityPositions(
+        reorderedWithTimes.map((item, index) => ({
+          id: item.id,
+          position: index + 1,
+        }))
+      );
+
+      await Promise.all(
+        reorderedWithTimes.map((item) =>
+          updateTripActivity(item.id, {
+            start_time: item.start_time,
+            end_time: item.end_time,
+          })
+        )
+      );
+    } catch (e) {
+      console.log("Error saving reordered activities:", e);
+      await loadDayActivities(dayNumber);
+    }
   };
 
   const loadGroupedActivities = async () => {
@@ -280,19 +292,16 @@ export default function TripOverviewScreen() {
     try {
       const tripData = await getTripById(tripId as string);
       const membersData = await getTripMembers(tripId as string);
-      // Note: getItineraryDaysForTrip doesn't exist in TripService yet
-      // const daysData = await getItineraryDaysForTrip(tripId as string);
+      const daysData = await getItineraryDaysForTrip(tripId as string);
       const grouped = await getTripActivitiesGroupedByDay(tripId as string);
 
       setTrip(tripData);
       setMembers(membersData);
-      // setItineraryDays(daysData);
+      setItineraryDays(daysData);
 
-      // Use generated day headers as fallback
-      const dayHeaders = generateDayHeaders();
       const rebuilt: Record<number, any[]> = {};
-      dayHeaders.forEach((day, index) => {
-        rebuilt[index + 1] = [];
+      daysData.forEach((day, index) => {
+        rebuilt[index + 1] = grouped[day.day_date] ?? [];
       });
       setDayActivities(rebuilt);
     } catch (error) {
@@ -385,35 +394,6 @@ export default function TripOverviewScreen() {
     );
   };
 
-  const handleEditTrip = () => {
-    console.log('📝 Edit trip clicked');
-    setShowEditModal(true);
-  };
-
-  const handleSaveTrip = async (updatedTrip: Partial<Trip>) => {
-    try {
-      console.log('💾 Saving trip updates:', updatedTrip);
-
-      // Update trip in backend
-      const updatedData = await updateTrip(tripId as string, updatedTrip);
-      console.log('✅ Trip updated in backend:', updatedData);
-
-      // Update local state with new trip data
-      if (updatedData && updatedData.length > 0) {
-        setTrip(updatedData[0]);
-      }
-
-      // Close modal
-      setShowEditModal(false);
-
-      // Show success message
-      Alert.alert('Success', 'Trip updated successfully!');
-    } catch (error) {
-      console.error('❌ Error updating trip:', error);
-      Alert.alert('Error', 'Failed to update trip. Please try again.');
-    }
-  };
-
   if (loading) {
     return (
       <>
@@ -432,216 +412,315 @@ export default function TripOverviewScreen() {
     );
   }
 
-  return (
+  const primaryContent = (
     <>
-      {/* Tab Bar */}
-
       {/* Tab Content */}
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        horizontal={false}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Overview Tab */}
-        {activeTab === 0 && (
-          <>
+      {activeTab === 1 ? (
+        <View className="flex-1 bg-gray-50">
+          <View className="bg-white mb-2 flex-1">
             {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
+            <HeaderSection title={trip.title} trip={trip} />
 
-            {/* Tabs Section */}
+            {/* tabs Section */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Reservations Section */}
-            <View className="bg-white px-6 mb-1 pt-4">
-              <ReservationsSection />
-            </View>
-            {/* Generate Itinerary Section */}
-            <View className="bg-white px-6 mb-2">
-              <GenerateItinerary
-                tripId={tripId as string}
-                destination={trip.destination}
-                startDate={trip.start_date}
-                endDate={trip.end_date}
-                duration={Math.ceil(
-                  (new Date(trip.end_date).getTime() -
-                    new Date(trip.start_date).getTime()) /
-                  (1000 * 60 * 60 * 24),
-                )}
-                onItineraryGenerated={setAiItinerary}
-                loading={loadingAI}
-                setLoading={setLoadingAI}
-                activities={Object.values(groupedActivities).flat()}
-                onMarkerNavigate={handleMarkerNavigate}
-              />
-            </View>
-            {/* Target Spots Section */}
-            <View className="bg-white px-6 mb-2">
-              {refreshing ? (
-                <TargetSpotsSkeleton />
-              ) : (
-                <TargetSpots
-                  targetSpots={targetSpots}
-                  onAddSpot={addTargetSpot}
-                  onRemoveSpot={removeTargetSpot}
-                  activities={Object.values(groupedActivities).flat()}
-                  onAssignToDay={handleAssignToDay}
-                  onRemoveActivity={removeActivity}
+            {refreshing ? (
+              <ItinerarySkeleton />
+            ) : (
+              <View className="flex-1">
+                <ItineraryScreen
                   tripId={tripId as string}
-                  tripStartDate={trip?.start_date || ''}
-                  tripEndDate={trip?.end_date || ''}
-                  onRefresh={onRefresh}
+                  startDate={trip.start_date}
+                  destination={trip.destination}
+                  endDate={trip.end_date}
+                  aiItinerary={aiItinerary}
+                  itineraryDays={itineraryDays}
+                  onReorderDays={handleReorderDays}
+                  onToggleDayCollapse={toggleDayCollapse}
+                  onToggleItineraryCollapse={toggleItineraryCollapse}
+                  collapsedDays={collapsedDays}
+                  isItineraryCollapsed={isItineraryCollapsed}
+                  dayActivities={dayActivities}
+                  loadingActivities={loadingActivities}
+                  onReorderDayActivities={handleReorderDayActivities}
                 />
-              )}
-            </View>
-            {/* Collaborators Section */}
-            {refreshing ? <CollaboratorsSkeleton /> : <CollaboratorsScreen members={members} />}
-            {/* Delete Button - Only for trip owners */}
-            {user?.id === trip.owner_id && (
-              <View className="px-6 py-4 mb-8">
-                <TouchableOpacity
-                  onPress={handleDeleteTrip}
-                  className="bg-red-500 px-6 py-3 rounded-lg items-center"
-                >
-                  <Text className="text-white font-semibold">Delete Trip</Text>
-                </TouchableOpacity>
               </View>
             )}
-          </>
-        )}
-        {/* Itinerary Tab */}
-        {activeTab === 1 ? (
-          <View className="flex-1 bg-gray-50">
-            <View className="bg-white mb-2 flex-1">
+          </View>
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1 bg-gray-50"
+          horizontal={false}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={{ paddingBottom: 120 }}
+        >
+          {/* Overview Tab */}
+          {activeTab === 0 && (
+            <>
               {/* Trip Header */}
-              <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
+              <HeaderSection title={trip.title} trip={trip} />
 
-              {/* tabs Section */}
+              {/* Tabs Section */}
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-              {refreshing ? (
-                <ItinerarySkeleton />
-              ) : (
-                <View className="flex-1">
-                  <ItineraryScreen
+              {/* Reservations Section */}
+              <View className="bg-white px-6 mb-1 pt-4">
+                <ReservationsSection />
+              </View>
+              {/* Generate Itinerary Section */}
+              <View className="bg-white px-6 mb-2">
+                {!isMapSheetOpen && (
+                  <GenerateItinerary
                     tripId={tripId as string}
-                    startDate={trip.start_date}
                     destination={trip.destination}
+                    startDate={trip.start_date}
                     endDate={trip.end_date}
-                    aiItinerary={aiItinerary}
-                    itineraryDays={itineraryDays}
-                    onReorderDays={handleReorderDays}
-                    onToggleDayCollapse={toggleDayCollapse}
-                    onToggleItineraryCollapse={toggleItineraryCollapse}
-                    collapsedDays={collapsedDays}
-                    isItineraryCollapsed={isItineraryCollapsed}
-                    dayActivities={dayActivities}
-                    loadingActivities={loadingActivities}
-                    onReorderDayActivities={handleReorderDayActivities}
+                    duration={Math.ceil(
+                      (new Date(`${trip.end_date}T00:00:00`).getTime() -
+                        new Date(`${trip.start_date}T00:00:00`).getTime()) /
+                      (1000 * 60 * 60 * 24),
+                    )}
+                    onItineraryGenerated={setAiItinerary}
+                    loading={loadingAI}
+                    setLoading={setLoadingAI}
+                    activities={allPinnedActivities}
+                    onMarkerNavigate={handleMarkerNavigate}
                   />
+                )}
+              </View>
+              {/* Target Spots Section */}
+              <View className="bg-white px-6 mb-2">
+                {refreshing ? (
+                  <TargetSpotsSkeleton />
+                ) : (
+                  <TargetSpots
+                    targetSpots={targetSpots}
+                    onAddSpot={addTargetSpot}
+                    onRemoveSpot={removeTargetSpot}
+                    activities={allPinnedActivities}
+                    onAssignToDay={handleAssignToDay}
+                    onRemoveActivity={removeActivity}
+                    tripId={tripId as string}
+                    tripStartDate={trip?.start_date || ''}
+                    tripEndDate={trip?.end_date || ''}
+                    onRefresh={onRefresh}
+                  />
+                )}
+              </View>
+              {/* Collaborators Section */}
+              {refreshing ? (
+                <CollaboratorsSkeleton />
+              ) : (
+                <CollaboratorsScreen members={members} />
+              )}
+              {/* Delete Button - Only for trip owners */}
+              {user?.id === trip.owner_id && (
+                <View className="px-6 py-4 mb-8">
+                  <TouchableOpacity
+                    onPress={handleDeleteTrip}
+                    className="bg-red-500 px-6 py-3 rounded-lg items-center"
+                  >
+                    <Text className="text-white font-semibold">Delete Trip</Text>
+                  </TouchableOpacity>
                 </View>
               )}
-            </View>
-          </View>
-        ) : null}
+            </>
+          )}
+          {/* Reservations Tab */}
+          {activeTab === 2 && (
+            <View className="bg-white mb-2">
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} />
 
-        {/* Reservations Tab */}
-        {activeTab === 2 && (
-          <View className="bg-white mb-2">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
+              {/* Tabs Section  */}
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Tabs Section  */}
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-            {/* Reservation Icons Scroll*/}
-            <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
-              {[
-                { label: "Accommodation", icon: "bed" },
-                { label: "Flight", icon: "airplane" },
-                { label: "Train", icon: "train" },
-                { label: "Bus", icon: "bus" },
-                { label: "Car Rental", icon: "car" },
-                { label: "Activities", icon: "ticket" },
-              ].map((tab, idx) => (
-                <TouchableOpacity
-                  key={tab.label}
-                  className="items-center pt-3"
-                  onPress={() => setReservationTab(idx)}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={{
-                      backgroundColor:
-                        reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
-                      borderRadius: 999,
-                      padding: 12,
-                      marginBottom: 4,
-                    }}
+              {/* Reservation Icons Scroll*/}
+              <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
+                {[
+                  { label: "Accommodation", icon: "bed" },
+                  { label: "Flight", icon: "airplane" },
+                  { label: "Train", icon: "train" },
+                  { label: "Bus", icon: "bus" },
+                  { label: "Car Rental", icon: "car" },
+                  { label: "Activities", icon: "ticket" },
+                ].map((tab, idx) => (
+                  <TouchableOpacity
+                    key={tab.label}
+                    className="items-center pt-3"
+                    onPress={() => setReservationTab(idx)}
+                    activeOpacity={0.7}
                   >
-                    <Text>
-                      <Ionicons
-                        name={tab.icon as any}
-                        size={20}
-                        color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
-                      />
+                    <View
+                      style={{
+                        backgroundColor:
+                          reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
+                        borderRadius: 999,
+                        padding: 12,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <Text>
+                        <Ionicons
+                          name={tab.icon as any}
+                          size={20}
+                          color={reservationTab === idx ? "#D81E5B" : "#A1A1AA"}
+                        />
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: reservationTab === idx ? "#D81E5B" : "#6B7280",
+                        fontWeight: reservationTab === idx ? "bold" : "normal",
+                        fontSize: 12,
+                      }}
+                    >
+                      {tab.label}
                     </Text>
-                  </View>
-                  <Text
-                    style={{
-                      color: reservationTab === idx ? "#D81E5B" : "#6B7280",
-                      fontWeight: reservationTab === idx ? "bold" : "normal",
-                      fontSize: 12,
-                    }}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Active tab content: */}
+              <View
+                className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
+                style={{ minHeight: 200 }}
+              >
+                <Text className="text-xl font-bold text-crimsonMagenta text-center">
+                  {
+                    [
+                      "Accommodation Files Page",
+                      "Flights Files Page",
+                      "Train Files Page",
+                      "Bus Files Page",
+                      "Car Rental Files Page",
+                      "Activities Files Page",
+                    ][reservationTab]
+                  }
+                </Text>
+              </View>
             </View>
+          )}
+          {/* Budget Tab */}
+          {activeTab === 3 && (
+            <View className="bg-white mb-2">
+              {/* Trip Header */}
+              <HeaderSection title={trip.title} trip={trip} />
 
-            {/* Active tab content: */}
-            <View
-              className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
-              style={{ minHeight: 200 }}
-            >
-              <Text className="text-xl font-bold text-crimsonMagenta text-center">
-                {
-                  [
-                    "Accommodation Files Page",
-                    "Flights Files Page",
-                    "Train Files Page",
-                    "Bus Files Page",
-                    "Car Rental Files Page",
-                    "Activities Files Page",
-                  ][reservationTab]
-                }
-              </Text>
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+              <BudgetScreen />
             </View>
-          </View>
-        )}
-        {/* Budget Tab */}
-        {activeTab === 3 && (
-          <View className="bg-white mb-2">
-            {/* Trip Header */}
-            <HeaderSection title={trip.title} trip={trip} onEditTrip={handleEditTrip} />
-
-            <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-            <BudgetScreen />
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Edit Trip Modal */}
-      <EditTripModal
-        visible={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleSaveTrip}
-        trip={trip}
-        members={members}
-      />
+          )}
+        </ScrollView>
+      )}
     </>
   );
+
+  return (
+    <View style={styles.root}>
+      <View style={styles.mapLayer} pointerEvents={isMapSheetOpen ? "auto" : "none"}>
+        <View style={[styles.mapSheet, { height: revealedMapHeight }]}>
+          <View style={styles.mapBody}>
+            <TripMap
+              tripId={tripId as string}
+              startDate={trip.start_date}
+              endDate={trip.end_date}
+              destination={trip.destination}
+              activities={allPinnedActivities}
+              onMarkerNavigate={handleMarkerNavigate}
+              fullHeight
+            />
+          </View>
+        </View>
+      </View>
+
+      <Animated.View
+        style={[
+          styles.overlay,
+          {
+            transform: [{ translateY: overlayTranslateY }],
+          },
+        ]}
+      >
+        {primaryContent}
+      </Animated.View>
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={toggleMapSheet}
+        style={styles.floatingMapButton}
+      >
+        <Ionicons
+          name={isMapSheetOpen ? "map-outline" : "map"}
+          size={22}
+          color="#FFFFFF"
+        />
+        <Text style={styles.floatingMapButtonText}>
+          {isMapSheetOpen ? "Close map" : "Open map"}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+  },
+  mapLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-start",
+    backgroundColor: "#F3F4F6",
+  },
+  mapSheet: {
+    marginTop: 0,
+    marginHorizontal: 0,
+    overflow: "hidden",
+    borderRadius: 0,
+  },
+  mapBody: {
+    flex: 1,
+    overflow: "hidden",
+    borderRadius: 0,
+    backgroundColor: "#FFFFFF",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  floatingMapButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#3A1FA8",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+  },
+  floatingMapButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+});
