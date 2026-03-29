@@ -2,6 +2,7 @@ import { deleteItinerary } from "@/lib/itineraryService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, LogBox, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
@@ -381,6 +382,7 @@ export default function ItineraryScreen({
   );
 
   return (
+    <GestureHandlerRootView style={{ flex: 1}}>
     <View className="flex-1">
       <ScrollView
         className="flex-1"
@@ -555,6 +557,7 @@ export default function ItineraryScreen({
             </View>
           </TouchableOpacity>
         )}
+        </ScrollView>
       </View>
     </GestureHandlerRootView>
   );

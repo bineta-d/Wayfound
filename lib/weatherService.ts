@@ -4,20 +4,50 @@ export interface WeatherDay {
   temperature: number;
 }
 
-export async function getWeather(destination: string): Promise<WeatherDay[]> {
-  try {
-    console.log("🌤️ Fetching weather for:", destination);
+function mapWeatherCode(code: number): "sunny" | "rainy" | "cloudy" {
+  if (code === 0) return "sunny";
+  if ([1, 2, 3].includes(code)) return "cloudy";
+  return "rainy";
+}
 
-    // MOCK DATA
-    return [
-      { day: 1, condition: "sunny", temperature: 28 },
-      { day: 2, condition: "rainy", temperature: 22 },
-      { day: 3, condition: "cloudy", temperature: 25 },
-      { day: 4, condition: "sunny", temperature: 30 },
-      { day: 5, condition: "rainy", temperature: 21 },
-    ];
+export async function getWeather(
+  destination: string
+): Promise<WeatherDay[]> {
+  try {
+    console.log("🌤️ Open-Meteo weather for:", destination);
+
+    // Geocoding
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1`
+    );
+
+    const geoData = await geoRes.json();
+
+    if (!geoData.results?.length) {
+      throw new Error("Location not found");
+    }
+
+    const { latitude, longitude } = geoData.results[0];
+
+    // Forecast
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max&timezone=auto`
+    );
+
+    const data = await weatherRes.json();
+
+    // Transform
+    const result: WeatherDay[] = data.daily.time.map(
+      (_: string, index: number) => ({
+        day: index + 1,
+        condition: mapWeatherCode(data.daily.weathercode[index]),
+        temperature: Math.round(data.daily.temperature_2m_max[index]),
+      })
+    );
+
+    return result.slice(0, 5);
   } catch (error) {
-    console.error("Weather error:", error);
+    console.error("❌ weather error:", error);
     return [];
   }
 }

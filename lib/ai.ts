@@ -44,6 +44,7 @@ export async function generateTripPlan(
     // Get weather before calling AI
     const weather  = await getWeather (request.destination);
 
+  
     const context = await buildTripContext(request.tripId);
 
     const { data, error } = await supabase.functions.invoke<TripPlan>(
