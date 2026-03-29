@@ -11,6 +11,7 @@ import {
 } from "react-native-draggable-flatlist";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";
+import Weather from "./Weather";
 
 interface ItineraryProps {
   tripId: string;
@@ -331,21 +332,12 @@ export default function ItineraryScreen({
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* Delete Itinerary Button */}
-      {hasItinerary && (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          className="mb-6 w-full"
-          onPress={handleDeleteItinerary}
-        >
-          <View className="bg-red-500 px-4 py-3 rounded-lg items-center flex-row justify-center">
-            <MaterialIcons name="delete" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">
-              Delete Itinerary
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
+      {/* Weather Forecast */}
+      <Weather
+        destination={destination}
+        startDate={startDate}
+        endDate={endDate}
+      />
 
       <TouchableOpacity
         onPress={onToggleItineraryCollapse}
@@ -546,7 +538,23 @@ export default function ItineraryScreen({
             />
           </View>
         )}
+
+        {/* Delete Itinerary Button - moved to bottom */}
+        {hasItinerary && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            className="mb-6 w-full"
+            onPress={handleDeleteItinerary}
+          >
+            <View className="bg-red-500 px-4 py-3 rounded-lg items-center flex-row justify-center">
+              <MaterialIcons name="delete" size={20} color="white" />
+              <Text className="text-white font-semibold ml-2">
+                Delete Itinerary
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
-    </NestableScrollContainer>
+    </GestureHandlerRootView>
   );
 }
