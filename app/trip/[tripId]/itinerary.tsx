@@ -555,7 +555,7 @@ export default function ItineraryScreen({
             </View>
           </TouchableOpacity>
         )}
-      </View>
-    </GestureHandlerRootView>
+      </ScrollView>
+    </View>
   );
 }

@@ -246,17 +246,17 @@ export default function WeatherDetail() {
       }
 
       // Calculate rain chance (average precipitation probability)
-      const rainChance = Math.round(Array.from(hourlyPrecipProb).reduce((sum, prob) => sum + prob, 0) / hourlyPrecipProb.length);
+      const rainChance = Math.round(Array.from(hourlyPrecipProb).reduce((sum: number, prob: any) => sum + (prob as number), 0) / hourlyPrecipProb.length);
 
       // Calculate wind speed (average) - convert from km/h to mph
-      const windSpeedKmh = Math.round(Array.from(hourlyWindSpeed).reduce((sum, speed) => sum + speed, 0) / hourlyWindSpeed.length);
+      const windSpeedKmh = Math.round(Array.from(hourlyWindSpeed).reduce((sum: number, speed: any) => sum + (speed as number), 0) / hourlyWindSpeed.length);
       const windSpeed = Math.round(windSpeedKmh * 0.621371); // Convert km/h to mph
 
       // Calculate humidity (average)
-      const humidity = Math.round(Array.from(hourlyHumidity).reduce((sum, hum) => sum + hum, 0) / hourlyHumidity.length);
+      const humidity = Math.round(Array.from(hourlyHumidity).reduce((sum: number, hum: any) => sum + (hum as number), 0) / hourlyHumidity.length);
 
-      // Calculate feels like (average)
-      const feelsLike = Math.round(Array.from(hourlyFeelsLike).reduce((sum, feel) => sum + feel, 0) / hourlyFeelsLike.length);
+      // Calculate "feels like" temperature (average)
+      const feelsLike = Math.round(Array.from(hourlyFeelsLike).reduce((sum: number, feel: any) => sum + (feel as number), 0) / hourlyFeelsLike.length);
 
       const detailData: WeatherDetailProps = {
         day: weatherInfo.day,
@@ -395,8 +395,8 @@ export default function WeatherDetail() {
                           {weatherData.hourlyData?.map((hour, index) => {
                             if (index === 0) return null;
 
-                            const prevHour = weatherData.hourlyData[index - 1];
-                            const prevTempPosition = ((prevHour.temp - minTemp) / tempRange) * 80;
+                            const prevHour = weatherData.hourlyData?.[index - 1];
+                            const prevTempPosition = prevHour ? ((prevHour.temp - minTemp) / tempRange) * 80 : 0;
                             const currTempPosition = ((hour.temp - minTemp) / tempRange) * 80;
 
                             const prevLeft = 10 + ((index - 1) * 10);
