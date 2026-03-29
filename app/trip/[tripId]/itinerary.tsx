@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   NestableDraggableFlatList,
   NestableScrollContainer,
@@ -356,10 +357,11 @@ export default function ItineraryScreen({
   );
 
   return (
-    <NestableScrollContainer
-      className="flex-1"
-      contentContainerStyle={{ paddingBottom: 24 }}
-    >
+    <GestureHandlerRootView>
+      <NestableScrollContainer
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
       <View className="mb-0 px-6" collapsable={false}>
         {listHeader}
 
@@ -555,6 +557,7 @@ export default function ItineraryScreen({
           </TouchableOpacity>
         )}
       </View>
+    </NestableScrollContainer>
     </GestureHandlerRootView>
   );
 }
