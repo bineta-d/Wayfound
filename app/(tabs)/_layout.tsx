@@ -1,6 +1,8 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import React from 'react';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import { Link, Tabs, router } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 function TabBarIcon(props: {
@@ -10,7 +12,118 @@ function TabBarIcon(props: {
   return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
 }
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+const notificationStore = globalThis as typeof globalThis & {
+  __wayfoundNotifications?: Array<{
+    id: string;
+    title: string;
+    body: string;
+    tripId: string;
+    createdAt: string;
+  }>;
+};
+
+async function registerForPushNotificationsAsync() {
+  if (!Device.isDevice) {
+    console.log('Push notifications require a physical device');
+    return;
+  }
+  
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    console.log('Push notification permission not granted');
+    return;
+  }
+
+  try {
+    const token = await Notifications.getExpoPushTokenAsync();
+    console.log('Expo push token:', token.data);
+  } catch (error) {
+    console.log('Error getting Expo push token:', error);
+  }
+}
+
+function saveIncomingNotification(content: Notifications.NotificationContent) {
+  const title = typeof content.title === 'string' ? content.title : 'New notification';
+  const body = typeof content.body === 'string' ? content.body : 'You have a new update.';
+  const tripId = typeof content.data?.tripId === 'string' ? content.data.tripId : '';
+
+  if (!tripId) return;
+
+  const newNotification = {
+    id: `${Date.now()}`,
+    title,
+    body,
+    tripId,
+    createdAt: new Date().toISOString(),
+  };
+
+  const existing = notificationStore.__wayfoundNotifications ?? [];
+  notificationStore.__wayfoundNotifications = [newNotification, ...existing];
+}
+
 export default function TabLayout() {
+  const receivedListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+
+    // TEMP: local test notification (uncomment to test notifications flow)
+    // const setupTestNotification = async () => {
+    //   await registerForPushNotificationsAsync();
+
+    //   await Notifications.scheduleNotificationAsync({
+    //     content: {
+    //       title: 'Test Notification',
+    //       body: 'This should open a trip 👀',
+    //       data: { tripId: '92e04d25-9a6b-4386-9ffc-641cf7eec790' },
+    //     },
+    //     trigger: {
+    //       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+    //       seconds: 2,
+    //     },
+    //   });
+    // };
+
+    // setupTestNotification();
+
+    receivedListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      saveIncomingNotification(notification.request.content);
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const content = response.notification.request.content;
+      saveIncomingNotification(content);
+
+      const tripId = typeof content.data?.tripId === 'string' ? content.data.tripId : '';
+      if (tripId) {
+        router.push(`/trip/${tripId}`);
+      }
+    });
+
+    return () => {
+      receivedListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
