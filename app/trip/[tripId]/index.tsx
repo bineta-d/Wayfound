@@ -68,7 +68,7 @@ export default function TripOverviewScreen() {
   const [isMapSheetOpen, setIsMapSheetOpen] = useState(false);
   const mapReveal = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get("window").height;
-  const revealedMapHeight = screenHeight * 0.58;
+  const revealedMapHeight = screenHeight * 0.9;
   const overlayTranslateY = mapReveal.interpolate({
     inputRange: [0, 1],
     outputRange: [0, revealedMapHeight],

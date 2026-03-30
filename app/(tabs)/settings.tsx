@@ -156,31 +156,31 @@ export default function SettingsScreen() {
     ];
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <SafeAreaView className="flex-1 bg-neutral-background">
             {/* Header with user profile */}
-            <View className="bg-white px-6 pt-12 pb-6">
+            <View className="bg-neutral-surface px-6 pt-12 pb-6">
                 <View className="items-center">
                     {/* Avatar */}
-                    <View className="w-20 h-20 bg-gray-200 rounded-full items-center justify-center mb-3">
+                    <View className="w-20 h-20 bg-neutral-divider rounded-full items-center justify-center mb-3">
                         {userProfile?.avatar_url ? (
                             <Image
                                 source={{ uri: userProfile.avatar_url }}
                                 className="w-20 h-20 rounded-full"
                             />
                         ) : (
-                            <Ionicons name="person" size={40} color="#9CA3AF" />
+                            <Ionicons name="person" size={40} color="#67717B" />
                         )}
                     </View>
 
                     {/* User email */}
-                    <Text className="text-lg text-gray-800 mb-3">
+                    <Text className="text-lg text-neutral-textPrimary mb-3">
                         {user?.email || 'Loading...'}
                     </Text>
 
                     {/* Edit Profile Button */}
                     <TouchableOpacity
                         onPress={handleEditProfile}
-                        className="bg-blue-500 px-6 py-2 rounded-lg"
+                        className="bg-primary-midnightIndigo px-6 py-2 rounded-lg"
                     >
                         <Text className="text-white font-medium">Edit Profile</Text>
                     </TouchableOpacity>
@@ -188,18 +188,18 @@ export default function SettingsScreen() {
             </View>
 
             {/* Settings List */}
-            <View className="bg-white mt-2">
+            <View className="bg-neutral-surface mt-2">
                 {settingsItems.map((item, index) => (
                     <TouchableOpacity
                         key={index}
                         onPress={item.onPress}
-                        className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100"
+                        className="flex-row items-center justify-between px-6 py-4 border-b border-neutral-divider"
                     >
                         <View className="flex-row items-center">
-                            <Ionicons name={item.icon as any} size={24} color="#4B5563" />
-                            <Text className="ml-3 text-base text-gray-800">{item.label}</Text>
+                            <Ionicons name={item.icon as any} size={24} color="#67717B" />
+                            <Text className="ml-3 text-base text-neutral-textPrimary">{item.label}</Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                        <Ionicons name="chevron-forward" size={20} color="#67717B" />
                     </TouchableOpacity>
                 ))}
             </View>
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
             <View className="px-6 mt-6">
                 <TouchableOpacity
                     onPress={handleLogout}
-                    className="bg-red-500 py-3 rounded-lg items-center mb-3"
+                    className="bg-primary-royalPurple py-3 rounded-lg items-center mb-3"
                 >
                     <Text className="text-white font-semibold text-base">Log Out</Text>
                 </TouchableOpacity>
@@ -216,7 +216,7 @@ export default function SettingsScreen() {
                 {/* Delete Account Button */}
                 <TouchableOpacity
                     onPress={handleDeleteAccount}
-                    className="bg-gray-800 py-3 rounded-lg items-center"
+                    className="bg-accent-crimsonMagenta py-3 rounded-lg items-center"
                 >
                     <Text className="text-white font-semibold text-base">Delete Account</Text>
                 </TouchableOpacity>

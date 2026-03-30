@@ -48,7 +48,7 @@ export default function HomeScreen() {
     return (
       <>
         <Stack.Screen options={{ title: "Home", headerShown: true }} />
-        <View className="flex-1 bg-white px-6 py-6">
+        <View className="flex-1 bg-neutral-background px-6 py-6">
           <TripCardSkeleton />
           <TripCardSkeleton />
           <TripCardSkeleton />
@@ -61,23 +61,26 @@ export default function HomeScreen() {
     <>
       <Stack.Screen options={{ title: "Home", headerShown: true }} />
       <ScrollView
-        className="flex-1 bg-gray-50"
+        className="flex-1 bg-neutral-background"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View className="bg-white px-6 pt-12 pb-6">
-          <Text className="text-2xl font-bold text-gray-800">Your Trips</Text>
-          <Text className="text-gray-600 mt-2">Manage your travel plans</Text>
+        <View className="px-6 pt-12 pb-6 bg-neutral-background">
+          <View className="mb-3">
+            <Text className="text-2xl font-bold text-primary-midnightIndigo">Your Trips</Text>
+            <View className="h-1 w-12 bg-accent-hotCoral mt-1 rounded-full" />
+          </View>
+          <Text className="text-neutral-textSecondary mt-1">Manage your travel plans</Text>
         </View>
 
         <View className="px-6 py-4">
           {trips.length === 0 ? (
-            <View className="bg-white rounded-lg p-6 items-center">
-              <Text className="text-gray-500 text-center mb-4">No trips yet</Text>
+            <View className="bg-neutral-surface rounded-lg p-6 items-center">
+              <Text className="text-neutral-textSecondary text-center mb-4">No trips yet</Text>
               <TouchableOpacity
                 onPress={() => router.push('/(tabs)/create')}
-                className="bg-blue-500 px-6 py-3 rounded-lg"
+                className="bg-primary-royalPurple px-6 py-3 rounded-lg"
               >
                 <Text className="text-white font-semibold">Create Your First Trip</Text>
               </TouchableOpacity>

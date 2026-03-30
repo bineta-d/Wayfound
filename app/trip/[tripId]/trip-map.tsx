@@ -158,7 +158,7 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
               style={{
                 position: "absolute",
                 right: 16,
-                bottom: 16,
+                top: 16,
                 zIndex: 20,
                 elevation: 20,
               }}
