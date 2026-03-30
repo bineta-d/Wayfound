@@ -128,7 +128,7 @@ export default function TabLayout() {
       });
     };
 
-    // setupTestNotification();
+    setupTestNotification();
 
     receivedListener.current = Notifications.addNotificationReceivedListener((notification) => {
       void saveIncomingNotification(notification.request.content);
