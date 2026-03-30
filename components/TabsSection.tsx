@@ -10,14 +10,17 @@ export default function TabsSection({
   setActiveTab,
 }: TabsSectionProps) {
   return (
-    <View className="flex-row bg-white px-6 pt-4 pb-2 border-b border-gray-200">
+    <View className="flex-row bg-white px-4 pt-4 pb-2 border-b border-gray-200">
       {["Overview", "Itinerary", "Reservations", "Budget"].map((tab, idx) => (
         <TouchableOpacity
           key={tab}
           onPress={() => setActiveTab(idx)}
-          style={{ flex: 1 }}
+          style={{ width: "25%", alignItems: "center", justifyContent: "center" }}
         >
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={{ width: "100%" }}
             className={`text-center font-semibold pb-2 ${activeTab === idx ? "text-[#D81E5B] border-b-2 border-[#D81E5B]" : "text-gray-500"}`}
           >
             {tab}
