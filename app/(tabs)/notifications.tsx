@@ -40,8 +40,11 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background px-5 pt-16">
-      <Text className="text-xl font-semibold mb-4">Notifications</Text>
+    <View className="flex-1 bg-background px-6 pt-24">
+      <View className="mb-3">
+        <Text className="text-2xl font-bold text-primary-midnightIndigo">Notifications</Text>
+        <View className="h-1 w-12 bg-accent-hotCoral mt-1 rounded-full" />
+      </View>
 
       <FlatList
         data={notifications}
@@ -66,7 +69,7 @@ export default function NotificationsScreen() {
               activeOpacity={0.85}
             >
               <View className="flex-row justify-between items-start mb-2">
-                <Text className="font-semibold text-[17px] text-textPrimary flex-1 pr-3">
+                <Text className="font-semibold text-[16px] text-primary-royalPurple flex-1 pr-3">
                   {item.title}
                 </Text>
                 <Text className="text-[11px] text-textSecondary">

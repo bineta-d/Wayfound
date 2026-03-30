@@ -45,7 +45,7 @@ export default function CollaborateScreen() {
         return (
             <>
                 <Stack.Screen options={{ title: "Collaborate", headerShown: true }} />
-                <View className="flex-1 bg-white px-6 py-6">
+                <View className="flex-1 bg-neutral-background px-6 py-6">
                     <TripCardSkeleton />
                     <TripCardSkeleton />
                     <TripCardSkeleton />
@@ -57,10 +57,13 @@ export default function CollaborateScreen() {
     return (
         <>
             <Stack.Screen options={{ title: "Collaborate", headerShown: true }} />
-            <ScrollView className="flex-1 bg-gray-50">
-                <View className="bg-white px-6 pt-12 pb-6">
-                    <Text className="text-2xl font-bold text-gray-800">Shared Trips</Text>
-                    <Text className="text-gray-600 mt-2">Trips shared with you</Text>
+            <ScrollView className="flex-1 bg-neutral-background">
+                <View className="px-6 pt-12 pb-6 bg-neutral-background">
+                    <View className="mb-3">
+                        <Text className="text-2xl font-bold text-primary-midnightIndigo">Shared Trips</Text>
+                        <View className="h-1 w-12 bg-accent-hotCoral mt-1 rounded-full" />
+                    </View>
+                    <Text className="text-neutral-textSecondary mt-1">Trips shared with you</Text>
                 </View>
 
                 <View className="px-6 py-4">
@@ -74,9 +77,9 @@ export default function CollaborateScreen() {
                                 console.log('🔍 Collaborate Render: Showing No shared trips message');
                                 return null;
                             })()}
-                            <View className="bg-white rounded-lg p-6 items-center">
-                                <Text className="text-gray-500 text-center mb-4">No shared trips yet</Text>
-                                <Text className="text-gray-400 text-center text-sm">
+                            <View className="bg-neutral-surface rounded-lg p-6 items-center">
+                                <Text className="text-neutral-textSecondary text-center mb-4">No shared trips yet</Text>
+                                <Text className="text-neutral-textSecondary text-center text-sm">
                                     When someone adds you to a trip, it will appear here
                                 </Text>
                             </View>

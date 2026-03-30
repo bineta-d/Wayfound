@@ -1,10 +1,12 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Link, Tabs, router } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { COLORS } from '../../lib/colors';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -150,7 +152,8 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
+        tabBarActiveTintColor: COLORS.primary.electricViolet,
+        tabBarInactiveTintColor: COLORS.neutral.textSecondary,
         headerShown: false,
       }}>
       <Tabs.Screen
@@ -163,12 +166,12 @@ export default function TabLayout() {
               <Link href="/notifications" asChild>
                 <Pressable>
                   {({ pressed }) => (
-                    <FontAwesome
-                      name="bell"
-                      size={23}
-                      color="#000"
-                      style={{ marginRight: 14, opacity: pressed ? 0.5 : 1 }}
-                    />
+                  <FontAwesome
+                    name="bell"
+                    size={23}
+                    color={COLORS.neutral.textPrimary}
+                    style={{ marginRight: 14, opacity: pressed ? 0.5 : 1 }}
+                  />
                   )}
                 </Pressable>
               </Link>
@@ -176,12 +179,12 @@ export default function TabLayout() {
               <Link href="/modal/add-activity" asChild>
                 <Pressable>
                   {({ pressed }) => (
-                    <FontAwesome
-                      name="info-circle"
-                      size={25}
-                      color="#000"
-                      style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                    />
+                  <FontAwesome
+                    name="info-circle"
+                    size={25}
+                    color={COLORS.neutral.textPrimary}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
                   )}
                 </Pressable>
               </Link>
@@ -200,10 +203,20 @@ export default function TabLayout() {
         name="create"
         options={{
           title: '',
-          tabBarIcon: ({ color }) => (
-            <View style={[styles.createTabIcon, { backgroundColor: color }]}>
+          tabBarIcon: () => (
+            <LinearGradient
+              colors={[
+                COLORS.primary.electricViolet,
+                COLORS.primary.electricViolet,
+                COLORS.accent.hotCoral,
+              ]}
+              locations={[0, 0.3, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.createTabIcon}
+            >
               <FontAwesome name="plus" size={20} color="white" />
-            </View>
+            </LinearGradient>
           ),
           tabBarLabel: () => null,
         }}
@@ -244,5 +257,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
+    shadowColor: COLORS.primary.royalPurple,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
 });
