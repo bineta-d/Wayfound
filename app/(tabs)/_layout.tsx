@@ -128,7 +128,8 @@ export default function TabLayout() {
       });
     };
 
-    setupTestNotification();
+    // Comment this out after testing to avoid spamming yourself with notifications every time you reload the app
+    //setupTestNotification();
 
     receivedListener.current = Notifications.addNotificationReceivedListener((notification) => {
       void saveIncomingNotification(notification.request.content);
@@ -169,7 +170,7 @@ export default function TabLayout() {
                   <FontAwesome
                     name="bell"
                     size={23}
-                    color={COLORS.neutral.textPrimary}
+                    color={COLORS.primary.royalPurple}
                     style={{ marginRight: 14, opacity: pressed ? 0.5 : 1 }}
                   />
                   )}
@@ -182,7 +183,7 @@ export default function TabLayout() {
                   <FontAwesome
                     name="info-circle"
                     size={25}
-                    color={COLORS.neutral.textPrimary}
+                    color={COLORS.primary.royalPurple}
                     style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                   )}
