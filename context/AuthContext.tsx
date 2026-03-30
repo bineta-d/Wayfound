@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import { uploadProfilePicture } from '../lib/storage';
+import { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { uploadProfilePicture } from '../lib/storage';
+import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -29,14 +29,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleDeepLink = async (url: string) => {
       console.log('🔍 AuthContext: Handling deep link:', url);
       const { params } = Linking.parse(url as string);
-      const { access_token, refresh_token } = params;
 
-      if (access_token && refresh_token) {
-        console.log('🔍 AuthContext: Found tokens in deep link, setting session');
-        await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
+      // Check if params exists and has the tokens
+      if (params && typeof params === 'object') {
+        const access_token = (params as any).access_token;
+        const refresh_token = (params as any).refresh_token;
+
+        if (access_token && refresh_token) {
+          console.log('🔍 AuthContext: Found tokens in deep link, setting session');
+          await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+        }
       }
     };
 

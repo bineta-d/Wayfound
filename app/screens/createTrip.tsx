@@ -84,6 +84,15 @@ export default function CreateTripScreen() {
       return;
     }
 
+    console.log("🔍 Creating trip with user ID:", user.id);
+    console.log("🔍 User email:", user.email);
+    console.log("🔍 Trip data:", {
+      title: formData.title,
+      destination: formData.destination,
+      start_date: formData.start_date,
+      end_date: formData.end_date
+    });
+
     if (
       !formData.title ||
       !formData.destination ||
@@ -114,9 +123,24 @@ export default function CreateTripScreen() {
 
       Alert.alert("Success", "Trip created successfully");
       router.push("/(tabs)/home");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating trip:", error);
-      Alert.alert("Error", "Failed to create trip");
+      console.error("Error details:", {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint
+      });
+
+      // Show more specific error message for RLS issues
+      if (error?.code === "42501") {
+        Alert.alert(
+          "Permission Error",
+          "You don't have permission to create trips. Please make sure you're properly logged in or contact support."
+        );
+      } else {
+        Alert.alert("Error", `Failed to create trip: ${error?.message || "Unknown error"}`);
+      }
     } finally {
       setLoading(false);
     }
