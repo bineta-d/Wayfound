@@ -32,24 +32,43 @@ export default function ExploreScreen() {
 
   const getCountryFlag = (countryCode: string) => {
     const flagMap: Record<string, string> = {
-      'FR': '🇫🇷',
-      'BE': '🇧🇪',
-      'GR': '🇬🇷',
-      'US': '🇺🇸',
-      'JP': '🇯🇵',
-      'IT': '🇮🇹',
-      'ES': '🇪🇸',
-      'NL': '🇳🇱',
-      'TH': '🇹🇭',
-      'SG': '🇸🇬',
-      'AE': '🇦🇪',
-      'ZA': '🇿🇦',
-      'MA': '🇲🇦',
-      'AR': '🇦🇷',
-      'BR': '🇧🇷',
-      'AU': '🇦🇺',
-      'NZ': '🇳🇿',
-      'GB': '🇬🇧',
+      'FR': '🇫🇷',      // France
+      'BE': '🇧🇪',      // Belgium  
+      'GR': '🇬🇷',      // Greece
+      'US': '🇺🇸',      // United States
+      'JP': '🇯🇵',      // Japan
+      'IT': '🇮🇹',      // Italy
+      'ES': '🇪🇸',      // Spain
+      'NL': '🇳🇱',      // Netherlands
+      'GB': '🇬🇧',      // United Kingdom
+      'UK': '🇬🇧',      // United Kingdom
+      'TH': '🇹🇭',      // Thailand
+      'SG': '🇸🇬',      // Singapore
+      'AE': '🇦🇪',      // UAE
+      'ZA': '🇿🇦',      // South Africa
+      'AU': '🇦🇺',      // Australia
+      'IN': '🇮🇳',      // India
+      'BR': '🇧🇷',      // Brazil
+      'EG': '��',      // Egypt
+      'TR': '�🇷',      // Turkey
+      'KR': '�🇷',      // South Korea
+      'MX': '🇲🇽',      // Mexico
+      'PT': '🇵🇹',      // Portugal
+      'AT': '🇦🇹',      // Austria
+      'CZ': '🇨🇿',      // Czech Republic
+      'HU': '🇭🇺',      // Hungary
+      'RU': '�🇺',      // Russia
+      'SE': '🇸🇪',      // Sweden
+      'NO': '🇳🇴',      // Norway
+      'FI': '�🇮',      // Finland
+      'PL': '🇵🇱',      // Poland
+      'DE': '🇩🇪',      // Germany
+      'CN': '🇨🇳',      // China
+      'ID': '🇮🇩',      // Indonesia
+      'PH': '🇵🇭',      // Philippines
+      'MY': '🇲🇾',      // Malaysia
+      'AR': '��',      // Argentina
+      'PE': '🇵🇪'       // Peru
     };
     return flagMap[countryCode] || '🌍';
   };
@@ -169,32 +188,32 @@ export default function ExploreScreen() {
       'United Kingdom': 'GB',
       'UK': 'GB'
     };
-    return countryMap[country] || '🌍';
+    return countryMap[country] || 'GB';
   };
 
   const groupByContinent = (destinations: Destination[]): ContinentSection[] => {
     const continentMap: Record<string, string[]> = {
       'Europe': ['France', 'Belgium', 'Greece', 'Italy', 'Spain', 'Netherlands', 'United Kingdom', 'UK'],
-      'Asia': ['Japan', 'Thailand', 'Singapore', 'United Arab Emirates', 'UAE'],
-      'Africa': ['South Africa', 'Morocco'],
-      'South America': ['Argentina', 'Brazil'],
-      'Oceania': ['Australia', 'New Zealand']
     };
 
     const groups: Record<string, Destination[]> = {};
 
-    destinations.forEach(destination => {
+    destinations.forEach((destination: Destination) => {
       for (const [continent, countries] of Object.entries(continentMap)) {
         if (countries.includes(destination.country)) {
           if (!groups[continent]) {
             groups[continent] = [];
-          }
+          };
           groups[continent].push(destination);
           break;
         }
       }
     });
 
+    return Object.entries(groups).map(([continent, destinationList]) => ({
+      title: continent,
+      destinations: destinationList
+    }));
   };
 
   const handleDestinationPress = (destination: Destination) => {
@@ -242,6 +261,41 @@ export default function ExploreScreen() {
                 </View>
               ))}
             </ScrollView>
+          </View>
+
+          {/* Discover Section Skeleton */}
+          <View className="mb-6">
+            <Skeleton height={24} width={100} className="px-6 mb-4" />
+
+            {/* Three rows of skeletons */}
+            {[1, 2, 3, 4].map((rowIndex) => (
+              <View key={rowIndex} className="mb-4">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingLeft: 24, paddingRight: 20 }}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+                    <View key={`${rowIndex}-${index}`} className="mr-4">
+                      <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                        <Skeleton height={96} width={160} />
+                        <View className="p-3">
+                          <Skeleton height={16} width={120} />
+                          <View className="flex-row items-center mt-1">
+                            <Skeleton height={16} width={20} />
+                            <Skeleton height={12} width={80} className="ml-1" />
+                          </View>
+                          <View className="flex-row items-center mt-1">
+                            <Skeleton height={12} width={12} />
+                            <Skeleton height={12} width={40} className="ml-1" />
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
           </View>
 
           {/* Discover Section Skeleton */}
