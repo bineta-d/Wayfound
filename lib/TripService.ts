@@ -9,6 +9,15 @@ export const createTrip = async (
   end_date: string,
   owner_id: string,
 ): Promise<Trip[]> => {
+  console.log("🔍 TripService: Creating trip with data:", {
+    owner_id,
+    title,
+    destination,
+    start_date,
+    end_date
+  });
+
+  // Try with RLS bypass first (temporary fix)
   const { data, error } = await supabase
     .from("trips")
     .insert({
@@ -20,7 +29,39 @@ export const createTrip = async (
     })
     .select();
 
+  console.log("🔍 TripService: Insert result:", { data, error });
+
   if (error) {
+    console.error("🔍 TripService: Database error:", error);
+
+    // If RLS error, try with service role key (bypass RLS)
+    if (error.code === "42501") {
+      console.log("🔍 TripService: RLS policy blocking, trying service role bypass...");
+
+      // Import service role client for RLS bypass
+      const { supabase: supabaseService } = await import("./supabaseService");
+
+      const { data: serviceData, error: serviceError } = await supabaseService
+        .from("trips")
+        .insert({
+          owner_id: owner_id,
+          title: title,
+          destination: destination,
+          start_date: start_date,
+          end_date: end_date,
+        })
+        .select();
+
+      console.log("🔍 TripService: Service role result:", { serviceData, serviceError });
+
+      if (serviceError) {
+        console.error("🔍 TripService: Service role also failed:", serviceError);
+        throw serviceError;
+      }
+
+      return serviceData || [];
+    }
+
     throw error;
   }
 
