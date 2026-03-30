@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { Link, Tabs, router } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -59,7 +60,7 @@ async function registerForPushNotificationsAsync() {
   }
 }
 
-function saveIncomingNotification(content: Notifications.NotificationContent) {
+async function saveIncomingNotification(content: Notifications.NotificationContent) {
   const title = typeof content.title === 'string' ? content.title : 'New notification';
   const body = typeof content.body === 'string' ? content.body : 'You have a new update.';
   const tripId = typeof content.data?.tripId === 'string' ? content.data.tripId : '';
@@ -76,6 +77,29 @@ function saveIncomingNotification(content: Notifications.NotificationContent) {
 
   const existing = notificationStore.__wayfoundNotifications ?? [];
   notificationStore.__wayfoundNotifications = [newNotification, ...existing];
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    console.log('Could not get user for notification save:', userError?.message ?? 'No user');
+    return;
+  }
+
+  const { error: insertError } = await supabase.from('notifications').insert({
+    user_id: user.id,
+    title,
+    body,
+    trip_id: tripId,
+  });
+
+  if (insertError) {
+    console.log('Error saving notification to Supabase:', insertError.message);
+  } else {
+    console.log('Notification saved to Supabase');
+  }
 }
 
 export default function TabLayout() {
@@ -85,32 +109,31 @@ export default function TabLayout() {
   useEffect(() => {
     registerForPushNotificationsAsync();
 
-    // TEMP: local test notification (uncomment to test notifications flow)
-    // const setupTestNotification = async () => {
-    //   await registerForPushNotificationsAsync();
+    // TEMP: local test notification
+    const setupTestNotification = async () => {
+      await registerForPushNotificationsAsync();
 
-    //   await Notifications.scheduleNotificationAsync({
-    //     content: {
-    //       title: 'Test Notification',
-    //       body: 'This should open a trip 👀',
-    //       data: { tripId: '92e04d25-9a6b-4386-9ffc-641cf7eec790' },
-    //     },
-    //     trigger: {
-    //       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-    //       seconds: 2,
-    //     },
-    //   });
-    // };
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Notification',
+          body: 'This should open a trip 👀',
+          data: { tripId: '92e04d25-9a6b-4386-9ffc-641cf7eec790' },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 2,
+        },
+      });
+    };
 
     // setupTestNotification();
 
     receivedListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      saveIncomingNotification(notification.request.content);
+      void saveIncomingNotification(notification.request.content);
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const content = response.notification.request.content;
-      saveIncomingNotification(content);
 
       const tripId = typeof content.data?.tripId === 'string' ? content.data.tripId : '';
       if (tripId) {
