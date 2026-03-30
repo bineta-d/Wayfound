@@ -40,11 +40,11 @@ class GooglePlacesService {
   async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number): Promise<Place[]> {
     try {
       let url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_API_KEY}`;
-      
+
       if (location) {
         url += `&location=${location.lat},${location.lng}`;
       }
-      
+
       if (radius) {
         url += `&radius=${radius}`;
       }
@@ -65,14 +65,44 @@ class GooglePlacesService {
 
   async getPopularDestinations(): Promise<Place[]> {
     try {
-      // Search for popular destinations in different regions
+      // Search for specific major cities and capitals worldwide
       const queries = [
-        'popular tourist destinations Europe',
-        'popular tourist destinations Asia',
-        'popular tourist destinations North America',
-        'popular tourist destinations South America',
-        'popular tourist destinations Africa',
-        'popular tourist destinations Oceania'
+        'London United Kingdom',
+        'Tokyo Japan',
+        'Paris France',
+        'Rome Italy',
+        'Barcelona Spain',
+        'Amsterdam Netherlands',
+        'Berlin Germany',
+        'Vienna Austria',
+        'Prague Czech Republic',
+        'Budapest Hungary',
+        'Athens Greece',
+        'Moscow Russia',
+        'Madrid Spain',
+        'Lisbon Portugal',
+        'Stockholm Sweden',
+        'Oslo Norway',
+        'Helsinki Finland',
+        'Warsaw Poland',
+        'Bangkok Thailand',
+        'Singapore',
+        'Dubai UAE',
+        'Seoul South Korea',
+        'Beijing China',
+        'Jakarta Indonesia',
+        'Manila Philippines',
+        'Bangalore India',
+        'Kuala Lumpur Malaysia',
+        'Mumbai India',
+        'Istanbul Turkey',
+        'Sydney Australia',
+        'Cape Town South Africa',
+        'Cairo Egypt',
+        'Rio de Janeiro Brazil',
+        'Buenos Aires Argentina',
+        'Mexico City Mexico',
+        'Lima Peru'
       ];
 
       const allResults: Place[] = [];
@@ -80,7 +110,7 @@ class GooglePlacesService {
       for (const query of queries) {
         try {
           const results = await this.searchPlaces(query);
-          allResults.push(...results.slice(0, 3)); // Take top 3 from each region
+          allResults.push(...results.slice(0, 1)); // Take top 1 for each city
         } catch (error) {
           console.error(`Error fetching destinations for ${query}:`, error);
         }
@@ -91,7 +121,7 @@ class GooglePlacesService {
         index === self.findIndex((p) => p.place_id === place.place_id)
       );
 
-      return uniqueResults.slice(0, 20); // Return max 20 destinations
+      return uniqueResults.slice(0, 35); // Return max 35 destinations
     } catch (error) {
       console.error('Error getting popular destinations:', error);
       throw error;
@@ -101,7 +131,7 @@ class GooglePlacesService {
   async getPlaceDetails(placeId: string): Promise<Place | null> {
     try {
       const url = `${this.baseUrl}/details/json?place_id=${placeId}&key=${GOOGLE_API_KEY}`;
-      
+
       const response = await fetch(url);
       const data: PlaceDetailsResponse = await response.json();
 
