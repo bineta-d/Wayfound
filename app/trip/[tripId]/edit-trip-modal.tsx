@@ -54,7 +54,7 @@ const DatePicker = ({ value, onChange, placeholder }: { value: string; onChange:
                 ...(value ? [{
                   date: new Date(value),
                   style: { backgroundColor: '#10B981', borderRadius: 4 },
-                  textStyle: { color: '#FFFFFF', fontWeight: 'bold' },
+                  textStyle: { color: '#FFFFFF', fontWeight: 'bold' as any },
                 }] : [])
               ]}
             />

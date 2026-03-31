@@ -1,7 +1,7 @@
+import ActivityCard from "@/components/ActivityCard";
 import { DayDetailSkeleton } from "@/components/DayDetailSkeleton";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import MapView, {
   Callout,
   Marker,
@@ -26,7 +27,6 @@ import {
   getItineraryDaysForTrip,
   getPlaceDetails,
   getTripActivitiesForDay,
-  getTripActivitiesForItineraryDayId,
   getTripById,
   PlacePrediction,
   searchPlacePredictions,
@@ -36,7 +36,6 @@ import {
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
 
-import ActivityCard from "@/components/ActivityCard";
 
 export default function DayDetailScreen() {
   const { tripId, day, dayDate, itineraryDayId, displayDate } =
@@ -558,74 +557,38 @@ export default function DayDetailScreen() {
             activationDistance={8}
             contentContainerStyle={{ gap: 12 }}
             renderItem={({ item: a, drag, isActive }: RenderItemParams<TripActivity>) => (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => openEditModal(a)}
-                className="bg-neutral-background rounded-lg p-4 border border-neutral-divider"
-                style={{ opacity: isActive ? 0.9 : 1 }}
-              >
-                <View className="flex-row justify-between items-start">
-                  <View className="flex-1 pr-3">
-                    <View>
-                      <Text
-                        className="text-neutral-textPrimary font-semibold text-base"
-                        numberOfLines={2}
-                      >
-                        {a.title?.trim() || a.location_name || "Activity"}
-                      </Text>
+              <View className="gap-3">
+                <View key={a.id}>
+                  <TouchableOpacity onPress={() => openEditModal(a)}>
+                    <ActivityCard activity={a} />
+                  </TouchableOpacity>
 
-                      {!!a.location_name && (
-                        <Text className="text-neutral-textSecondary mt-1">
-                          {a.location_name}
-                        </Text>
-                      )}
+                  {/* REMOVE BUTTON */}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await deleteTripActivity(a.id);
+                      setActivities((prev) => prev.filter((x) => x.id !== a.id));
+                    }}
+                    className="mt-1 mb-2 self-end px-3 py-1 rounded-lg bg-accent-hotCoral"
+                  >
+                    <Text className="text-white text-xs font-semibold">Remove</Text>
+                  </TouchableOpacity>
 
-                      {formatTimeRange(a.start_time, a.end_time) ? (
-                        <View className="self-start px-2 py-1 rounded-full bg-neutral-divider mt-2">
-                          <Text className="text-xs text-neutral-textSecondary">
-                            {formatTimeRange(a.start_time, a.end_time)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    {!!a.description && (
-                      <Text
-                        className="text-neutral-textSecondary mt-2"
-                        numberOfLines={3}
-                        ellipsizeMode="tail"
-                      >
-                        {a.description}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View className="items-end ml-2">
-                    <TouchableOpacity
-                      onLongPress={drag}
-                      delayLongPress={120}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      className="p-2 mb-2"
-                    >
-                      <Ionicons
-                        name="reorder-four"
-                        size={18}
-                        color={isActive ? "#3B82F6" : "#6B7280"}
-                      />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={async () => {
-                        await deleteTripActivity(a.id);
-                        setActivities((prev) => prev.filter((x) => x.id !== a.id));
-                      }}
-                      className="px-3 py-2 rounded-lg bg-accent-hotCoral"
-                    >
-                      <Text className="text-white font-semibold">Remove</Text>
-                    </TouchableOpacity>
-                  </View>
+                  {/* DRAG HANDLE */}
+                  <TouchableOpacity
+                    onLongPress={drag}
+                    delayLongPress={120}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    className="p-2"
+                  >
+                    <Ionicons
+                      name="reorder-four"
+                      size={18}
+                      color={isActive ? "#3B82F6" : "#6B7280"}
+                    />
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </View>
             )}
             onDragEnd={({ data }) => {
               handleReorderActivities(data);

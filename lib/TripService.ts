@@ -848,8 +848,8 @@ export const getTripBudget = async (trip_id: string) => {
     .eq("trip_id", trip_id)
     .maybeSingle();
 
-    if (error) throw error;
-    return data;
+  if (error) throw error;
+  return data;
 };
 
 //Upsert Trip Budget

@@ -1,8 +1,8 @@
+import ActivityCard from "@/components/ActivityCard";
 import { deleteItinerary } from "@/lib/itineraryService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 import {
@@ -462,43 +462,28 @@ export default function ItineraryScreen({
                                   activationDistance={8}
                                   renderItem={({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
                                     <View collapsable={false}>
+                                      <ActivityCard
+                                        activity={item}
+                                        onEdit={() => openEditModal(item)}
+                                        onRemove={async () => {
+                                          await deleteTripActivity(item.id);
+                                          setActivities((prev) => prev.filter((x) => x.id !== item.id));
+                                        }}
+                                        showDragHandle={true}
+                                      />
+
+                                      {/* DRAG HANDLE */}
                                       <TouchableOpacity
-                                        activeOpacity={0.9}
-                                        className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
-                                        onPress={() => handleDayPress(day)}
-                                        style={{ opacity: isActive ? 0.9 : 1 }}
+                                        onLongPress={drag}
+                                        delayLongPress={120}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        className="ml-3 p-2"
                                       >
-                                        <View className="flex-row justify-between items-center" collapsable={false}>
-                                          <View className="flex-1" collapsable={false}>
-                                            <Text className="font-medium text-neutral-textPrimary">
-                                              {item.title?.trim() || item.location_name?.split(",")[0].trim() || "Untitled Activity"}
-                                            </Text>
-                                            {item.location_name ? (
-                                              <Text className="text-neutral-textSecondary text-sm mt-1">
-                                                {item.location_name}
-                                              </Text>
-                                            ) : null}
-                                            {(item.start_time || item.end_time) ? (
-                                              <Text className="text-neutral-textSecondary text-xs mt-1">
-                                                {item.start_time ? item.start_time.slice(0, 5) : ""}
-                                                {item.start_time && item.end_time ? " - " : ""}
-                                                {item.end_time ? item.end_time.slice(0, 5) : ""}
-                                              </Text>
-                                            ) : null}
-                                          </View>
-                                          <TouchableOpacity
-                                            onLongPress={drag}
-                                            delayLongPress={120}
-                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                            className="ml-3 p-2"
-                                          >
-                                            <Ionicons
-                                              name="reorder-four"
-                                              size={16}
-                                              color={isActive ? "#3B82F6" : "#6B7280"}
-                                            />
-                                          </TouchableOpacity>
-                                        </View>
+                                        <Ionicons
+                                          name="reorder-four"
+                                          size={18}
+                                          color={isActive ? "#3B82F6" : "#6B7280"}
+                                        />
                                       </TouchableOpacity>
                                     </View>
                                   )}
