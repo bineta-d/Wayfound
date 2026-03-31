@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import React from "react";
-import { Text, View } from "react-native";
+import React, { useRef } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
 import MapView, {
   Callout,
   Marker,
@@ -41,6 +41,8 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
   } = props;
   const router = useRouter();
 
+  const mapRef = useRef<MapView | null>(null);
+
   const mapActivities = activities.filter(
     (a) => typeof a.latitude === "number" && typeof a.longitude === "number",
   );
@@ -73,6 +75,22 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
 
+  const handleZoom = (factor: number) => {
+    const region = computeRegion();
+
+    mapRef.current?.animateToRegion(
+      {
+        ...region,
+        latitudeDelta: Math.max(0.002, region.latitudeDelta * factor),
+        longitudeDelta: Math.max(0.002, region.longitudeDelta * factor),
+      },
+      250,
+    );
+  };
+
+  const handleZoomIn = () => handleZoom(0.6);
+  const handleZoomOut = () => handleZoom(1.6);
+
   return (
     <View
       className="rounded-lg overflow-hidden mb-4 border border-neutral-divider bg-neutral-surface"
@@ -95,43 +113,88 @@ export default function TripMap(props: TripMapProps & Partial<GenerateItineraryP
             </Text>
           </View>
         ) : (
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={{ flex: 1 }}
-            initialRegion={computeRegion()}
-          >
-            {mapActivities.map((a) => (
-              <Marker
-                key={a.id}
-                coordinate={{
-                  latitude: a.latitude as number,
-                  longitude: a.longitude as number,
+          <>
+            <MapView
+              ref={mapRef}
+              provider={PROVIDER_GOOGLE}
+              style={{ flex: 1 }}
+              initialRegion={computeRegion()}
+            >
+              {mapActivities.map((a) => (
+                <Marker
+                  key={a.id}
+                  coordinate={{
+                    latitude: a.latitude as number,
+                    longitude: a.longitude as number,
+                  }}
+                >
+                  <Callout onPress={() => onMarkerNavigate(a)}>
+                    <View style={{ maxWidth: 220 }}>
+                      <Text style={{ fontWeight: "600" }}>
+                        {(a.location_name ?? "Activity").split(",")[0]}
+                      </Text>
+                      {a.title ? (
+                        <Text style={{ marginTop: 4, color: "#67717B" }}>
+                          {a.title}
+                        </Text>
+                      ) : null}
+                      <Text
+                        style={{
+                          marginTop: 6,
+                          color: "#3A1FA8",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Open activity details
+                      </Text>
+                    </View>
+                  </Callout>
+                </Marker>
+              ))}
+            </MapView>
+
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: "absolute",
+                right: 16,
+                top: 16,
+                zIndex: 20,
+                elevation: 20,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleZoomIn}
+                activeOpacity={0.9}
+                style={{
+                  width: 52,
+                  height: 52,
+                  backgroundColor: "rgba(255,255,255,0.96)",
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 8,
                 }}
               >
-                <Callout onPress={() => onMarkerNavigate(a)}>
-                  <View style={{ maxWidth: 220 }}>
-                    <Text style={{ fontWeight: "600" }}>
-                      {(a.location_name ?? "Activity").split(",")[0]}
-                    </Text>
-                    {a.title ? (
-                      <Text style={{ marginTop: 4, color: "#67717B" }}>
-                        {a.title}
-                      </Text>
-                    ) : null}
-                    <Text
-                      style={{
-                        marginTop: 6,
-                        color: "#3A1FA8",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Open activity details
-                    </Text>
-                  </View>
-                </Callout>
-              </Marker>
-            ))}
-          </MapView>
+                <Text style={{ fontSize: 24, fontWeight: "700", color: "#2A2E34" }}>+</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleZoomOut}
+                activeOpacity={0.9}
+                style={{
+                  width: 52,
+                  height: 52,
+                  backgroundColor: "rgba(255,255,255,0.96)",
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontSize: 24, fontWeight: "700", color: "#2A2E34" }}>−</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
       </View>
       <>

@@ -44,6 +44,10 @@ export default function CollaboratorsScreen({ members, currentUserId }: Collabor
             ) : (
                 <View className="space-y-3">
                     {members.map((member: Trip_member) => {
+                        function handleRemoveCollaborator(id: string, arg1: string): void {
+                            throw new Error('Function not implemented.');
+                        }
+
                         return (
                             <View key={member.id} className="flex-row items-center bg-gray-50 rounded-lg p-3">
                                 {member.users?.avatar_url ? (

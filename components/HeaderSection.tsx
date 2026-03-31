@@ -1,3 +1,7 @@
+const parseLocalDate = (dateStr: string) => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+};
 import { Trip } from "@/lib/types";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Text, TouchableOpacity, View } from "react-native";
@@ -43,13 +47,13 @@ export default function HeaderSection({
           className="pr-1"
         />
         <Text className="text-gray-700">
-          {trip.start_date && new Date(trip.start_date).toLocaleDateString("en-US", {
+          {trip.start_date && parseLocalDate(trip.start_date).toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
             day: "numeric",
           })}{" "}
           -{" "}
-          {trip.end_date && new Date(trip.end_date).toLocaleDateString("en-US", {
+          {trip.end_date && parseLocalDate(trip.end_date).toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
             day: "numeric",

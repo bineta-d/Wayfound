@@ -20,7 +20,7 @@ export default function TripCard({
       onPress={onPress}
     >
       <View className="flex-row justify-between items-start mb-2">
-        <Text className="text-lg font-semibold flex-1">{title}</Text>
+        <Text className="text-[16px] font-semibold text-primary-royalPurple flex-1">{title}</Text>
         <Text className="text-sm text-gray-500">{date}</Text>
       </View>
 
