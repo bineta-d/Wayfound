@@ -666,7 +666,7 @@ export default function TripOverviewScreen() {
               <HeaderSection title={trip.title} trip={trip} />
 
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-              <BudgetScreen />
+              <BudgetScreen/>
             </View>
           )}
         </ScrollView>

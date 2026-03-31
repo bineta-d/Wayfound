@@ -5,11 +5,12 @@ import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 interface PrimaryButtonProps {
   title: string;
   onPress: () => void;
+  disabled?: boolean;
 }
 
-const PrimaryButton = ({ title, onPress }: PrimaryButtonProps) => {
+const PrimaryButton = ({ title, onPress, disabled }: PrimaryButtonProps) => {
   return (
-    <TouchableOpacity style={styles.button} onPress={onPress}>
+    <TouchableOpacity style={styles.button} onPress={onPress} disabled={disabled}>
       <Text style={styles.text}>{title}</Text>
     </TouchableOpacity>
   );

@@ -36,6 +36,8 @@ import {
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
 
+import ActivityCard from "@/components/ActivityCard";
+
 export default function DayDetailScreen() {
   const { tripId, day, dayDate, itineraryDayId, displayDate } =
     useLocalSearchParams();
