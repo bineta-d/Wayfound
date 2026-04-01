@@ -464,12 +464,6 @@ export default function ItineraryScreen({
                                     <View collapsable={false}>
                                       <ActivityCard
                                         activity={item}
-                                        onEdit={() => openEditModal(item)}
-                                        onRemove={async () => {
-                                          await deleteTripActivity(item.id);
-                                          setActivities((prev) => prev.filter((x) => x.id !== item.id));
-                                        }}
-                                        showDragHandle={true}
                                       />
 
                                       {/* DRAG HANDLE */}

@@ -28,35 +28,18 @@ const DatePicker = ({ value, onChange, placeholder }: { value: string; onChange:
           <View className="bg-white rounded-2xl p-4 w-full max-w-sm">
             <Text className="text-lg font-semibold mb-4 text-gray-800">Select Date</Text>
             <CalendarPicker
-              mode="calendar"
-              date={value ? new Date(value) : new Date()}
-              onDateChange={(date: Date) => {
+              onDateChange={(date: any) => {
                 if (date) {
                   const dateStr = date.toISOString().split('T')[0];
                   onChange(dateStr);
                 }
               }}
-              maximumDate={new Date()}
-              minimumDate={new Date()}
-              themeVariant="light"
               textStyle={{
                 color: '#000000',
                 fontSize: 14,
               }}
-              selectedDayTextColor="#FFFFFF"
-              selectedDayBackgroundColor="#3B82F6"
-              todayBackgroundColor="#F0F0F0"
-              todayTextColor="#000000"
               width={280}
               height={320}
-              current={value ? new Date(value) : undefined}
-              customDatesStyles={[
-                ...(value ? [{
-                  date: new Date(value),
-                  style: { backgroundColor: '#10B981', borderRadius: 4 },
-                  textStyle: { color: '#FFFFFF', fontWeight: 'bold' as any },
-                }] : [])
-              ]}
             />
             <TouchableOpacity
               onPress={() => setShowPicker(false)}

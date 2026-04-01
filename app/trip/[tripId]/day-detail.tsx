@@ -219,9 +219,8 @@ export default function DayDetailScreen() {
     try {
       let data: TripActivity[] = [];
 
-      if (resolvedItineraryDayId) {
-        data =
-          await getTripActivitiesForItineraryDayId(resolvedItineraryDayId);
+      if (resolvedItineraryDayId && dayDateStr) {
+        data = await getTripActivitiesForDay(tripIdParam, dayDateStr);
       }
 
       if (data.length === 0 && dayDateStr) {

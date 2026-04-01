@@ -89,7 +89,7 @@ class WikipediaService {
       const imageUrl = `${this.baseUrl}?action=query&prop=pageimages&pithumbsize=800&pageids=${pageId}&format=json&origin=*`;
 
       const imageResponse = await fetch(imageUrl);
-      const imageData: WikipediaResponse = await imageResponse.json();
+      const imageData: WikimediaResponse = await imageResponse.json();
 
       const page = imageData.query.pages[pageId];
 
