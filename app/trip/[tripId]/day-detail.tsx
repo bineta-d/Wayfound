@@ -559,9 +559,25 @@ export default function DayDetailScreen() {
             renderItem={({ item: a, drag, isActive }: RenderItemParams<TripActivity>) => (
               <View className="gap-3">
                 <View key={a.id}>
-                  <TouchableOpacity onPress={() => openEditModal(a)}>
-                    <ActivityCard activity={a} />
-                  </TouchableOpacity>
+                  <View className="relative">
+                    {/* DRAG HANDLE - TOP RIGHT CORNER */}
+                    <TouchableOpacity
+                      onLongPress={drag}
+                      delayLongPress={120}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="absolute top-2 right-2 p-2 z-10"
+                    >
+                      <Ionicons
+                        name="reorder-four"
+                        size={18}
+                        color={isActive ? "#3B82F6" : "#6B7280"}
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => openEditModal(a)}>
+                      <ActivityCard activity={a} />
+                    </TouchableOpacity>
+                  </View>
 
                   {/* REMOVE BUTTON */}
                   <TouchableOpacity
@@ -572,20 +588,6 @@ export default function DayDetailScreen() {
                     className="mt-1 mb-2 self-end px-3 py-1 rounded-lg bg-accent-hotCoral"
                   >
                     <Text className="text-white text-xs font-semibold">Remove</Text>
-                  </TouchableOpacity>
-
-                  {/* DRAG HANDLE */}
-                  <TouchableOpacity
-                    onLongPress={drag}
-                    delayLongPress={120}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    className="p-2"
-                  >
-                    <Ionicons
-                      name="reorder-four"
-                      size={18}
-                      color={isActive ? "#3B82F6" : "#6B7280"}
-                    />
                   </TouchableOpacity>
                 </View>
               </View>

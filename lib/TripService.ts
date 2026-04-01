@@ -17,6 +17,7 @@ export const createTrip = async (
     end_date
   });
 
+
   // Try with RLS bypass first (temporary fix)
   const { data, error } = await supabase
     .from("trips")
@@ -97,7 +98,6 @@ export const createTripMembers = async (
     const memberData = [];
 
     for (const member of members) {
-      // Check if user exists with this email
       const { data: existingUser, error: userError } = await supabase
         .from("users")
         .select("id")
@@ -279,7 +279,7 @@ export const getSharedTrips = async (user: SupabaseUser) => {
     // filter out trips the user owns and remove duplicates
     const ownedTripIds = userTrips?.map((t) => t.id) || [];
     const allSharedTripIds = memberships.map((m) => m.trip_id);
-    const uniqueSharedTripIds = [...new Set(allSharedTripIds)]; // Remove duplicates
+    const uniqueSharedTripIds = [...new Set(allSharedTripIds)];
     const sharedTripIds = uniqueSharedTripIds.filter(
       (tripId) => !ownedTripIds.includes(tripId),
     );
@@ -309,7 +309,6 @@ export const getSharedTrips = async (user: SupabaseUser) => {
 
       if (tripError) {
         console.log("🔍 Could not access trip data for:", tripId, tripError);
-        // placeholder if failed
         sharedTrips.push({
           id: tripId,
           title: "Shared Trip (Access Restricted)",
@@ -822,6 +821,21 @@ export const updateItineraryDayPositions = async (
   }
 };
 
+export const getTripActivitiesForItineraryDayId = async (
+  itinerary_day_id: string,
+): Promise<Activity[]> => {
+  const { data, error } = await supabase
+    .from("activities")
+    .select("*")
+    .eq("itinerary_day_id", itinerary_day_id)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return sortActivitiesForDisplay((data as Activity[]) || []);
+};
 // Update activity positions
 export const updateTripActivityPositions = async (
   updates: { id: string; position: number }[],
