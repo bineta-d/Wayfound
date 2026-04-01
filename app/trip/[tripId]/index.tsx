@@ -33,6 +33,7 @@ import BudgetScreen from "./budget";
 import CollaboratorsScreen from "./collaborators";
 import GenerateItinerary from "./generate-itinerary";
 import { default as ItineraryScreen } from "./itinerary";
+import PollsScreen from "./polls";
 import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
 import TripMap from "./trip-map";
@@ -667,6 +668,14 @@ export default function TripOverviewScreen() {
 
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
               <BudgetScreen/>
+            </View>
+          )}
+          {/* Polls Tab */}
+          {activeTab === 4 && (
+            <View className="bg-white mb-2 flex-1">
+              <HeaderSection title={trip.title} trip={trip} />
+              <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
+              <PollsScreen />
             </View>
           )}
         </ScrollView>

@@ -47,3 +47,23 @@ export interface TripActivity {
   end_time?: string | null;
   created_at: string;
 }
+
+
+export interface PollOption {
+  id: string;
+  text: string;
+}
+
+export interface PollVote {
+  id: string;
+  option_id: string;
+  user_id: string;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  type: "yes_no" | "multiple";
+  poll_options: PollOption[];
+  poll_votes: PollVote[];
+}
