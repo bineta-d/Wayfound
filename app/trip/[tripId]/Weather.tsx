@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+const { fetchWeatherApi } = require('openmeteo');
 
 interface WeatherData {
   day: number;
@@ -31,132 +32,238 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
     try {
       console.log('🌤️ Starting weather fetch for:', { destination, startDate, endDate });
 
-      const API_KEY = process.env.EXPO_PUBLIC_WEATHER_API_KEY;
-      if (!API_KEY) {
-        console.error('❌ OpenWeather API key not found in environment variables');
-        setError('Weather API key not configured');
-        setLoading(false);
-        return;
-      }
-
       // Calculate number of days between start and end dates
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0);
+      const start = new Date(currentDate);
+      start.setDate(currentDate.getDate());
+      const end = new Date(currentDate);
+      end.setDate(currentDate.getDate() + Math.min(17, 30)); // Use current date + days for demo
       const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-      console.log('📅 Trip duration:', daysDiff, 'days');
+      console.log('📅 Weather duration (from today):', daysDiff, 'days from', start.toISOString(), 'to', end.toISOString());
 
-      // Get coordinates for the destination
-      const geoResponse = await fetch(
-        `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(destination)}&limit=1&appid=${API_KEY}`
-      );
-      const geoData = await geoResponse.json();
+      // Get coordinates for the destination using Open-Meteo geocoding
+      const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en`;
+      const geocodingResponse = await fetch(geocodingUrl);
+      const geocodingData = await geocodingResponse.json();
 
-      if (geoData.length === 0) {
+      if (!geocodingData.results || geocodingData.results.length === 0) {
         console.error('❌ Location not found:', destination);
         setError('Location not found');
         setLoading(false);
         return;
       }
 
-      const { lat, lon } = geoData[0];
-      console.log('📍 Location coordinates:', { lat, lon, name: geoData[0].name });
+      const { latitude, longitude } = geocodingData.results[0];
+      console.log('📍 Location coordinates:', { latitude, longitude, name: geocodingData.results[0].name });
 
-      // Fetch weather forecast for the trip duration
-      const forecastResponse = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&cnt=${daysDiff * 8}` // 8 forecasts per day (3-hour intervals)
-      );
-      const forecastData = await forecastResponse.json();
+      // Prepare weather variables for Open-Meteo
+      const weatherParams = {
+        latitude,
+        longitude,
+        hourly: [
+          "temperature_2m",
+          "relativehumidity_2m",
+          "precipitation_probability",
+          "weathercode",
+          "windspeed_10m"
+        ],
+        daily: [
+          "temperature_2m_max",
+          "temperature_2m_min",
+          "weathercode",
+          "precipitation_probability_max"
+        ],
+        forecast_days: Math.min(16, daysDiff), // Extended forecast up to 16 days
+        timezone: "auto"
+      };
 
-      console.log('🌤️ Raw forecast data received:', forecastData);
+      console.log('🔍 Fetching weather with params:', weatherParams);
 
-      // Process forecast data to get daily weather
-      const dailyForecasts: Record<string, {
-        temps: number[];
-        descriptions: string[];
-        icons: string[];
-        main: any;
-        weather: any[];
-      }> = {};
-      forecastData.list.forEach((forecast: any) => {
-        const forecastDate = new Date(forecast.dt * 1000);
-        const dateKey = forecastDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+      // Fetch weather data from Open-Meteo
+      const responses = await fetchWeatherApi("https://api.open-meteo.com/v1/forecast", weatherParams);
+      const response = responses[0];
 
-        if (!dailyForecasts[dateKey]) {
-          dailyForecasts[dateKey] = {
-            temps: [],
-            descriptions: [],
-            icons: [],
-            main: forecast.main,
-            weather: forecast.weather
-          };
-        }
+      // Process the response
+      const utcOffsetSeconds = response.utcOffsetSeconds();
+      const daily = response.daily()!;
+      const hourly = response.hourly()!;
 
-        dailyForecasts[dateKey].temps.push(forecast.main.temp);
-        dailyForecasts[dateKey].descriptions.push(forecast.weather[0].main);
-        dailyForecasts[dateKey].icons.push(forecast.weather[0].icon);
-      });
+      console.log('📊 Raw Open-Meteo response processed');
 
-      console.log('📊 Processed daily forecasts:', dailyForecasts);
+      // Convert weather codes to descriptions
+      const getWeatherDescription = (code: number) => {
+        const weatherCodes: Record<number, string> = {
+          0: "clear sky",
+          1: "mainly clear",
+          2: "partly cloudy",
+          3: "overcast",
+          45: "fog",
+          48: "fog",
+          51: "light drizzle",
+          53: "drizzle",
+          55: "dense drizzle",
+          56: "light freezing drizzle",
+          57: "freezing drizzle",
+          61: "light rain",
+          63: "rain",
+          65: "heavy rain",
+          66: "light freezing rain",
+          67: "freezing rain",
+          71: "light snow",
+          73: "snow",
+          75: "heavy snow",
+          77: "snow grains",
+          80: "light showers",
+          81: "showers",
+          82: "heavy showers",
+          85: "light snow showers",
+          86: "snow showers",
+          95: "thunderstorm",
+          96: "thunderstorm",
+          99: "severe thunderstorm"
+        };
+        return weatherCodes[code] || "unknown";
+      };
 
+      // Convert weather codes to icons
+      const getWeatherIcon = (code: number, isDay: boolean = true) => {
+        const iconMap: Record<number, { day: string; night: string }> = {
+          0: { day: "sunny", night: "moon" },
+          1: { day: "partly-sunny", night: "cloud" },
+          2: { day: "partly-sunny", night: "cloud" },
+          3: { day: "cloud", night: "cloud" },
+          45: { day: "cloudy-outline", night: "cloudy-outline" },
+          48: { day: "cloudy-outline", night: "cloudy-outline" },
+          51: { day: "rainy-outline", night: "rainy-outline" },
+          53: { day: "rainy", night: "rainy" },
+          55: { day: "rainy", night: "rainy" },
+          56: { day: "snow", night: "snow" },
+          57: { day: "snow", night: "snow" },
+          61: { day: "rainy-outline", night: "rainy-outline" },
+          63: { day: "rainy", night: "rainy" },
+          65: { day: "rainy", night: "rainy" },
+          66: { day: "snow", night: "snow" },
+          67: { day: "snow", night: "snow" },
+          71: { day: "snow", night: "snow" },
+          73: { day: "snow", night: "snow" },
+          75: { day: "snow", night: "snow" },
+          77: { day: "snow", night: "snow" },
+          80: { day: "rainy-outline", night: "rainy-outline" },
+          81: { day: "rainy", night: "rainy" },
+          82: { day: "rainy", night: "rainy" },
+          85: { day: "snow", night: "snow" },
+          86: { day: "snow", night: "snow" },
+          95: { day: "thunderstorm", night: "thunderstorm" },
+          96: { day: "thunderstorm", night: "thunderstorm" },
+          99: { day: "thunderstorm", night: "thunderstorm" }
+        };
+        const iconData = iconMap[code];
+        return iconData ? (isDay ? iconData.day : iconData.night) : "help";
+      };
+
+      const celsiusToFahrenheit = (celsius: number) => {
+        return Math.round((celsius * 9 / 5) + 32);
+      };
+
+      // Process daily weather data
       const formattedWeather: WeatherData[] = [];
-      for (let i = 0; i < daysDiff; i++) {
-        const currentDate = new Date(start);
-        currentDate.setDate(start.getDate() + i);
-        const dateKey = currentDate.toISOString().split('T')[0];
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
 
-        const dayForecast = dailyForecasts[dateKey];
-        if (dayForecast && dayForecast.descriptions.length > 0) {
-          // Calculate average temperature and get most common weather description
-          const avgTemp = dayForecast.temps.reduce((sum: number, temp: number) => sum + temp, 0) / dayForecast.temps.length;
+      // Get daily data arrays
+      const dailyTime = Array.from(
+        { length: (Number(daily.timeEnd()) - Number(daily.time())) / daily.interval() },
+        (_, i) => new Date((Number(daily.time()) + i * daily.interval() + utcOffsetSeconds) * 1000)
+      );
 
-          // Get most common description and icon
-          const descriptionCounts: Record<string, number> = {};
-          const iconCounts: Record<string, number> = {};
+      const dailyMaxTemp = daily.variables(0)!.valuesArray()!;
+      const dailyMinTemp = daily.variables(1)!.valuesArray()!;
+      const dailyWeatherCode = daily.variables(2)!.valuesArray()!;
+      const dailyPrecipProb = daily.variables(3)!.valuesArray()!;
 
-          dayForecast.descriptions.forEach((desc: string) => {
-            descriptionCounts[desc] = (descriptionCounts[desc] || 0) + 1;
-          });
-          dayForecast.icons.forEach((icon: string) => {
-            iconCounts[icon] = (iconCounts[icon] || 0) + 1;
-          });
+      console.log('📊 Processing daily weather data');
 
-          const mostCommonDesc = Object.keys(descriptionCounts).reduce((a, b) =>
-            descriptionCounts[a] > descriptionCounts[b] ? a : b
-          );
-          const mostCommonIcon = Object.keys(iconCounts).reduce((a, b) =>
-            iconCounts[a] > iconCounts[b] ? a : b
-          );
+      for (let i = 0; i < daysDiff && i < dailyTime.length; i++) {
+        const date = dailyTime[i];
+        date.setHours(0, 0, 0, 0);
+        const dateKey = date.toISOString().split('T')[0];
+
+        // Check if date is in the past, today, or future
+        if (date.getTime() === todayDate.getTime()) {
+          console.log(`📅 Day ${i + 1} is today (${dateKey}), showing current weather`);
+
+          const maxTemp = dailyMaxTemp[i];
+          const minTemp = dailyMinTemp[i];
+          const avgTemp = (maxTemp + minTemp) / 2;
+          const weatherCode = dailyWeatherCode[i];
 
           const weatherInfo = {
             day: i + 1,
-            date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            temp: Math.round(avgTemp),
-            description: mostCommonDesc.toLowerCase(),
-            icon: mostCommonIcon
+            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            temp: Math.round(celsiusToFahrenheit(avgTemp)),
+            description: getWeatherDescription(weatherCode),
+            icon: getWeatherIcon(weatherCode, true)
           };
 
-          console.log(`📊 Day ${i + 1} weather:`, weatherInfo);
+          console.log(`📊 Day ${i + 1} current weather:`, weatherInfo);
+          formattedWeather.push(weatherInfo);
+        } else if (date < todayDate) {
+          console.log(`📅 Day ${i + 1} is in the past (${dateKey}), showing historical data`);
+
+          const maxTemp = dailyMaxTemp[i];
+          const minTemp = dailyMinTemp[i];
+          const avgTemp = (maxTemp + minTemp) / 2;
+          const weatherCode = dailyWeatherCode[i];
+
+          const weatherInfo = {
+            day: i + 1,
+            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            temp: Math.round(celsiusToFahrenheit(avgTemp)),
+            description: getWeatherDescription(weatherCode),
+            icon: getWeatherIcon(weatherCode, true)
+          };
+
+          console.log(`📊 Day ${i + 1} historical weather:`, weatherInfo);
           formattedWeather.push(weatherInfo);
         } else {
-          console.log(`⚠️ No forecast data for ${dateKey}, using fallback`);
-          // Fallback to current weather if no forecast data
-          const weatherResponse = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
-          );
-          const weather = await weatherResponse.json();
+          console.log(`📅 Day ${i + 1} is in the future (${dateKey}), showing forecast weather`);
+
+          const maxTemp = dailyMaxTemp[i];
+          const minTemp = dailyMinTemp[i];
+          const avgTemp = (maxTemp + minTemp) / 2;
+          const weatherCode = dailyWeatherCode[i];
 
           const weatherInfo = {
             day: i + 1,
-            date: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            temp: Math.round(weather.main.temp + (Math.random() * 10 - 5)), // Add some variation
-            description: weather.weather[0].main.toLowerCase(),
-            icon: weather.weather[0].icon
+            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            temp: Math.round(celsiusToFahrenheit(avgTemp)),
+            description: getWeatherDescription(weatherCode),
+            icon: getWeatherIcon(weatherCode, true)
           };
 
-          console.log(`📊 Day ${i + 1} fallback weather:`, weatherInfo);
+          console.log(`📊 Day ${i + 1} forecast weather:`, weatherInfo);
           formattedWeather.push(weatherInfo);
         }
+      }
+
+      // Handle days beyond available forecast data
+      for (let i = formattedWeather.length; i < daysDiff; i++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + i);
+        date.setHours(0, 0, 0, 0);
+
+        console.log(`📅 Day ${i + 1} no forecast data available for ${date.toISOString().split('T')[0]}, showing pending`);
+        const weatherInfo = {
+          day: i + 1,
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          temp: 0,
+          description: 'data pending',
+          icon: 'time'
+        };
+        console.log(`📊 Day ${i + 1} pending weather:`, weatherInfo);
+        formattedWeather.push(weatherInfo);
       }
 
       console.log('✅ Final weather data:', formattedWeather);
@@ -301,7 +408,7 @@ export default function Weather({ destination, startDate, endDate }: WeatherProp
               </View>
 
               <Text className="text-sm font-medium text-gray-800 mb-1">{description}</Text>
-              <Text className="text-xs text-gray-600">{weather.temp}°C</Text>
+              <Text className="text-xs text-gray-600">{weather.temp}°F</Text>
             </TouchableOpacity>
           );
         })}

@@ -69,7 +69,7 @@ export default function TripOverviewScreen() {
   const [isMapSheetOpen, setIsMapSheetOpen] = useState(false);
   const mapReveal = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get("window").height;
-  const revealedMapHeight = screenHeight * 0.58;
+  const revealedMapHeight = screenHeight * 0.9;
   const overlayTranslateY = mapReveal.interpolate({
     inputRange: [0, 1],
     outputRange: [0, revealedMapHeight],
@@ -80,6 +80,28 @@ export default function TripOverviewScreen() {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  const getDisplayDateForIndex = (index: number) => {
+    if (!trip?.start_date) return "";
+    const displayDate = new Date(`${trip.start_date}T00:00:00`);
+    displayDate.setDate(displayDate.getDate() + index);
+    return toLocalDateString(displayDate);
+  };
+
+  const buildDayDetailParams = (dayNumber: number, day: any) => {
+    const params = new URLSearchParams({
+      day: String(dayNumber),
+      dayDate: String(day?.day_date ?? ""),
+      displayDate: getDisplayDateForIndex(dayNumber - 1),
+    });
+
+    const itineraryDayId = String(day?.id ?? day?.itineraryDayId ?? "");
+    if (itineraryDayId) {
+      params.set("itineraryDayId", itineraryDayId);
+    }
+
+    return params.toString();
   };
 
   useEffect(() => {
@@ -149,12 +171,40 @@ export default function TripOverviewScreen() {
     setTargetSpots((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleAssignToDay = (activity: any, dayNumber: number) => {
-    router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+  const handleAssignToDay = (_activity: any, dayNumber: number) => {
+    const selectedDay = itineraryDays[dayNumber - 1];
+    if (!selectedDay) {
+      router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
+      return;
+    }
+
+    router.push(
+      `/trip/${tripId}/day-detail?${buildDayDetailParams(dayNumber, selectedDay)}`,
+    );
   };
 
-  const handleMarkerNavigate = (a: any) => {
-    router.push(`/trip/${tripId}/day-detail?day=1`);
+  const handleMarkerNavigate = (activity: any) => {
+    const matchedIndex = itineraryDays.findIndex((day) => {
+      if (activity?.itinerary_day_id && day?.id === activity.itinerary_day_id) {
+        return true;
+      }
+      if (activity?.day_date && day?.day_date === activity.day_date) {
+        return true;
+      }
+      return false;
+    });
+
+    if (matchedIndex === -1) {
+      router.push(`/trip/${tripId}/day-detail?day=1`);
+      return;
+    }
+
+    const matchedDay = itineraryDays[matchedIndex];
+    const dayNumber = matchedIndex + 1;
+
+    router.push(
+      `/trip/${tripId}/day-detail?${buildDayDetailParams(dayNumber, matchedDay)}`,
+    );
   };
 
   const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
@@ -239,10 +289,14 @@ export default function TripOverviewScreen() {
     if (!tripId || !trip) return;
     setLoadingActivities((prev) => ({ ...prev, [dayNumber]: true }));
     try {
-      const dayDate = new Date(`${trip.start_date}T00:00:00`);
-      dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
-
-      const dateStr = toLocalDateString(dayDate);
+      const mappedDay = itineraryDays[dayNumber - 1];
+      const dateStr = mappedDay?.day_date
+        ? mappedDay.day_date
+        : (() => {
+            const dayDate = new Date(`${trip.start_date}T00:00:00`);
+            dayDate.setDate(dayDate.getDate() + (dayNumber - 1));
+            return toLocalDateString(dayDate);
+          })();
 
       const activities = await getTripActivitiesForDay(
         tripId as string,
@@ -613,7 +667,7 @@ export default function TripOverviewScreen() {
               <HeaderSection title={trip.title} trip={trip} />
 
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-              <BudgetScreen />
+              <BudgetScreen/>
             </View>
           )}
           {/* Polls Tab */}

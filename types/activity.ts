@@ -12,6 +12,10 @@ export interface ParsedActivity {
 
   start_time?: string;
   end_time?: string;
+
+  rating?: number;
+  photo?: string;
+  types?: string[];
 };
 
 // Activity ready for DB insert

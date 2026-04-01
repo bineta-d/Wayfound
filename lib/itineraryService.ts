@@ -11,30 +11,7 @@ export const saveItinerary = async (
   try {
     console.log("💾 Saving itinerary for trip: ", tripId);
 
-    // Delete previous itinerary (avoid duplicates)
-    const { data: existingDays } = await supabase
-        .from("itinerary_days")
-        .select("id")
-        .eq("trip_id", tripId);
-
-    if (existingDays && existingDays.length > 0) {
-        const dayIds = existingDays.map(d => d.id);
-
-        await supabase
-        .from("activities")
-        .delete()
-        .in("itinerary_day_id", dayIds);
-
-        console.log("🗑 Deleting activities for days:", dayIds);
-
-      await supabase
-        .from("itinerary_days")
-        .delete()
-        .eq("trip_id", tripId);
-        
-        console.log("🗑 Deleting old itinerary days:", dayIds.length);
-    }
-
+    await deleteItinerary(tripId);
 
     // Group activities by day
     const groupedByDay = activities.reduce((acc, act) => {
@@ -78,6 +55,9 @@ export const saveItinerary = async (
         longitude: act.longitude ?? null,
         start_time: act.start_time ?? null,
         end_time: act.end_time ?? null,
+        rating: act.rating ?? null,
+        photo: act.photo ?? null,
+        category: act.types?.[0] ?? null,
       }));
 
       if (activitiesToInsert.length > 0) {

@@ -19,6 +19,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 export default function AIPlannerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const tripId = params.tripId as string;
   const [loadingAI, setLoadingAI] = useState(false);
 
   const [prompt, setPrompt] = useState("");
@@ -93,36 +94,14 @@ export default function AIPlannerScreen() {
 
       const finalInterests = [...interests, ...extra];
 
-      const context = await getTripContext(params.tripId as string);
-      const contextText = `
-        Accommodation:
-        ${context.accommodation?.name ?? "None"}
-
-        Transportation:
-        ${context.transport?.map(
-          (t) =>
-            `${t.transport_type} from ${t.departure_location} to ${t.arrival_location}`
-        ).join("\n") ?? "None"}
-
-        Bookings:
-        ${context.bookings?.map(
-          (b) => `${b.type} with ${b.provider}`
-        ).join("\n") ?? "None"}
-
-        Existing Activities:
-        ${context.activities?.map(
-          (a) => a.title
-        ).join("\n") ?? "None"}
-      `;
-
       const result = await generateTripPlan({
+        tripId,
         destination: params.destination as string,
         startDate: params.startDate as string,
         endDate: params.endDate as string,
         budget: Number(budget),
         interests: finalInterests,
         prompt: prompt,
-        context: contextText,
       });
 
       //  Step 1 — AI already returns structured JSON

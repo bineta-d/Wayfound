@@ -1,10 +1,16 @@
+import ActivityCard from "@/components/ActivityCard";
 import { deleteItinerary } from "@/lib/itineraryService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, LogBox, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
+import {
+  NestableDraggableFlatList,
+  NestableScrollContainer,
+  RenderItemParams,
+} from "react-native-draggable-flatlist";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Activity as TripActivity } from "../../../lib/TripService";
 import TripMap from "./trip-map";
 import Weather from "./Weather";
@@ -43,7 +49,6 @@ export default function ItineraryScreen({
   onReorderDayActivities,
 }: ItineraryProps) {
   const router = useRouter();
-  const [draggedItem, setDraggedItem] = useState<number | null>(null);
   const [localDayBlocks, setLocalDayBlocks] = useState<any[]>([]);
 
   const generateDayHeaders = () => {
@@ -76,6 +81,13 @@ export default function ItineraryScreen({
     }
 
     return days;
+  };
+
+  const getExpectedTripDayCount = () => {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const diffMs = end.getTime() - start.getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
   };
 
   const sortActivitiesForDisplay = (items: TripActivity[]) => {
@@ -171,45 +183,6 @@ export default function ItineraryScreen({
       });
   }, [localDayBlocks]);
 
-  useEffect(() => {
-    LogBox.ignoreLogs([
-      "Warning: ref.measureLayout must be called with a ref to a native component.",
-      "ref.measureLayout must be called with a ref to a native component",
-      "measureLayout must be called with a ref to a native component",
-    ]);
-
-    const originalConsoleError = console.error;
-    const originalConsoleWarn = console.warn;
-
-    console.error = (...args: any[]) => {
-      const message = args
-        .map((arg) => (typeof arg === "string" ? arg : ""))
-        .join(" ");
-
-      if (message.includes("measureLayout must be called with a ref to a native component")) {
-        return;
-      }
-
-      originalConsoleError(...args);
-    };
-
-    console.warn = (...args: any[]) => {
-      const message = args
-        .map((arg) => (typeof arg === "string" ? arg : ""))
-        .join(" ");
-
-      if (message.includes("measureLayout must be called with a ref to a native component")) {
-        return;
-      }
-
-      originalConsoleWarn(...args);
-    };
-
-    return () => {
-      console.error = originalConsoleError;
-      console.warn = originalConsoleWarn;
-    };
-  }, []);
 
   const handleDeleteItinerary = async () => {
     Alert.alert(
@@ -271,23 +244,27 @@ export default function ItineraryScreen({
       }
     });
 
+    const expectedTripDayCount = getExpectedTripDayCount();
+
     const baseDays =
       itineraryDays && itineraryDays.length > 0
-        ? itineraryDays.map((day: any, index: number) => {
-          const displayDate = new Date(`${startDate}T00:00:00`);
-          displayDate.setDate(displayDate.getDate() + index);
+        ? itineraryDays
+          .slice(0, expectedTripDayCount)
+          .map((day: any, index: number) => {
+            const displayDate = new Date(`${startDate}T00:00:00`);
+            displayDate.setDate(displayDate.getDate() + index);
 
-          return {
-            ...day,
-            itineraryDayId: day.id,
-            date: displayDate,
-            day_date: day.day_date,
-            display_date: toLocalDateString(displayDate),
-            dayNumber: index + 1,
-            position: day.position ?? index + 1,
-          };
-        })
-        : generateDayHeaders();
+            return {
+              ...day,
+              itineraryDayId: day.id,
+              date: displayDate,
+              day_date: day.day_date,
+              display_date: toLocalDateString(displayDate),
+              dayNumber: index + 1,
+              position: day.position ?? index + 1,
+            };
+          })
+        : generateDayHeaders().slice(0, expectedTripDayCount);
 
     const nextBlocks = baseDays.map((day: any, index: number) => {
       const itineraryDayId = day.itineraryDayId ?? day.id ?? null;
@@ -381,181 +358,186 @@ export default function ItineraryScreen({
   );
 
   return (
-    <View className="flex-1">
-      <ScrollView
+    <GestureHandlerRootView>
+      <NestableScrollContainer
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
       >
-        {listHeader}
+        <View className="mb-0 px-6" collapsable={false}>
+          {listHeader}
 
-        {!isItineraryCollapsed && (
-          <View className="px-6">
-            <DraggableFlatList
-              data={days}
-              keyExtractor={(day: any) => String(day.id ?? day.itineraryDayId ?? `day-${day.dayNumber}`)}
-              scrollEnabled={false}
-              activationDistance={10}
-              renderItem={({ item: day, drag: dragDay, isActive: isDayActive }: RenderItemParams<any>) => (
-                <View className="mb-6" style={{ opacity: isDayActive ? 0.95 : 1 }}>
-                  <View className="bg-neutral-surface rounded-lg p-4">
-                    <View className="flex-row justify-between items-center mb-2">
-                      <TouchableOpacity
-                        onPress={() => onToggleDayCollapse(day.dayNumber)}
-                        activeOpacity={0.8}
-                        className="flex-1"
+          {!isItineraryCollapsed && (
+            <View collapsable={false}>
+              <NestableDraggableFlatList
+                data={days}
+                keyExtractor={(day) => String(day.id ?? day.itineraryDayId ?? `day-${day.dayNumber}`)}
+                scrollEnabled={false}
+                activationDistance={10}
+                contentContainerStyle={{ paddingBottom: 24 }}
+                renderItem={({ item: day, drag: dragDay, isActive: isDayActive }) => (
+                  <View
+                    className="mb-6"
+                    style={{ opacity: isDayActive ? 0.95 : 1 }}
+                    collapsable={false}
+                  >
+                    <View className="bg-neutral-surface rounded-lg p-4" collapsable={false}>
+                      <View
+                        className="flex-row justify-between items-center mb-2"
+                        collapsable={false}
                       >
-                        <Text className="text-lg font-semibold text-neutral-textPrimary">
-                          Day {day.dayNumber} -{" "}
-                          {day.date.toLocaleDateString("en-US", {
-                            weekday: "long",
-                          })}{" "}
-                          {day.date.toLocaleDateString("en-US", {
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <View className="flex-row items-center ml-3">
-                        <TouchableOpacity
-                          onLongPress={dragDay}
-                          delayLongPress={120}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          className="mr-2 p-1"
-                        >
-                          <Ionicons name="reorder-four" size={18} color="#6B7280" />
-                        </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => onToggleDayCollapse(day.dayNumber)}
-                          className="p-1"
+                          activeOpacity={0.8}
+                          className="flex-1"
                         >
-                          <Ionicons
-                            name={
-                              collapsedDays[day.dayNumber]
-                                ? "chevron-down"
-                                : "chevron-up"
-                            }
-                            size={20}
-                            color="#6B7280"
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDayPress(day)}
-                          className="ml-3"
-                        >
-                          <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color="#67717B"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {!collapsedDays[day.dayNumber] && (
-                      <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
-                        {loadingActivities[day.dayNumber] ? (
-                          <Text className="text-neutral-textSecondary text-center py-4">
-                            Loading activities...
+                          <Text className="text-lg font-semibold text-neutral-textPrimary">
+                            Day {day.dayNumber} -{" "}
+                            {day.date.toLocaleDateString("en-US", {
+                              weekday: "long",
+                            })}{" "}
+                            {day.date.toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                            })}
                           </Text>
-                        ) : dedupeActivities(day.activities ?? []).length > 0 ? (
-                          <View>
-                            <Text className="text-sm text-neutral-textSecondary mb-3">
-                              {dedupeActivities(day.activities ?? []).length} activities
-                            </Text>
-                            <DraggableFlatList
-                              data={sortActivitiesForDisplay(
-                                dedupeActivities(day.activities ?? []),
-                              )}
-                              keyExtractor={(item: any, index: any) => `${day.dayNumber}-${item.id}-${index}`}
-                              scrollEnabled={false}
-                              activationDistance={8}
-                              renderItem={({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
-                                <TouchableOpacity
-                                  activeOpacity={0.9}
-                                  className="bg-white rounded-lg p-3 border border-neutral-divider mb-2"
-                                  onPress={() => handleDayPress(day)}
-                                  style={{ opacity: isActive ? 0.9 : 1 }}
-                                >
-                                  <View className="flex-row justify-between items-center">
-                                    <View className="flex-1">
-                                      <Text className="font-medium text-neutral-textPrimary">
-                                        {item.location_name
-                                          ? item.location_name.split(",")[0].trim()
-                                          : "Unknown Location"}
-                                      </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                      onLongPress={drag}
-                                      delayLongPress={120}
-                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                      className="ml-3 p-2"
-                                    >
-                                      <Ionicons
-                                        name="reorder-four"
-                                        size={16}
-                                        color={isActive ? "#3B82F6" : "#6B7280"}
-                                      />
-                                    </TouchableOpacity>
-                                  </View>
-                                </TouchableOpacity>
-                              )}
-                              onDragEnd={({ data }: any) => {
-                                setLocalDayBlocks((prev) =>
-                                  prev.map((block) =>
-                                    block.dayNumber === day.dayNumber
-                                      ? { ...block, activities: data }
-                                      : block,
-                                  ),
-                                );
-                                onReorderDayActivities?.(day.dayNumber, data);
-                              }}
+                        </TouchableOpacity>
+
+                        <View className="flex-row items-center ml-3">
+                          <TouchableOpacity
+                            onLongPress={dragDay}
+                            delayLongPress={120}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            className="mr-2 p-1"
+                          >
+                            <Ionicons name="reorder-four" size={18} color="#6B7280" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => onToggleDayCollapse(day.dayNumber)}
+                            className="p-1"
+                          >
+                            <Ionicons
+                              name={
+                                collapsedDays[day.dayNumber]
+                                  ? "chevron-down"
+                                  : "chevron-up"
+                              }
+                              size={20}
+                              color="#6B7280"
                             />
-                          </View>
-                        ) : aiItinerary[day.dayNumber - 1] ? (
-                          <Text className="text-neutral-textPrimary">
-                            {aiItinerary[day.dayNumber - 1]}
-                          </Text>
-                        ) : (
-                          <Text className="text-neutral-textSecondary text-center py-4">
-                            Tap to add activities
-                          </Text>
-                        )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDayPress(day)}
+                            className="ml-3"
+                          >
+                            <Ionicons
+                              name="chevron-forward"
+                              size={20}
+                              color="#67717B"
+                            />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    )}
-                  </View>
-                </View>
-              )}
-              onDragEnd={({ data }: any) => {
-                const normalized = data.map((day: any, index: number) => ({
-                  ...day,
-                  dayNumber: index + 1,
-                  position: index + 1,
-                }));
-                setLocalDayBlocks(normalized);
-                onReorderDays?.(normalized);
-              }}
-            />
-          </View>
-        )}
 
-        {/* Delete Itinerary Button - moved to bottom */}
-        {hasItinerary && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            className="mb-6 w-full"
-            onPress={handleDeleteItinerary}
-          >
-            <View className="bg-red-500 px-4 py-3 rounded-lg items-center flex-row justify-center">
-              <MaterialIcons name="delete" size={20} color="white" />
-              <Text className="text-white font-semibold ml-2">
-                Delete Itinerary
-              </Text>
+                      {!collapsedDays[day.dayNumber] && (
+                        <View
+                          className="bg-neutral-background rounded-lg p-4 border border-neutral-divider"
+                          collapsable={false}
+                        >
+                          {loadingActivities[day.dayNumber] ? (
+                            <Text className="text-neutral-textSecondary text-center py-4">
+                              Loading activities...
+                            </Text>
+                          ) : dedupeActivities(day.activities ?? []).length > 0 ? (
+                            <View collapsable={false}>
+                              <Text className="text-sm text-neutral-textSecondary mb-3">
+                                {dedupeActivities(day.activities ?? []).length} activities
+                              </Text>
+                              <View collapsable={false}>
+                                <NestableDraggableFlatList
+                                  data={sortActivitiesForDisplay(
+                                    dedupeActivities(day.activities ?? []),
+                                  )}
+                                  keyExtractor={(item, index) => `${day.dayNumber}-${item.id}-${index}`}
+                                  scrollEnabled={false}
+                                  activationDistance={8}
+                                  renderItem={({ item, drag, isActive }: RenderItemParams<TripActivity>) => (
+                                    <View collapsable={false}>
+                                      <ActivityCard
+                                        activity={item}
+                                      />
+
+                                      {/* DRAG HANDLE */}
+                                      <TouchableOpacity
+                                        onLongPress={drag}
+                                        delayLongPress={120}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        className="ml-3 p-2"
+                                      >
+                                        <Ionicons
+                                          name="reorder-four"
+                                          size={18}
+                                          color={isActive ? "#3B82F6" : "#6B7280"}
+                                        />
+                                      </TouchableOpacity>
+                                    </View>
+                                  )}
+                                  onDragEnd={({ data }) => {
+                                    setLocalDayBlocks((prev) =>
+                                      prev.map((block) =>
+                                        block.dayNumber === day.dayNumber
+                                          ? { ...block, activities: data }
+                                          : block,
+                                      ),
+                                    );
+                                    onReorderDayActivities?.(day.dayNumber, data);
+                                  }}
+                                />
+                              </View>
+                            </View>
+                          ) : aiItinerary[day.dayNumber - 1] ? (
+                            <Text className="text-neutral-textPrimary">
+                              {aiItinerary[day.dayNumber - 1]}
+                            </Text>
+                          ) : (
+                            <Text className="text-neutral-textSecondary text-center py-4">
+                              Tap to add activities
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+                onDragEnd={({ data }) => {
+                  const normalized = data.map((day, index) => ({
+                    ...day,
+                    dayNumber: index + 1,
+                    position: index + 1,
+                  }));
+                  setLocalDayBlocks(normalized);
+                  onReorderDays?.(normalized);
+                }}
+              />
             </View>
-          </TouchableOpacity>
-        )}
-      </View>
+          )}
+
+          {/* Delete Itinerary Button - moved to bottom */}
+          {hasItinerary && (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              className="mb-6 w-full"
+              onPress={handleDeleteItinerary}
+            >
+              <View className="bg-red-500 px-4 py-3 rounded-lg items-center flex-row justify-center">
+                <MaterialIcons name="delete" size={20} color="white" />
+                <Text className="text-white font-semibold ml-2">
+                  Delete Itinerary
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      </NestableScrollContainer>
     </GestureHandlerRootView>
   );
 }

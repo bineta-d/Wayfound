@@ -12,6 +12,7 @@ export interface Trip {
 }
 
 export interface Trip_member {
+  trip_owner_id: string | undefined;
   id: string;
   trip_id: string;
   user_id: string;

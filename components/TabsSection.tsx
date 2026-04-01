@@ -15,9 +15,12 @@ export default function TabsSection({
         <TouchableOpacity
           key={tab}
           onPress={() => setActiveTab(idx)}
-          style={{ flex: 1 }}
+          style={{ width: "25%", alignItems: "center", justifyContent: "center" }}
         >
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={{ width: "100%" }}
             className={`text-center font-semibold pb-2 ${activeTab === idx ? "text-[#D81E5B] border-b-2 border-[#D81E5B]" : "text-gray-500"}`}
           >
             {tab}

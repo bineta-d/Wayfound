@@ -1,6 +1,9 @@
+import { buildTripContext } from "./contextBuilder";
 import { supabase } from "./supabase";
+import { getWeather } from "./weatherService";
 
 interface TripPlanRequest {
+  tripId: string;
   startDate: string;
   endDate: string;
   destination: string;
@@ -36,10 +39,22 @@ export async function generateTripPlan(
   request: TripPlanRequest,
 ): Promise<TripPlan> {
   try {
-    const { data, error } = await supabase.functions.invoke(
+    console.log("Calling EDGE FUNCTION");
+
+    // Get weather before calling AI
+    const weather  = await getWeather (request.destination);
+
+  
+    const context = await buildTripContext(request.tripId);
+
+    const { data, error } = await supabase.functions.invoke<TripPlan>(
       "generate-itinerary",
       {
-        body: request,
+        body: {
+          request,
+          weather,
+          context,
+        }
       },
     );
 
@@ -48,13 +63,17 @@ export async function generateTripPlan(
       throw new Error("Failed to generate itinerary");
     }
 
-    if (!data?.itinerary) {
+    if (!data?.itinerary?.days) {
+      console.log("RAW AI RESPONSE:", data)
       throw new Error("Invalid AI response");
     }
 
     return {
       itinerary: data.itinerary,
+      recommendations: data.recommendations || [],
+      estimatedCost: data.estimatedCost || 0,
     };
+    
   } catch (error) {
     console.error("AI generation error:", error);
     throw error;

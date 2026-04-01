@@ -9,16 +9,6 @@ export const createTrip = async (
   end_date: string,
   owner_id: string,
 ): Promise<Trip[]> => {
-  console.log("🔍 TripService: Creating trip with data:", {
-    owner_id,
-    title,
-    destination,
-    start_date,
-    end_date
-  });
-
-
-  // Try with RLS bypass first (temporary fix)
   const { data, error } = await supabase
     .from("trips")
     .insert({
@@ -30,39 +20,7 @@ export const createTrip = async (
     })
     .select();
 
-  console.log("🔍 TripService: Insert result:", { data, error });
-
   if (error) {
-    console.error("🔍 TripService: Database error:", error);
-
-    // If RLS error, try with service role key (bypass RLS)
-    if (error.code === "42501") {
-      console.log("🔍 TripService: RLS policy blocking, trying service role bypass...");
-
-      // Import service role client for RLS bypass
-      const { supabase: supabaseService } = await import("./supabaseService");
-
-      const { data: serviceData, error: serviceError } = await supabaseService
-        .from("trips")
-        .insert({
-          owner_id: owner_id,
-          title: title,
-          destination: destination,
-          start_date: start_date,
-          end_date: end_date,
-        })
-        .select();
-
-      console.log("🔍 TripService: Service role result:", { serviceData, serviceError });
-
-      if (serviceError) {
-        console.error("🔍 TripService: Service role also failed:", serviceError);
-        throw serviceError;
-      }
-
-      return serviceData || [];
-    }
-
     throw error;
   }
 
@@ -98,6 +56,7 @@ export const createTripMembers = async (
     const memberData = [];
 
     for (const member of members) {
+      // Check if user exists with this email
       const { data: existingUser, error: userError } = await supabase
         .from("users")
         .select("id")
@@ -279,7 +238,7 @@ export const getSharedTrips = async (user: SupabaseUser) => {
     // filter out trips the user owns and remove duplicates
     const ownedTripIds = userTrips?.map((t) => t.id) || [];
     const allSharedTripIds = memberships.map((m) => m.trip_id);
-    const uniqueSharedTripIds = [...new Set(allSharedTripIds)];
+    const uniqueSharedTripIds = [...new Set(allSharedTripIds)]; // Remove duplicates
     const sharedTripIds = uniqueSharedTripIds.filter(
       (tripId) => !ownedTripIds.includes(tripId),
     );
@@ -309,6 +268,7 @@ export const getSharedTrips = async (user: SupabaseUser) => {
 
       if (tripError) {
         console.log("🔍 Could not access trip data for:", tripId, tripError);
+        // placeholder if failed
         sharedTrips.push({
           id: tripId,
           title: "Shared Trip (Access Restricted)",
@@ -438,7 +398,7 @@ export const getPlacePhoto = async (placeName: string): Promise<string | null> =
 //   Trip Activities
 
 export interface Activity {
-  day_date?: string;
+  day_date: any;
   id: string;
   itinerary_day_id: string;
   title: string | null;
@@ -448,32 +408,9 @@ export interface Activity {
   longitude: number | null;
   start_time: string | null;
   end_time: string | null;
-  position?: number | null;
+  position: number | null;
   created_at?: string;
-  rating?: number | null;
-  photo?: string | null;
-  category?: string | null;
 }
-const sortActivitiesForDisplay = <T extends Activity>(activities: T[]): T[] => {
-  return [...activities].sort((a, b) => {
-    const aPos = a.position ?? Number.MAX_SAFE_INTEGER;
-    const bPos = b.position ?? Number.MAX_SAFE_INTEGER;
-    if (aPos !== bPos) return aPos - bPos;
-
-    const aTime = a.start_time?.slice(0, 5) ?? null;
-    const bTime = b.start_time?.slice(0, 5) ?? null;
-    if (!aTime && !bTime) return 0;
-    if (!aTime) return 1;
-    if (!bTime) return -1;
-
-    const t = aTime.localeCompare(bTime);
-    if (t !== 0) return t;
-
-    const aCreated = a.created_at ?? "";
-    const bCreated = b.created_at ?? "";
-    return aCreated.localeCompare(bCreated);
-  });
-};
 
 export interface ItineraryDay {
   id: string;
@@ -481,6 +418,34 @@ export interface ItineraryDay {
   day_date: string;
   position: number | null;
 }
+
+const sortActivitiesForDisplay = <T extends Activity>(activities: T[]): T[] => {
+  return [...activities].sort((a, b) => {
+    const aPos = a.position ?? Number.MAX_SAFE_INTEGER;
+    const bPos = b.position ?? Number.MAX_SAFE_INTEGER;
+
+    if (aPos !== bPos) return aPos - bPos;
+
+    const aTime = a.start_time?.slice(0, 5) ?? null;
+    const bTime = b.start_time?.slice(0, 5) ?? null;
+
+    if (!aTime && !bTime) {
+      const aCreated = a.created_at ?? "";
+      const bCreated = b.created_at ?? "";
+      return aCreated.localeCompare(bCreated);
+    }
+
+    if (!aTime) return 1;
+    if (!bTime) return -1;
+
+    const timeCompare = aTime.localeCompare(bTime);
+    if (timeCompare !== 0) return timeCompare;
+
+    const aCreated = a.created_at ?? "";
+    const bCreated = b.created_at ?? "";
+    return aCreated.localeCompare(bCreated);
+  });
+};
 
 const getOrCreateItineraryDayId = async (
   trip_id: string,
@@ -553,6 +518,21 @@ export const addTripActivityToDay = async (input: {
     input.day_date,
   );
 
+  const { data: existingActivities, error: existingError } = await supabase
+    .from("activities")
+    .select("position")
+    .eq("itinerary_day_id", itinerary_day_id);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const nextPosition =
+    (existingActivities ?? []).reduce((max, item: any) => {
+      const pos = item.position ?? 0;
+      return pos > max ? pos : max;
+    }, 0) + 1;
+
   const { data, error } = await supabase
     .from("activities")
     .insert({
@@ -564,6 +544,7 @@ export const addTripActivityToDay = async (input: {
       longitude: input.longitude,
       start_time: input.start_time ?? null,
       end_time: input.end_time ?? null,
+      position: nextPosition,
     })
     .select("*")
     .single();
@@ -573,6 +554,23 @@ export const addTripActivityToDay = async (input: {
   }
 
   return data as Activity;
+};
+
+export const updateTripActivityPositions = async (
+  updates: { id: string; position: number }[],
+): Promise<void> => {
+  if (updates.length === 0) return;
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("activities")
+      .update({ position: update.position })
+      .eq("id", update.id);
+
+    if (error) {
+      throw error;
+    }
+  }
 };
 
 // Delete an activity
@@ -724,8 +722,9 @@ export const getTripActivities = async (
   // 1) get itinerary days for trip
   const { data: days, error: daysError } = await supabase
     .from("itinerary_days")
-    .select("id, day_date")
+    .select("id, day_date, position")
     .eq("trip_id", trip_id)
+    .order("position", { ascending: true, nullsFirst: false })
     .order("day_date", { ascending: true });
 
   if (daysError) throw daysError;
@@ -752,15 +751,13 @@ export const getTripActivities = async (
 
   if (actsError) throw actsError;
 
-  const activities = (acts as Activity[]) || [];
+  const activities = sortActivitiesForDisplay((acts as Activity[]) || []);
 
   // 3) attach day_date for easy grouping / UI
-  const mapped = activities.map((a) => ({
+  return activities.map((a) => ({
     ...a,
     day_date: dayIdToDate.get(a.itinerary_day_id) ?? "unknown",
   }));
-
-  return sortActivitiesForDisplay(mapped);
 };
 
 export const getTripActivitiesGroupedByDay = async (
@@ -778,14 +775,9 @@ export const getTripActivitiesGroupedByDay = async (
     grouped[day].push(activity as Activity);
   }
 
-  Object.keys(grouped).forEach((day) => {
-    grouped[day] = sortActivitiesForDisplay(grouped[day]);
-  });
-
   return grouped;
 };
 
-// Get itinerary days for a trip
 export const getItineraryDaysForTrip = async (
   trip_id: string,
 ): Promise<ItineraryDay[]> => {
@@ -803,7 +795,7 @@ export const getItineraryDaysForTrip = async (
   return (data as ItineraryDay[]) || [];
 };
 
-// Update itinerary day positions
+
 export const updateItineraryDayPositions = async (
   updates: { id: string; position: number }[],
 ): Promise<void> => {
@@ -835,63 +827,4 @@ export const getTripActivitiesForItineraryDayId = async (
   }
 
   return sortActivitiesForDisplay((data as Activity[]) || []);
-};
-// Update activity positions
-export const updateTripActivityPositions = async (
-  updates: { id: string; position: number }[],
-): Promise<void> => {
-  if (updates.length === 0) return;
-
-  for (const update of updates) {
-    const { error } = await supabase
-      .from("activities")
-      .update({ position: update.position })
-      .eq("id", update.id);
-
-    if (error) {
-      throw error;
-    }
-  }
-};
-
-//Get Trip Budget
-export const getTripBudget = async (trip_id: string) => {
-  const { data, error } = await supabase
-    .from("budgets")
-    .select("*")
-    .eq("trip_id", trip_id)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
-};
-
-//Upsert Trip Budget
-export const upsertTripBudget = async (
-  trip_id: string,
-  budget: {
-    accommodation: number;
-    transport: number;
-    activities: number;
-  }
-) => {
-  const total =
-    budget.accommodation +
-    budget.transport +
-    budget.activities;
-
-  const { data, error } = await supabase
-    .from("budgets")
-    .upsert({
-      trip_id,
-      accommodation: budget.accommodation,
-      transport: budget.transport,
-      activities: budget.activities,
-      total_amount: total,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
+}
