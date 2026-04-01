@@ -1,6 +1,6 @@
-import React from "react";
-import { View, Text, Image } from "react-native";
 import { Activity } from "@/lib/TripService";
+import React from "react";
+import { Image, Text, View } from "react-native";
 
 interface Props {
   activity: Activity;
