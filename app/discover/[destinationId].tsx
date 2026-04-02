@@ -218,7 +218,6 @@ export default function DiscoverDetailScreen() {
           </View>
         </View>
 
-        <Text className="text-gray-700 leading-relaxed mb-6">{destination.description}</Text>
 
         {/* Generate Itinerary Button */}
         <TouchableOpacity
