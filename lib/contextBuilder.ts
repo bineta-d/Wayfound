@@ -19,7 +19,21 @@ export async function buildTripContext(tripId: string) {
     .select("*")
     .eq("trip_id", tripId);
 
-  // 4. Format context
+
+  // 4. Get documents
+  const { data: files, error } = await 
+  supabase.storage
+    .from("trip-uploads")
+    .list(tripId, { limit: 20});
+
+
+  const documentsText = 
+    files && files.length > 0
+      ? files.map(files => `- ${files.name}
+      `).join("\n")
+        : "None";
+
+  // 5. Format context
   return {
     accommodation: accommodations?.map(a =>
       `${a.name} at ${a.address} (check-in: ${a.check_in_time})`
@@ -32,6 +46,8 @@ export async function buildTripContext(tripId: string) {
     activities: activities?.map(a =>
       `${a.title} at ${a.start_time}`
     ).join("\n") || "None",
+
+    documents: documentsText,
 
     bookings: "Parsed from uploaded files (if any)"
   };

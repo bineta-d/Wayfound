@@ -524,7 +524,7 @@ export default function TripOverviewScreen() {
 
               {/* Reservations Section */}
               <View className="bg-white px-6 mb-1 pt-4">
-                <ReservationsSection />
+                <ReservationsSection tripId={tripId as string} />
               </View>
               {/* Generate Itinerary Section */}
               <View className="bg-white px-6 mb-2">

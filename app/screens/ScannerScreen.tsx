@@ -5,18 +5,32 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { supabase } from '../../lib/supabase';
+import { useLocalSearchParams } from 'expo-router';
 
 // 1. Tell the component to accept instructions from the Reservations page!
 interface ScannerProps {
   bucket: string;
   type: string;
+  tripId: string;
 }
 
-export default function ScannerScreen({ bucket, type }: ScannerProps) {
+
+export default function ScannerScreen({ bucket, type, tripId }: ScannerProps) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string>('');
   const [extractedText, setExtractedText] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const categoryMap: Record<string, string> = {
+    Accommodation: "accommodation",
+    Flight: "flight",
+    Train: "train",
+    Bus: "bus",
+    "Car Rental": "car",
+    Activities: "activities",
+  };
+
+  const category = categoryMap[type] || "other";
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -42,8 +56,7 @@ export default function ScannerScreen({ bucket, type }: ScannerProps) {
     setStatusText('Uploading secure file...');
     setExtractedText(''); 
 
-    const targetBucket = bucket || 'trip-uploads';
-    await uploadToSupabase(base64Data, targetBucket);
+    await uploadToSupabase(base64Data);
     
     setStatusText('Analyzing with AI...');
     await analyzeWithGoogleVision(base64Data);
@@ -51,12 +64,28 @@ export default function ScannerScreen({ bucket, type }: ScannerProps) {
     setLoading(false);
   };
 
-  const uploadToSupabase = async (base64Data: string, targetBucket: string) => {
+  const uploadToSupabase = async (base64Data: string) => {
     try {
-      const fileName = `scan_${Date.now()}.jpg`;
-      await supabase.storage
-        .from(targetBucket)
-        .upload(fileName, decode(base64Data), { contentType: 'image/jpeg' });
+      if (!tripId) {
+        console.error("No tripId found");
+        return;
+      }
+
+      const fileName = `${Date.now()}.jpg`;
+
+      const filePath = `${tripId}/${category}/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("trip-uploads")
+        .upload(filePath, decode(base64Data), {
+          contentType: "image/jpeg",
+        });
+
+      if (error) {
+        console.error("Upload Error:", error);
+      } else {
+        console.log("✅ File uploaded to:", filePath);
+      }
     } catch (error) {
       console.error("Upload Error:", error);
     }
@@ -72,8 +101,8 @@ export default function ScannerScreen({ bucket, type }: ScannerProps) {
         const { error } = await supabase.from('accommodations').insert([{
           name: finalName,
           address: "Address extracted from scan", 
-          check_in_time: "15:00", 
-          check_out_time: "11:00",
+          check_in_time: new Date().toISOString(),
+          check_out_time: new Date().toISOString(),
         }]);
         if (error) console.log("DB Insert Notice:", error);
         
