@@ -1,12 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  DefaultTheme,
-  ThemeProvider
-} from "@react-navigation/native";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -27,24 +23,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (error) throw error;
   }, [error]);
-
-  useEffect(() => {
-    SplashScreen.preventAutoHideAsync().catch(() => { });
-  }, []);
-
-  useEffect(() => {
-    const run = async () => {
-      if (!loaded) return;
-      try {
-        await SplashScreen.hideAsync();
-      } catch (error) {
-        console.warn('SplashScreen hide error:', error);
-        // ignore: can happen during fast refresh or if splash isn't registered
-      }
-    };
-
-    run();
-  }, [loaded]);
 
   if (!loaded) {
     return null;
@@ -98,11 +76,11 @@ function AuthStack() {
 
   // Check if user needs onboarding (Google OAuth users without profile)
   const checkOnboardingNeeded = async () => {
-    if (user?.app_metadata?.provider === 'google') {
+    if (user?.app_metadata?.provider === "google") {
       const { data: profile } = await supabase
-        .from('users')
-        .select('id, full_name, dob')
-        .eq('id', user.id)
+        .from("users")
+        .select("id, full_name, dob")
+        .eq("id", user.id)
         .single();
 
       if (!profile || !profile.dob) {
@@ -113,7 +91,9 @@ function AuthStack() {
     return false;
   };
 
-  console.log("🔍 AuthStack: User authenticated, showing main app with AuthGate");
+  console.log(
+    "🔍 AuthStack: User authenticated, showing main app with AuthGate",
+  );
   return (
     <GestureHandlerRootView>
       <Stack>
@@ -123,11 +103,7 @@ function AuthStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
         {/* Trip routes */}
-        <Stack.Screen name="trip/[tripId]" options={{ headerShown: true }} />
-        <Stack.Screen
-          name="trip/[tripId]/day-detail"
-          options={{ headerShown: true, title: "Day Details" }}
-        />
+        <Stack.Screen name="trip/[tripId]" options={{ headerShown: false }} />
 
         {/* Modals */}
         <Stack.Screen

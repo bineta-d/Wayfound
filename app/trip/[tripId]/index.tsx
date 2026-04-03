@@ -1,8 +1,19 @@
 import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Alert,
   Animated,
@@ -14,7 +25,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import {
+  CollaboratorsSkeleton,
+  ItinerarySkeleton,
+  TargetSpotsSkeleton,
+  TripDetailSkeleton,
+} from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
   deleteTrip,
@@ -39,6 +59,7 @@ import TargetSpots from "./target-spots";
 import TripMap from "./trip-map";
 
 export default function TripOverviewScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState(0);
   // Reservation tab state for icons
   const [reservationTab, setReservationTab] = useState(0);
@@ -131,7 +152,7 @@ export default function TripOverviewScreen() {
       await updateItineraryDayPositions(
         normalized
           .filter((d) => Boolean(d.id))
-          .map((d) => ({ id: d.id, position: d.position }))
+          .map((d) => ({ id: d.id, position: d.position })),
       );
 
       const refreshed = await getItineraryDaysForTrip(tripId as string);
@@ -207,7 +228,10 @@ export default function TripOverviewScreen() {
     );
   };
 
-  const handleReorderDayActivities = async (dayNumber: number, reordered: any[]) => {
+  const handleReorderDayActivities = async (
+    dayNumber: number,
+    reordered: any[],
+  ) => {
     const originalDayActivities = dayActivities[dayNumber] ?? [];
     const timeSlots = originalDayActivities.map((item) => ({
       start_time: item.start_time ?? null,
@@ -227,7 +251,7 @@ export default function TripOverviewScreen() {
         reorderedWithTimes.map((item, index) => ({
           id: item.id,
           position: index + 1,
-        }))
+        })),
       );
 
       await Promise.all(
@@ -235,8 +259,8 @@ export default function TripOverviewScreen() {
           updateTripActivity(item.id, {
             start_time: item.start_time,
             end_time: item.end_time,
-          })
-        )
+          }),
+        ),
       );
     } catch (e) {
       console.log("Error saving reordered activities:", e);
@@ -380,15 +404,16 @@ export default function TripOverviewScreen() {
         loadTripData();
         loadGroupedActivities();
       }
-    }, [tripId])
-  )
+    }, [tripId]),
+  );
 
   useEffect(() => {
     if (!trip || String(trip.id) !== String(tripId)) return;
 
-    const dayCount = itineraryDays.length > 0
-      ? itineraryDays.length
-      : generateDayHeaders().length;
+    const dayCount =
+      itineraryDays.length > 0
+        ? itineraryDays.length
+        : generateDayHeaders().length;
 
     const defaultCollapsed: Record<number, boolean> = {};
     for (let dayNumber = 1; dayNumber <= dayCount; dayNumber++) {
@@ -398,30 +423,30 @@ export default function TripOverviewScreen() {
   }, [trip, tripId, itineraryDays]);
 
   const removeActivity = async (activityId: string) => {
-    console.log('🗑️ Removing activity:', activityId);
+    console.log("🗑️ Removing activity:", activityId);
     try {
       // Delete from database first
       await deleteTripActivity(activityId);
-      console.log('✅ Activity deleted from database');
+      console.log("✅ Activity deleted from database");
 
       // Then update local state
       setGroupedActivities((prev) => {
         const newGrouped = { ...prev };
 
         // Remove activity from all days
-        Object.keys(newGrouped).forEach(dayKey => {
+        Object.keys(newGrouped).forEach((dayKey) => {
           newGrouped[dayKey] = newGrouped[dayKey].filter(
-            (activity: any) => activity.id !== activityId
+            (activity: any) => activity.id !== activityId,
           );
         });
 
         return newGrouped;
       });
 
-      console.log('✅ Activity removed from local state');
+      console.log("✅ Activity removed from local state");
     } catch (error) {
-      console.error('❌ Error deleting activity:', error);
-      Alert.alert('Error', 'Failed to delete activity. Please try again.');
+      console.error("❌ Error deleting activity:", error);
+      Alert.alert("Error", "Failed to delete activity. Please try again.");
     }
   };
 
@@ -451,9 +476,9 @@ export default function TripOverviewScreen() {
 
   if (loading) {
     return (
-      <>
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <TripDetailSkeleton />
-      </>
+      </SafeAreaView>
     );
   }
 
@@ -511,7 +536,7 @@ export default function TripOverviewScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 72 }}
         >
           {/* Overview Tab */}
           {activeTab === 0 && (
@@ -537,7 +562,7 @@ export default function TripOverviewScreen() {
                     duration={Math.ceil(
                       (new Date(`${trip.end_date}T00:00:00`).getTime() -
                         new Date(`${trip.start_date}T00:00:00`).getTime()) /
-                      (1000 * 60 * 60 * 24),
+                        (1000 * 60 * 60 * 24),
                     )}
                     onItineraryGenerated={setAiItinerary}
                     loading={loadingAI}
@@ -560,8 +585,8 @@ export default function TripOverviewScreen() {
                     onAssignToDay={handleAssignToDay}
                     onRemoveActivity={removeActivity}
                     tripId={tripId as string}
-                    tripStartDate={trip?.start_date || ''}
-                    tripEndDate={trip?.end_date || ''}
+                    tripStartDate={trip?.start_date || ""}
+                    tripEndDate={trip?.end_date || ""}
                     onRefresh={onRefresh}
                   />
                 )}
@@ -574,12 +599,14 @@ export default function TripOverviewScreen() {
               )}
               {/* Delete Button - Only for trip owners */}
               {user?.id === trip.owner_id && (
-                <View className="px-6 py-4 mb-8">
+                <View className="px-6 py-4 mb-2">
                   <TouchableOpacity
                     onPress={handleDeleteTrip}
                     className="bg-red-500 px-6 py-3 rounded-lg items-center"
                   >
-                    <Text className="text-white font-semibold">Delete Trip</Text>
+                    <Text className="text-white font-semibold">
+                      Delete Trip
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -667,7 +694,7 @@ export default function TripOverviewScreen() {
               <HeaderSection title={trip.title} trip={trip} />
 
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-              <BudgetScreen/>
+              <BudgetScreen />
             </View>
           )}
           {/* Polls Tab */}
@@ -684,8 +711,32 @@ export default function TripOverviewScreen() {
   );
 
   return (
-    <View style={styles.root}>
-      <View style={styles.mapLayer} pointerEvents={isMapSheetOpen ? "auto" : "none"}>
+    <SafeAreaView style={styles.root} edges={[]}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "Trip Details",
+          headerBackTitle: "",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                  return;
+                }
+                router.replace("/(tabs)/home");
+              }}
+              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Ionicons name="chevron-back" size={24} color="#111827" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <View
+        style={[styles.mapLayer, { top: insets.top }]}
+        pointerEvents={isMapSheetOpen ? "auto" : "none"}
+      >
         <View style={[styles.mapSheet, { height: revealedMapHeight }]}>
           <View style={styles.mapBody}>
             <TripMap
@@ -726,7 +777,7 @@ export default function TripOverviewScreen() {
           {isMapSheetOpen ? "Close map" : "Open map"}
         </Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
