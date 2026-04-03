@@ -104,7 +104,7 @@ function AuthStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
         {/* Trip routes */}
-        <Stack.Screen name="trip/[tripId]" options={{ headerShown: true }} />
+        <Stack.Screen name="trip/[tripId]" options={{ headerShown: false }} />
 
         {/* Modals */}
         <Stack.Screen
