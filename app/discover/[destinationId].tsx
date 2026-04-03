@@ -1,7 +1,7 @@
 import GooglePlacesService from "@/lib/googlePlacesService";
 import WikipediaService from "@/lib/wikipediaService";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -404,315 +404,320 @@ export default function DiscoverDetailScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      {/* Header Image */}
-      <View className="relative h-64">
-        <Image
-          source={{ uri: destination.image }}
-          className="w-full h-full"
-          resizeMode="cover"
-        />
-        <View className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-        {/* Back Button */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="absolute top-12 left-6 bg-white/20 backdrop-blur-sm rounded-full p-2"
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Destination Header */}
-      <View className="px-6 py-6">
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-1">
-            <Text className="text-3xl font-bold text-gray-900 mb-2">
-              {destination.name}
-            </Text>
-            <View className="flex-row items-center">
-              <Text className="text-2xl mr-2">
-                {getCountryFlag(destination.countryCode)}
-              </Text>
-              <Text className="text-lg text-gray-600">
-                {destination.countryCode === "US"
-                  ? "FL, USA"
-                  : destination.country}
-              </Text>
-            </View>
-          </View>
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "Discover",
+          headerBackTitle: "Back",
+        }}
+      />
+      <ScrollView className="flex-1 bg-white">
+        {/* Header Image */}
+        <View className="relative h-64">
+          <Image
+            source={{ uri: destination.image }}
+            className="w-full h-full"
+            resizeMode="cover"
+          />
+          <View className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         </View>
 
-        {/* Create Trip Button */}
-        <TouchableOpacity
-          className="bg-blue-600 rounded-xl p-4 flex-row items-center justify-center mb-8"
-          onPress={() => {
-            // Navigate to create trip screen with destination preset
-            router.push({
-              pathname: "/screens/createTrip",
-              params: {
-                destination: destination.name,
-                country: destination.country,
-                countryCode: destination.countryCode,
-              },
-            } as any);
-          }}
-        >
-          <Ionicons name="add-circle" size={20} color="white" />
-          <Text className="text-white font-semibold ml-2">Create Trip</Text>
-        </TouchableOpacity>
-
-        {/* Discover Sections */}
-        {discoverSections.map((section, index) => (
-          <View key={index} className="mb-8">
-            <View className="flex-row items-center mb-4">
-              <Ionicons name={section.icon as any} size={24} color="#007AFF" />
-              <Text className="text-xl font-bold text-gray-800 ml-3">
-                {section.title}
+        {/* Destination Header */}
+        <View className="px-6 py-6">
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-1">
+              <Text className="text-3xl font-bold text-gray-900 mb-2">
+                {destination.name}
               </Text>
+              <View className="flex-row items-center">
+                <Text className="text-2xl mr-2">
+                  {getCountryFlag(destination.countryCode)}
+                </Text>
+                <Text className="text-lg text-gray-600">
+                  {destination.countryCode === "US"
+                    ? "FL, USA"
+                    : destination.country}
+                </Text>
+              </View>
             </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingLeft: 0, paddingRight: 20 }}
-            >
-              {section.places.map((place, placeIndex) => (
-                <TouchableOpacity
-                  key={placeIndex}
-                  className="mr-4"
-                  onPress={() => handleSelectPlace(place)}
-                >
-                  <View className="bg-white rounded-xl shadow-sm overflow-hidden w-40">
-                    <Image
-                      source={{ uri: place.image }}
-                      className="w-full h-24"
-                      resizeMode="cover"
-                    />
-                    <View className="p-3">
-                      <Text className="font-semibold text-gray-800 text-sm mb-1">
-                        {place.name}
-                      </Text>
-                      <Text
-                        className="text-gray-600 text-xs mb-2"
-                        numberOfLines={2}
-                      >
-                        {place.description}
-                      </Text>
-                      <View className="flex-row items-center">
-                        <Ionicons name="star" size={12} color="#FFD700" />
-                        <Text className="text-gray-600 text-xs ml-1">
-                          {place.rating}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
           </View>
-        ))}
-      </View>
 
-      <Modal
-        visible={isPlaceModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsPlaceModalVisible(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "flex-end",
-            backgroundColor: "rgba(0,0,0,0.4)",
-          }}
-        >
-          <SafeAreaView
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              maxHeight: "88%",
+          {/* Create Trip Button */}
+          <TouchableOpacity
+            className="bg-blue-600 rounded-xl p-4 flex-row items-center justify-center mb-8"
+            onPress={() => {
+              // Navigate to create trip screen with destination preset
+              router.push({
+                pathname: "/screens/createTrip",
+                params: {
+                  destination: destination.name,
+                  country: destination.country,
+                  countryCode: destination.countryCode,
+                },
+              } as any);
             }}
           >
-            <View className="flex-row justify-between items-center mb-4 pt-6 px-6">
-              <Text className="text-lg font-semibold text-gray-900">
-                {selectedPlace?.name ?? "Place details"}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setIsPlaceModalVisible(false);
-                  setSelectedPlace(null);
-                  setSelectedPlaceDetails(null);
-                }}
+            <Ionicons name="add-circle" size={20} color="white" />
+            <Text className="text-white font-semibold ml-2">Create Trip</Text>
+          </TouchableOpacity>
+
+          {/* Discover Sections */}
+          {discoverSections.map((section, index) => (
+            <View key={index} className="mb-8">
+              <View className="flex-row items-center mb-4">
+                <Ionicons
+                  name={section.icon as any}
+                  size={24}
+                  color="#007AFF"
+                />
+                <Text className="text-xl font-bold text-gray-800 ml-3">
+                  {section.title}
+                </Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingLeft: 0, paddingRight: 20 }}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              className="px-6"
-              contentContainerStyle={{ paddingBottom: 24 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {placeDetailsLoading && (
-                <View className="items-center justify-center py-20">
-                  <ActivityIndicator size="large" color="#007AFF" />
-                  <Text className="mt-3 text-gray-600">
-                    Loading place information...
-                  </Text>
-                </View>
-              )}
-
-              {!placeDetailsLoading && selectedPlaceDetails && (
-                <View className="space-y-4">
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: 8 }}
+                {section.places.map((place, placeIndex) => (
+                  <TouchableOpacity
+                    key={placeIndex}
+                    className="mr-4"
+                    onPress={() => handleSelectPlace(place)}
                   >
-                    {(
-                      selectedPlaceDetails.photos || [
-                        selectedPlaceDetails.image,
-                      ]
-                    ).map((photo, idx) => (
-                      <TouchableOpacity
-                        key={`${selectedPlaceDetails.placeId}-photo-${idx}`}
-                        onPress={() => {
-                          const images = (
-                            selectedPlaceDetails.photos || [
-                              selectedPlaceDetails.image,
-                            ]
-                          ).map((uri) => ({ url: uri }));
-                          setImageViewerImages(images);
-                          setImageViewerIndex(idx);
-                          setIsImageViewerOpen(true);
-                        }}
-                        activeOpacity={0.8}
-                        className="rounded-xl overflow-hidden mr-3"
-                      >
-                        <Image
-                          source={{ uri: photo }}
-                          className="w-72 h-52"
-                          resizeMode="cover"
-                        />
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    <View className="bg-white rounded-xl shadow-sm overflow-hidden w-40">
+                      <Image
+                        source={{ uri: place.image }}
+                        className="w-full h-24"
+                        resizeMode="cover"
+                      />
+                      <View className="p-3">
+                        <Text className="font-semibold text-gray-800 text-sm mb-1">
+                          {place.name}
+                        </Text>
+                        <Text
+                          className="text-gray-600 text-xs mb-2"
+                          numberOfLines={2}
+                        >
+                          {place.description}
+                        </Text>
+                        <View className="flex-row items-center">
+                          <Ionicons name="star" size={12} color="#FFD700" />
+                          <Text className="text-gray-600 text-xs ml-1">
+                            {place.rating}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ))}
+        </View>
 
-                  <View className="space-y-1">
-                    <Text className="text-base font-semibold text-gray-900">
-                      Address
-                    </Text>
-                    <Text className="text-sm text-gray-700">
-                      {selectedPlaceDetails.formatted_address ||
-                        selectedPlaceDetails.description ||
-                        "Not available"}
+        <Modal
+          visible={isPlaceModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsPlaceModalVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "flex-end",
+              backgroundColor: "rgba(0,0,0,0.4)",
+            }}
+          >
+            <SafeAreaView
+              style={{
+                backgroundColor: "#fff",
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                maxHeight: "88%",
+              }}
+            >
+              <View className="flex-row justify-between items-center mb-4 pt-6 px-6">
+                <Text className="text-lg font-semibold text-gray-900">
+                  {selectedPlace?.name ?? "Place details"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsPlaceModalVisible(false);
+                    setSelectedPlace(null);
+                    setSelectedPlaceDetails(null);
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                className="px-6"
+                contentContainerStyle={{ paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {placeDetailsLoading && (
+                  <View className="items-center justify-center py-20">
+                    <ActivityIndicator size="large" color="#007AFF" />
+                    <Text className="mt-3 text-gray-600">
+                      Loading place information...
                     </Text>
                   </View>
+                )}
 
-                  {selectedPlaceDetails.wikiSummary ? (
+                {!placeDetailsLoading && selectedPlaceDetails && (
+                  <View className="space-y-4">
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingVertical: 8 }}
+                    >
+                      {(
+                        selectedPlaceDetails.photos || [
+                          selectedPlaceDetails.image,
+                        ]
+                      ).map((photo, idx) => (
+                        <TouchableOpacity
+                          key={`${selectedPlaceDetails.placeId}-photo-${idx}`}
+                          onPress={() => {
+                            const images = (
+                              selectedPlaceDetails.photos || [
+                                selectedPlaceDetails.image,
+                              ]
+                            ).map((uri) => ({ url: uri }));
+                            setImageViewerImages(images);
+                            setImageViewerIndex(idx);
+                            setIsImageViewerOpen(true);
+                          }}
+                          activeOpacity={0.8}
+                          className="rounded-xl overflow-hidden mr-3"
+                        >
+                          <Image
+                            source={{ uri: photo }}
+                            className="w-72 h-52"
+                            resizeMode="cover"
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
                     <View className="space-y-1">
                       <Text className="text-base font-semibold text-gray-900">
-                        About
+                        Address
                       </Text>
                       <Text className="text-sm text-gray-700">
-                        {selectedPlaceDetails.wikiSummary}
+                        {selectedPlaceDetails.formatted_address ||
+                          selectedPlaceDetails.description ||
+                          "Not available"}
                       </Text>
                     </View>
-                  ) : null}
 
-                  {selectedPlaceDetails.rating ? (
-                    <View className="flex-row items-center space-x-2">
-                      <Ionicons name="star" size={16} color="#FFD700" />
-                      <Text className="text-sm text-gray-700">
-                        {selectedPlaceDetails.rating} / 5
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {selectedPlaceDetails.reviews &&
-                    selectedPlaceDetails.reviews.length > 0 && (
-                      <View className="space-y-2">
+                    {selectedPlaceDetails.wikiSummary ? (
+                      <View className="space-y-1">
                         <Text className="text-base font-semibold text-gray-900">
-                          Reviews
+                          About
                         </Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={{ paddingVertical: 8 }}
-                        >
-                          {selectedPlaceDetails.reviews.map((review, idx) => (
-                            <View
-                              key={`review-${idx}`}
-                              className="w-60 h-44 bg-white border border-gray-200 rounded-xl p-3 mr-3"
-                            >
-                              <Text className="text-sm font-semibold text-gray-800">
-                                {review.author_name}
-                              </Text>
-                              <Text className="text-xs text-gray-500">
-                                {review.relative_time_description}
-                              </Text>
-                              <View className="flex-row items-center mt-1">
-                                <Ionicons
-                                  name="star"
-                                  size={14}
-                                  color="#FFD700"
-                                />
-                                <Text className="text-sm text-gray-700 ml-1">
-                                  {review.rating}
+                        <Text className="text-sm text-gray-700">
+                          {selectedPlaceDetails.wikiSummary}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPlaceDetails.rating ? (
+                      <View className="flex-row items-center space-x-2">
+                        <Ionicons name="star" size={16} color="#FFD700" />
+                        <Text className="text-sm text-gray-700">
+                          {selectedPlaceDetails.rating} / 5
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPlaceDetails.reviews &&
+                      selectedPlaceDetails.reviews.length > 0 && (
+                        <View className="space-y-2">
+                          <Text className="text-base font-semibold text-gray-900">
+                            Reviews
+                          </Text>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ paddingVertical: 8 }}
+                          >
+                            {selectedPlaceDetails.reviews.map((review, idx) => (
+                              <View
+                                key={`review-${idx}`}
+                                className="w-60 h-44 bg-white border border-gray-200 rounded-xl p-3 mr-3"
+                              >
+                                <Text className="text-sm font-semibold text-gray-800">
+                                  {review.author_name}
+                                </Text>
+                                <Text className="text-xs text-gray-500">
+                                  {review.relative_time_description}
+                                </Text>
+                                <View className="flex-row items-center mt-1">
+                                  <Ionicons
+                                    name="star"
+                                    size={14}
+                                    color="#FFD700"
+                                  />
+                                  <Text className="text-sm text-gray-700 ml-1">
+                                    {review.rating}
+                                  </Text>
+                                </View>
+                                <Text
+                                  className="text-xs text-gray-700 mt-2"
+                                  numberOfLines={4}
+                                >
+                                  {review.text}
                                 </Text>
                               </View>
-                              <Text
-                                className="text-xs text-gray-700 mt-2"
-                                numberOfLines={4}
-                              >
-                                {review.text}
-                              </Text>
-                            </View>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    )}
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
 
-                  <TouchableOpacity
-                    className="bg-blue-600 rounded-xl px-4 py-3 items-center"
-                    onPress={handleOpenInMaps}
-                  >
-                    <Text className="text-white font-semibold">
-                      Open in Maps
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                    <TouchableOpacity
+                      className="bg-blue-600 rounded-xl px-4 py-3 items-center"
+                      onPress={handleOpenInMaps}
+                    >
+                      <Text className="text-white font-semibold">
+                        Open in Maps
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
-              {!placeDetailsLoading && !selectedPlaceDetails && (
-                <Text className="text-center text-gray-500 py-8">
-                  Details not available for this place.
-                </Text>
-              )}
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
+                {!placeDetailsLoading && !selectedPlaceDetails && (
+                  <Text className="text-center text-gray-500 py-8">
+                    Details not available for this place.
+                  </Text>
+                )}
+              </ScrollView>
+            </SafeAreaView>
+          </View>
+        </Modal>
 
-      <Modal
-        visible={isImageViewerOpen}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsImageViewerOpen(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: "black" }}>
-          <ImageViewer
-            imageUrls={imageViewerImages}
-            index={imageViewerIndex}
-            onSwipeDown={() => setIsImageViewerOpen(false)}
-            enableSwipeDown={true}
-            onClick={() => setIsImageViewerOpen(false)}
-            saveToLocalByLongPress={false}
-          />
-        </View>
-      </Modal>
-    </ScrollView>
+        <Modal
+          visible={isImageViewerOpen}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsImageViewerOpen(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: "black" }}>
+            <ImageViewer
+              imageUrls={imageViewerImages}
+              index={imageViewerIndex}
+              onSwipeDown={() => setIsImageViewerOpen(false)}
+              enableSwipeDown={true}
+              onClick={() => setIsImageViewerOpen(false)}
+              saveToLocalByLongPress={false}
+            />
+          </View>
+        </Modal>
+      </ScrollView>
+    </>
   );
 }
