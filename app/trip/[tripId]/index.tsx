@@ -453,9 +453,9 @@ export default function TripOverviewScreen() {
 
   if (loading) {
     return (
-      <>
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <TripDetailSkeleton />
-      </>
+      </SafeAreaView>
     );
   }
 
@@ -686,12 +686,26 @@ export default function TripOverviewScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={["bottom"]}>
+    <SafeAreaView style={styles.root} edges={[]}>
       <Stack.Screen
         options={{
           headerShown: true,
           title: "Trip Details",
           headerBackTitle: "",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                  return;
+                }
+                router.replace("/(tabs)/home");
+              }}
+              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Ionicons name="chevron-back" size={24} color="#111827" />
+            </TouchableOpacity>
+          ),
         }}
       />
       <View
