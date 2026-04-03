@@ -617,7 +617,7 @@ export default function DiscoverDetailScreen() {
 
                     <View className="h-px bg-gray-200" />
 
-                    <View className="space-y-1 px-1 py-2">
+                    <View className="space-y-1 px-3 py-3 bg-gray-50 rounded-xl">
                       <Text className="text-base font-semibold text-gray-900">
                         Address
                       </Text>
@@ -631,7 +631,7 @@ export default function DiscoverDetailScreen() {
                     <View className="h-px bg-gray-200" />
 
                     {selectedPlaceDetails.wikiSummary ? (
-                      <View className="space-y-1 px-1 py-2">
+                      <View className="space-y-1 px-3 py-3 bg-gray-50 rounded-xl">
                         <Text className="text-base font-semibold text-gray-900">
                           About
                         </Text>
@@ -661,7 +661,7 @@ export default function DiscoverDetailScreen() {
 
                     {selectedPlaceDetails.reviews &&
                       selectedPlaceDetails.reviews.length > 0 && (
-                        <View className="space-y-2 px-1 py-2">
+                        <View className="space-y-2 px-3 py-3 bg-gray-50 rounded-xl">
                           <View className="flex-row items-center justify-between">
                             <Text className="text-base font-semibold text-gray-900">
                               Reviews
