@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import Skeleton from '@/components/Skeleton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 const { fetchWeatherApi } = require('openmeteo');
 
 interface WeatherDetailProps {
@@ -294,10 +295,52 @@ export default function WeatherDetail() {
             title: 'Loading Weather...',
           }}
         />
-        <View className="flex-1 bg-white justify-center items-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text className="mt-4 text-gray-600">Loading weather details...</Text>
-        </View>
+        <ScrollView className="flex-1 bg-white">
+          <View className="bg-blue-500 px-6 py-4">
+            <Skeleton width={170} height={24} borderRadius={6} className="self-center" />
+          </View>
+
+          <View className="px-6 py-6">
+            <Skeleton width={160} height={16} borderRadius={6} className="self-center mb-4" />
+
+            <View className="items-center mb-6">
+              <Skeleton width={112} height={112} borderRadius={56} className="mb-4" />
+              <Skeleton width={110} height={36} borderRadius={8} className="mb-2" />
+              <Skeleton width={140} height={20} borderRadius={8} />
+            </View>
+
+            <View className="bg-gray-50 rounded-lg p-4 mb-4">
+              <Skeleton width={170} height={24} borderRadius={8} className="mb-4" />
+              {[1, 2, 3, 4].map((row) => (
+                <View key={row} className="flex-row justify-between mb-3">
+                  <Skeleton width={100} height={16} borderRadius={6} />
+                  <Skeleton width={70} height={16} borderRadius={6} />
+                </View>
+              ))}
+            </View>
+
+            <View className="bg-gray-50 rounded-lg p-4">
+              <Skeleton width={200} height={24} borderRadius={8} className="mb-4" />
+              <View className="bg-white rounded-lg p-4 mb-4">
+                <Skeleton width="100%" height={128} borderRadius={8} />
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 20 }}
+              >
+                {[1, 2, 3, 4, 5].map((idx) => (
+                  <View key={idx} className="bg-white rounded-lg p-3 mr-3 min-w-[80px] items-center">
+                    <Skeleton width={46} height={12} borderRadius={6} className="mb-2" />
+                    <Skeleton width={32} height={32} borderRadius={16} className="mb-2" />
+                    <Skeleton width={42} height={12} borderRadius={6} />
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </ScrollView>
       </>
     );
   }
