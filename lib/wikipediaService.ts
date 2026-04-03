@@ -30,10 +30,13 @@ interface WikimediaSearchResponse {
 }
 
 class WikipediaService {
-  private baseUrl = 'https://en.wikipedia.org/w/api.php';
+  private baseUrl = "https://en.wikipedia.org/w/api.php";
   private apiUnavailable = false;
   private hasLoggedUnavailable = false;
-  private destinationCache = new Map<string, { summary: string | null; image: string | null }>();
+  private destinationCache = new Map<
+    string,
+    { summary: string | null; image: string | null }
+  >();
 
   private async fetchJson<T>(url: string): Promise<T | null> {
     if (this.apiUnavailable) {
@@ -43,8 +46,8 @@ class WikipediaService {
     try {
       const response = await fetch(url, {
         headers: {
-          Accept: 'application/json'
-        }
+          Accept: "application/json",
+        },
       });
       const text = await response.text();
 
@@ -56,13 +59,18 @@ class WikipediaService {
         return JSON.parse(text) as T;
       } catch {
         // Some Wikimedia edges return plain text/HTML (e.g., rate limit pages).
-        throw new Error(`Wikipedia API returned non-JSON: ${text.slice(0, 60)}`);
+        throw new Error(
+          `Wikipedia API returned non-JSON: ${text.slice(0, 60)}`,
+        );
       }
     } catch (error) {
       this.apiUnavailable = true;
       if (!this.hasLoggedUnavailable) {
         this.hasLoggedUnavailable = true;
-        console.warn('Wikipedia API temporarily unavailable, skipping wiki enrichment.', error);
+        console.warn(
+          "Wikipedia API temporarily unavailable, skipping wiki enrichment.",
+          error,
+        );
       }
       return null;
     }
@@ -74,7 +82,7 @@ class WikipediaService {
       return info.summary;
     } catch (error) {
       if (!this.hasLoggedUnavailable) {
-        console.error('Error fetching Wikipedia summary:', error);
+        console.error("Error fetching Wikipedia summary:", error);
       }
       return null;
     }
@@ -86,7 +94,7 @@ class WikipediaService {
       return info.image;
     } catch (error) {
       if (!this.hasLoggedUnavailable) {
-        console.error('Error fetching Wikipedia image:', error);
+        console.error("Error fetching Wikipedia image:", error);
       }
       return null;
     }
@@ -108,7 +116,8 @@ class WikipediaService {
       }
 
       const searchUrl = `${this.baseUrl}?action=query&list=search&srsearch=${encodeURIComponent(destination)}&format=json&origin=*`;
-      const searchData = await this.fetchJson<WikimediaSearchResponse>(searchUrl);
+      const searchData =
+        await this.fetchJson<WikimediaSearchResponse>(searchUrl);
       if (!searchData?.query?.search?.length) {
         const empty = { summary: null, image: null };
         this.destinationCache.set(key, empty);
@@ -120,13 +129,17 @@ class WikipediaService {
       const contentData = await this.fetchJson<WikimediaResponse>(contentUrl);
       const page = contentData?.query?.pages?.[pageId];
 
-      const summary = page?.extract || page?.description || page?.terms?.description?.[0] || null;
+      const summary =
+        page?.extract ||
+        page?.description ||
+        page?.terms?.description?.[0] ||
+        null;
       const image = page?.thumbnail?.source || null;
       const result = { summary, image };
       this.destinationCache.set(key, result);
       return result;
     } catch (error) {
-      console.error('Error fetching destination info:', error);
+      console.error("Error fetching destination info:", error);
       return { summary: null, image: null };
     }
   }

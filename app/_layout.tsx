@@ -1,9 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  DefaultTheme,
-  ThemeProvider
-} from "@react-navigation/native";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import React, { useEffect } from "react";
@@ -79,11 +76,11 @@ function AuthStack() {
 
   // Check if user needs onboarding (Google OAuth users without profile)
   const checkOnboardingNeeded = async () => {
-    if (user?.app_metadata?.provider === 'google') {
+    if (user?.app_metadata?.provider === "google") {
       const { data: profile } = await supabase
-        .from('users')
-        .select('id, full_name, dob')
-        .eq('id', user.id)
+        .from("users")
+        .select("id, full_name, dob")
+        .eq("id", user.id)
         .single();
 
       if (!profile || !profile.dob) {
@@ -94,7 +91,9 @@ function AuthStack() {
     return false;
   };
 
-  console.log("🔍 AuthStack: User authenticated, showing main app with AuthGate");
+  console.log(
+    "🔍 AuthStack: User authenticated, showing main app with AuthGate",
+  );
   return (
     <GestureHandlerRootView>
       <Stack>

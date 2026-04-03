@@ -102,9 +102,10 @@ export default function ExploreScreen() {
       const destinations: Destination[] = await Promise.all(
         popularPlaces.slice(0, 30).map(async (place: any, index: number) => {
           // Limit wiki enrichment to the first few cards to avoid API burst/rate limits.
-          const wikiInfo = index < 8
-            ? await WikipediaService.getDestinationInfo(place.name)
-            : { summary: null, image: null };
+          const wikiInfo =
+            index < 8
+              ? await WikipediaService.getDestinationInfo(place.name)
+              : { summary: null, image: null };
 
           // Extract country from formatted address or use fallback
           let country = "Unknown";
@@ -152,22 +153,26 @@ export default function ExploreScreen() {
         const attractionsResponse = await GooglePlacesService.searchPlaces(
           "tourist attractions landmarks monuments worldwide global",
         );
-        const attractions: Destination[] = attractionsResponse.slice(0, 8).map((place: any) => ({
-          id: place.place_id,
-          name: place.name,
-          country: place.formatted_address?.split(",").pop()?.trim() || "Unknown",
-          countryCode: getCountryCode(
-            place.formatted_address?.split(",").pop()?.trim() || "Unknown",
-          ),
-          image: place.photos?.[0]
-            ? GooglePlacesService.getPhotoUrl(
-                place.photos[0].photo_reference,
-                400,
-              )
-            : "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400",
-          rating: place.rating || 4.5,
-          description: place.formatted_address || "Famous attraction and landmark",
-        }));
+        const attractions: Destination[] = attractionsResponse
+          .slice(0, 8)
+          .map((place: any) => ({
+            id: place.place_id,
+            name: place.name,
+            country:
+              place.formatted_address?.split(",").pop()?.trim() || "Unknown",
+            countryCode: getCountryCode(
+              place.formatted_address?.split(",").pop()?.trim() || "Unknown",
+            ),
+            image: place.photos?.[0]
+              ? GooglePlacesService.getPhotoUrl(
+                  place.photos[0].photo_reference,
+                  400,
+                )
+              : "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400",
+            rating: place.rating || 4.5,
+            description:
+              place.formatted_address || "Famous attraction and landmark",
+          }));
         setPopularAttractions(attractions);
       } catch (error) {
         console.log(

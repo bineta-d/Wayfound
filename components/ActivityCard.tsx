@@ -71,7 +71,6 @@ export default function ActivityCard({ activity }: Props) {
 
   return (
     <View className="bg-white rounded-xl border border-neutral-divider overflow-hidden mb-3">
-
       {/* IMAGE */}
       {resolvedPhoto ? (
         <Image
@@ -87,7 +86,6 @@ export default function ActivityCard({ activity }: Props) {
 
       {/* CONTENT */}
       <View className="p-4">
-
         {/* NAME */}
         <Text className="text-base font-semibold text-neutral-textPrimary">
           {activity.location_name ?? "Activity"}
@@ -110,10 +108,7 @@ export default function ActivityCard({ activity }: Props) {
 
         {/* DESCRIPTION */}
         {activity.description && (
-          <Text
-            className="text-neutral-textSecondary mt-2"
-            numberOfLines={2}
-          >
+          <Text className="text-neutral-textSecondary mt-2" numberOfLines={2}>
             {activity.description}
           </Text>
         )}

@@ -1,7 +1,7 @@
 import HeaderSection from "@/components/HeaderSection";
 import TabsSection from "@/components/TabsSection";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { CollaboratorsSkeleton, ItinerarySkeleton, TargetSpotsSkeleton, TripDetailSkeleton } from "../../../components/TripDetailSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import {
@@ -39,6 +40,7 @@ import TargetSpots from "./target-spots";
 import TripMap from "./trip-map";
 
 export default function TripOverviewScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState(0);
   // Reservation tab state for icons
   const [reservationTab, setReservationTab] = useState(0);
@@ -684,8 +686,18 @@ export default function TripOverviewScreen() {
   );
 
   return (
-    <View style={styles.root}>
-      <View style={styles.mapLayer} pointerEvents={isMapSheetOpen ? "auto" : "none"}>
+    <SafeAreaView style={styles.root} edges={["bottom"]}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "Trip Details",
+          headerBackTitle: "",
+        }}
+      />
+      <View
+        style={[styles.mapLayer, { top: insets.top }]}
+        pointerEvents={isMapSheetOpen ? "auto" : "none"}
+      >
         <View style={[styles.mapSheet, { height: revealedMapHeight }]}>
           <View style={styles.mapBody}>
             <TripMap
@@ -726,7 +738,7 @@ export default function TripOverviewScreen() {
           {isMapSheetOpen ? "Close map" : "Open map"}
         </Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
