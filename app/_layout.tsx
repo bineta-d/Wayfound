@@ -6,7 +6,6 @@ import {
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -27,24 +26,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (error) throw error;
   }, [error]);
-
-  useEffect(() => {
-    SplashScreen.preventAutoHideAsync().catch(() => { });
-  }, []);
-
-  useEffect(() => {
-    const run = async () => {
-      if (!loaded) return;
-      try {
-        await SplashScreen.hideAsync();
-      } catch (error) {
-        console.warn('SplashScreen hide error:', error);
-        // ignore: can happen during fast refresh or if splash isn't registered
-      }
-    };
-
-    run();
-  }, [loaded]);
 
   if (!loaded) {
     return null;
@@ -124,10 +105,6 @@ function AuthStack() {
 
         {/* Trip routes */}
         <Stack.Screen name="trip/[tripId]" options={{ headerShown: true }} />
-        <Stack.Screen
-          name="trip/[tripId]/day-detail"
-          options={{ headerShown: true, title: "Day Details" }}
-        />
 
         {/* Modals */}
         <Stack.Screen

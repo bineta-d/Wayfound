@@ -30,76 +30,64 @@ interface WikimediaSearchResponse {
 }
 
 class WikipediaService {
-  private baseUrl = 'https://en.wikivoyage.org/w/api.php';
+  private baseUrl = 'https://en.wikipedia.org/w/api.php';
+  private apiUnavailable = false;
+  private hasLoggedUnavailable = false;
+  private destinationCache = new Map<string, { summary: string | null; image: string | null }>();
+
+  private async fetchJson<T>(url: string): Promise<T | null> {
+    if (this.apiUnavailable) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new Error(`Wikipedia API HTTP ${response.status}`);
+      }
+
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        // Some Wikimedia edges return plain text/HTML (e.g., rate limit pages).
+        throw new Error(`Wikipedia API returned non-JSON: ${text.slice(0, 60)}`);
+      }
+    } catch (error) {
+      this.apiUnavailable = true;
+      if (!this.hasLoggedUnavailable) {
+        this.hasLoggedUnavailable = true;
+        console.warn('Wikipedia API temporarily unavailable, skipping wiki enrichment.', error);
+      }
+      return null;
+    }
+  }
 
   async getDestinationSummary(destination: string): Promise<string | null> {
     try {
-      // First, search for the destination
-      const searchUrl = `${this.baseUrl}?action=query&list=search&srsearch=${encodeURIComponent(destination)}&format=json&origin=*`;
-
-      const searchResponse = await fetch(searchUrl);
-      const searchData: WikimediaSearchResponse = await searchResponse.json();
-
-      if (!searchData.query.search.length) {
-        return null;
-      }
-
-      // Get the first result's page ID
-      const pageId = searchData.query.search[0].pageid;
-
-      // Get the page content
-      const contentUrl = `${this.baseUrl}?action=query&prop=extracts|description|pageimages&exintro&explaintext&piprop=original&pageids=${pageId}&format=json&origin=*`;
-
-      const contentResponse = await fetch(contentUrl);
-      const contentData: WikimediaResponse = await contentResponse.json();
-
-      const page = contentData.query.pages[pageId];
-
-      if (page.extract) {
-        return page.extract;
-      } else if (page.description) {
-        return page.description;
-      } else if (page.terms?.description?.[0]) {
-        return page.terms.description[0];
-      }
-
-      return null;
+      const info = await this.getDestinationInfo(destination);
+      return info.summary;
     } catch (error) {
-      console.error('Error fetching Wikipedia summary:', error);
+      if (!this.hasLoggedUnavailable) {
+        console.error('Error fetching Wikipedia summary:', error);
+      }
       return null;
     }
   }
 
   async getDestinationImage(destination: string): Promise<string | null> {
     try {
-      // Search for the destination
-      const searchUrl = `${this.baseUrl}?action=query&list=search&srsearch=${encodeURIComponent(destination)}&format=json&origin=*`;
-
-      const searchResponse = await fetch(searchUrl);
-      const searchData: WikimediaSearchResponse = await searchResponse.json();
-
-      if (!searchData.query.search.length) {
-        return null;
-      }
-
-      // Get the first result's page ID
-      const pageId = searchData.query.search[0].pageid;
-
-      // Get the page image
-      const imageUrl = `${this.baseUrl}?action=query&prop=pageimages&pithumbsize=800&pageids=${pageId}&format=json&origin=*`;
-
-      const imageResponse = await fetch(imageUrl);
-      const imageData: WikimediaResponse = await imageResponse.json();
-
-      const page = imageData.query.pages[pageId];
-
-      if (page.thumbnail?.source) {
-        return page.thumbnail.source;
-      }
-
-      return null;
+      const info = await this.getDestinationInfo(destination);
+      return info.image;
     } catch (error) {
-      console.error('Error fetching Wikipedia image:', error);
+      if (!this.hasLoggedUnavailable) {
+        console.error('Error fetching Wikipedia image:', error);
+      }
       return null;
     }
   }
@@ -109,12 +97,34 @@ class WikipediaService {
     image: string | null;
   }> {
     try {
-      const [summary, image] = await Promise.all([
-        this.getDestinationSummary(destination),
-        this.getDestinationImage(destination)
-      ]);
+      const key = destination.trim().toLowerCase();
+      const cached = this.destinationCache.get(key);
+      if (cached) {
+        return cached;
+      }
 
-      return { summary, image };
+      if (this.apiUnavailable) {
+        return { summary: null, image: null };
+      }
+
+      const searchUrl = `${this.baseUrl}?action=query&list=search&srsearch=${encodeURIComponent(destination)}&format=json&origin=*`;
+      const searchData = await this.fetchJson<WikimediaSearchResponse>(searchUrl);
+      if (!searchData?.query?.search?.length) {
+        const empty = { summary: null, image: null };
+        this.destinationCache.set(key, empty);
+        return empty;
+      }
+
+      const pageId = searchData.query.search[0].pageid;
+      const contentUrl = `${this.baseUrl}?action=query&prop=extracts|description|pageimages&exintro&explaintext&pithumbsize=800&pageids=${pageId}&format=json&origin=*`;
+      const contentData = await this.fetchJson<WikimediaResponse>(contentUrl);
+      const page = contentData?.query?.pages?.[pageId];
+
+      const summary = page?.extract || page?.description || page?.terms?.description?.[0] || null;
+      const image = page?.thumbnail?.source || null;
+      const result = { summary, image };
+      this.destinationCache.set(key, result);
+      return result;
     } catch (error) {
       console.error('Error fetching destination info:', error);
       return { summary: null, image: null };
