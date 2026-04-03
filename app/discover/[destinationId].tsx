@@ -396,10 +396,19 @@ export default function DiscoverDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text className="mt-4 text-gray-600">Loading destination...</Text>
-      </View>
+      <>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            title: "Discover",
+            headerBackTitle: "Back",
+          }}
+        />
+        <View className="flex-1 items-center justify-center bg-white">
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text className="mt-4 text-gray-600">Loading destination...</Text>
+        </View>
+      </>
     );
   }
 
