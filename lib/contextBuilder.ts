@@ -33,6 +33,8 @@ export async function buildTripContext(tripId: string) {
       `).join("\n")
         : "None";
 
+    
+
   // 5. Format context
   return {
     accommodation: accommodations?.map(a =>
@@ -49,6 +51,6 @@ export async function buildTripContext(tripId: string) {
 
     documents: documentsText,
 
-    bookings: "Parsed from uploaded files (if any)"
+    bookings: documentsText,
   };
 }
