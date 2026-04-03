@@ -69,6 +69,7 @@ export default function DiscoverDetailScreen() {
   const [placeDetailsLoading, setPlaceDetailsLoading] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [imageViewerImages, setImageViewerImages] = useState<
     Array<{ url: string }>
   >([]);
@@ -342,6 +343,7 @@ export default function DiscoverDetailScreen() {
     setSelectedPlace(place);
     setIsPlaceModalVisible(true);
     setPlaceDetailsLoading(true);
+    setIsAboutExpanded(false);
 
     try {
       const details = await GooglePlacesService.getPlaceDetails(place.placeId);
@@ -613,7 +615,9 @@ export default function DiscoverDetailScreen() {
                       ))}
                     </ScrollView>
 
-                    <View className="space-y-1">
+                    <View className="h-px bg-gray-200" />
+
+                    <View className="space-y-1 px-1 py-2">
                       <Text className="text-base font-semibold text-gray-900">
                         Address
                       </Text>
@@ -624,32 +628,57 @@ export default function DiscoverDetailScreen() {
                       </Text>
                     </View>
 
+                    <View className="h-px bg-gray-200" />
+
                     {selectedPlaceDetails.wikiSummary ? (
-                      <View className="space-y-1">
+                      <View className="space-y-1 px-1 py-2">
                         <Text className="text-base font-semibold text-gray-900">
                           About
                         </Text>
-                        <Text className="text-sm text-gray-700">
+                        <Text
+                          className="text-sm text-gray-700"
+                          numberOfLines={isAboutExpanded ? undefined : 5}
+                          ellipsizeMode="tail"
+                        >
                           {selectedPlaceDetails.wikiSummary}
                         </Text>
+                        <TouchableOpacity
+                          onPress={() => setIsAboutExpanded((prev) => !prev)}
+                          className="self-start"
+                        >
+                          <Text className="text-blue-600 font-medium text-sm">
+                            {isAboutExpanded ? "See less" : "See more"}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     ) : null}
 
-                    {selectedPlaceDetails.rating ? (
-                      <View className="flex-row items-center space-x-2">
-                        <Ionicons name="star" size={16} color="#FFD700" />
-                        <Text className="text-sm text-gray-700">
-                          {selectedPlaceDetails.rating} / 5
-                        </Text>
-                      </View>
+                    {selectedPlaceDetails.wikiSummary &&
+                    selectedPlaceDetails.reviews &&
+                    selectedPlaceDetails.reviews.length > 0 ? (
+                      <View className="h-px bg-gray-200" />
                     ) : null}
 
                     {selectedPlaceDetails.reviews &&
                       selectedPlaceDetails.reviews.length > 0 && (
-                        <View className="space-y-2">
-                          <Text className="text-base font-semibold text-gray-900">
-                            Reviews
-                          </Text>
+                        <View className="space-y-2 px-1 py-2">
+                          <View className="flex-row items-center justify-between">
+                            <Text className="text-base font-semibold text-gray-900">
+                              Reviews
+                            </Text>
+                            {selectedPlaceDetails.rating ? (
+                              <View className="flex-row items-center">
+                                <Ionicons
+                                  name="star"
+                                  size={16}
+                                  color="#FFD700"
+                                />
+                                <Text className="text-sm text-gray-700 ml-1">
+                                  {selectedPlaceDetails.rating} / 5
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
                           <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -660,21 +689,25 @@ export default function DiscoverDetailScreen() {
                                 key={`review-${idx}`}
                                 className="w-60 h-44 bg-white border border-gray-200 rounded-xl p-3 mr-3"
                               >
-                                <Text className="text-sm font-semibold text-gray-800">
-                                  {review.author_name}
-                                </Text>
-                                <Text className="text-xs text-gray-500">
-                                  {review.relative_time_description}
-                                </Text>
-                                <View className="flex-row items-center mt-1">
-                                  <Ionicons
-                                    name="star"
-                                    size={14}
-                                    color="#FFD700"
-                                  />
-                                  <Text className="text-sm text-gray-700 ml-1">
-                                    {review.rating}
-                                  </Text>
+                                <View className="flex-row justify-between items-start">
+                                  <View className="flex-1 mr-2">
+                                    <Text className="text-sm font-semibold text-gray-800">
+                                      {review.author_name}
+                                    </Text>
+                                    <Text className="text-xs text-gray-500">
+                                      {review.relative_time_description}
+                                    </Text>
+                                  </View>
+                                  <View className="flex-row items-center">
+                                    <Ionicons
+                                      name="star"
+                                      size={14}
+                                      color="#FFD700"
+                                    />
+                                    <Text className="text-sm text-gray-700 ml-1">
+                                      {review.rating}
+                                    </Text>
+                                  </View>
                                 </View>
                                 <Text
                                   className="text-xs text-gray-700 mt-2"
