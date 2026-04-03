@@ -513,7 +513,7 @@ export default function TripOverviewScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 72 }}
         >
           {/* Overview Tab */}
           {activeTab === 0 && (
@@ -576,7 +576,7 @@ export default function TripOverviewScreen() {
               )}
               {/* Delete Button - Only for trip owners */}
               {user?.id === trip.owner_id && (
-                <View className="px-6 py-4 mb-8">
+                <View className="px-6 py-4 mb-2">
                   <TouchableOpacity
                     onPress={handleDeleteTrip}
                     className="bg-red-500 px-6 py-3 rounded-lg items-center"
