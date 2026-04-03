@@ -130,7 +130,20 @@ class GooglePlacesService {
 
   async getPlaceDetails(placeId: string): Promise<Place | null> {
     try {
-      const url = `${this.baseUrl}/details/json?place_id=${placeId}&key=${GOOGLE_API_KEY}`;
+      const fields = [
+        'name',
+        'rating',
+        'formatted_address',
+        'geometry',
+        'photos',
+        'website',
+        'international_phone_number',
+        'formatted_phone_number',
+        'opening_hours',
+        'reviews'
+      ].join(',');
+
+      const url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=${fields}&key=${GOOGLE_API_KEY}`;
 
       const response = await fetch(url);
       const data: PlaceDetailsResponse = await response.json();

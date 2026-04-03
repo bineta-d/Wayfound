@@ -3,17 +3,32 @@ import WikipediaService from '@/lib/wikipediaService';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface DiscoverSection {
   title: string;
   icon: string;
-  places: Array<{
-    name: string;
-    description: string;
-    image: string;
-    rating: number;
-  }>;
+  places: Array<PlaceSummary>;
+}
+
+interface PlaceSummary {
+  placeId: string;
+  name: string;
+  description: string;
+  image: string;
+  rating: number;
+  formatted_address?: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface PlaceDetailsInfo extends PlaceSummary {
+  website?: string;
+  phone_number?: string;
+  opening_hours?: string[];
+  reviews?: Array<{ author_name: string; rating: number; text: string; relative_time_description?: string }>;
+  photos: string[];
+  wikiSummary?: string | null;
 }
 
 export default function DiscoverDetailScreen() {
@@ -28,6 +43,11 @@ export default function DiscoverDetailScreen() {
     description: ''
   });
   const [discoverSections, setDiscoverSections] = useState<DiscoverSection[]>([]);
+
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSummary | null>(null);
+  const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<PlaceDetailsInfo | null>(null);
+  const [isPlaceModalVisible, setIsPlaceModalVisible] = useState(false);
+  const [placeDetailsLoading, setPlaceDetailsLoading] = useState(false);
 
   const getCountryFlag = (countryCode: string) => {
     const flagMap: Record<string, string> = {
@@ -66,12 +86,16 @@ export default function DiscoverDetailScreen() {
       // Convert Google Places data to our format
       const convertPlaces = (places: any[]) =>
         places.slice(0, 6).map(place => ({
+          placeId: place.place_id,
           name: place.name,
           description: place.formatted_address || `${place.name} in ${destinationName}`,
+          formatted_address: place.formatted_address,
           image: place.photos?.[0]
             ? GooglePlacesService.getPhotoUrl(place.photos[0].photo_reference, 200)
             : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=200',
-          rating: place.rating || 4.5
+          rating: place.rating || 4.5,
+          lat: place.geometry?.location?.lat,
+          lng: place.geometry?.location?.lng
         }));
 
       // Build dynamic sections
@@ -102,13 +126,13 @@ export default function DiscoverDetailScreen() {
       }
 
       // Get transport options (generic for most cities)
-      const transportPlaces = [
-        { name: 'Public Transit', description: 'Local buses, trains, and metro systems', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=200', rating: 4.3 },
-        { name: 'Taxi Services', description: 'Traditional taxis and ride-sharing options', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.2 },
-        { name: 'Car Rentals', description: 'Vehicle rental services for exploring', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.4 },
-        { name: 'Airport Transfer', description: 'Shuttle services to/from airport', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.1 },
-        { name: 'Bike Rentals', description: 'Bicycle rental for local exploration', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.5 },
-        { name: 'Walking Tours', description: 'Guided tours on foot', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.6 }
+      const transportPlaces: PlaceSummary[] = [
+        { placeId: 'transport-public-transit', name: 'Public Transit', description: 'Local buses, trains, and metro systems', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=200', rating: 4.3 },
+        { placeId: 'transport-taxi-services', name: 'Taxi Services', description: 'Traditional taxis and ride-sharing options', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.2 },
+        { placeId: 'transport-car-rentals', name: 'Car Rentals', description: 'Vehicle rental services for exploring', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.4 },
+        { placeId: 'transport-airport-transfer', name: 'Airport Transfer', description: 'Shuttle services to/from airport', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.1 },
+        { placeId: 'transport-bike-rentals', name: 'Bike Rentals', description: 'Bicycle rental for local exploration', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.5 },
+        { placeId: 'transport-walking-tours', name: 'Walking Tours', description: 'Guided tours on foot', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.6 }
       ];
 
       sections.push({
@@ -146,33 +170,81 @@ export default function DiscoverDetailScreen() {
         title: 'Top Attractions',
         icon: 'star',
         places: [
-          { name: 'Historic Landmark', description: 'Iconic attraction and symbol of the city', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?w=200', rating: 4.7 },
-          { name: 'City Museum', description: 'World-class museum with extensive collections', image: 'https://images.unsplash.com/photo-1566472247105-b5b942703b0a?w=200', rating: 4.8 },
-          { name: 'Central Park', description: 'Beautiful green space in the heart of the city', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.6 }
+          { placeId: 'mock-historic-landmark', name: 'Historic Landmark', description: 'Iconic attraction and symbol of the city', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?w=200', rating: 4.7 },
+          { placeId: 'mock-city-museum', name: 'City Museum', description: 'World-class museum with extensive collections', image: 'https://images.unsplash.com/photo-1566472247105-b5b942703b0a?w=200', rating: 4.8 },
+          { placeId: 'mock-central-park', name: 'Central Park', description: 'Beautiful green space in the heart of the city', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.6 }
         ]
       },
       {
         title: 'Must Try Foods',
         icon: 'restaurant',
         places: [
-          { name: 'Local Specialty', description: 'Famous local dish you must try', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.9 },
-          { name: 'Street Food', description: 'Authentic local street food experience', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.7 },
-          { name: 'Fine Dining', description: 'Upscale restaurant with local cuisine', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.8 }
+          { placeId: 'mock-local-specialty', name: 'Local Specialty', description: 'Famous local dish you must try', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.9 },
+          { placeId: 'mock-street-food', name: 'Street Food', description: 'Authentic local street food experience', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.7 },
+          { placeId: 'mock-fine-dining', name: 'Fine Dining', description: 'Upscale restaurant with local cuisine', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.8 }
         ]
       },
       {
         title: 'Photo Spots',
         icon: 'camera',
         places: [
-          { name: 'Scenic Viewpoint', description: 'Best panoramic views of the city', image: 'https://images.unsplash.com/photo-1502602898536-47ad22581b52?w=200', rating: 4.8 },
-          { name: 'Historic District', description: 'Charming area with photogenic architecture', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.7 },
-          { name: 'Waterfront', description: 'Beautiful waterfront views', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.6 }
+          { placeId: 'mock-scenic-viewpoint', name: 'Scenic Viewpoint', description: 'Best panoramic views of the city', image: 'https://images.unsplash.com/photo-1502602898536-47ad22581b52?w=200', rating: 4.8 },
+          { placeId: 'mock-historic-district', name: 'Historic District', description: 'Charming area with photogenic architecture', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.7 },
+          { placeId: 'mock-waterfront', name: 'Waterfront', description: 'Beautiful waterfront views', image: 'https://images.unsplash.com/photo-1549144511-f099e777c147?w=200', rating: 4.6 }
         ]
       }
     ];
 
     setDestination(prev => ({ ...prev, ...mockDestinationData }));
     setDiscoverSections(mockSections);
+  };
+
+  const handleSelectPlace = async (place: PlaceSummary) => {
+    setSelectedPlace(place);
+    setIsPlaceModalVisible(true);
+    setPlaceDetailsLoading(true);
+
+    try {
+      const details = await GooglePlacesService.getPlaceDetails(place.placeId);
+      const placePhotos = details?.photos?.map((photo: any) => GooglePlacesService.getPhotoUrl(photo.photo_reference, 400)) || [place.image];
+      const wikiInfo = await WikipediaService.getDestinationInfo(place.name);
+
+      setSelectedPlaceDetails({
+        ...place,
+        formatted_address: details?.formatted_address || place.formatted_address,
+        website: (details as any)?.website,
+        phone_number: (details as any)?.international_phone_number || (details as any)?.formatted_phone_number,
+        opening_hours: (details as any)?.opening_hours?.weekday_text,
+        reviews: (details as any)?.reviews?.slice(0, 4).map((review: any) => ({
+          author_name: review.author_name,
+          rating: review.rating,
+          text: review.text,
+          relative_time_description: review.relative_time_description
+        })),
+        photos: placePhotos,
+        wikiSummary: wikiInfo.summary
+      });
+    } catch (error) {
+      console.error('Error loading place details:', error);
+      setSelectedPlaceDetails({
+        ...place,
+        photos: [place.image],
+        wikiSummary: null
+      });
+    } finally {
+      setPlaceDetailsLoading(false);
+    }
+  };
+
+  const handleOpenInMaps = () => {
+    if (!selectedPlace) {
+      return;
+    }
+    const lat = selectedPlace.lat;
+    const lng = selectedPlace.lng;
+    const query = lat && lng ? `${lat},${lng}` : encodeURIComponent(selectedPlace.name);
+    const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    Linking.openURL(url).catch(err => console.error('Error opening maps:', err));
   };
 
   if (loading) {
@@ -212,20 +284,30 @@ export default function DiscoverDetailScreen() {
             <View className="flex-row items-center">
               <Text className="text-2xl mr-2">{getCountryFlag(destination.countryCode)}</Text>
               <Text className="text-lg text-gray-600">
-                {destination.countryCode === 'US' ? `${destination.name}, FL, USA` : `${destination.name}, ${destination.country}`}
+                {destination.countryCode === 'US' ? 'FL, USA' : destination.country}
               </Text>
             </View>
           </View>
         </View>
 
 
-        {/* Generate Itinerary Button */}
+        {/* Create Trip Button */}
         <TouchableOpacity
           className="bg-blue-600 rounded-xl p-4 flex-row items-center justify-center mb-8"
-          onPress={() => router.push('/screens/aiPlannerScreen' as any)}
+          onPress={() => {
+            // Navigate to create trip screen with destination preset
+            router.push({
+              pathname: '/screens/createTrip',
+              params: {
+                destination: destination.name,
+                country: destination.country,
+                countryCode: destination.countryCode
+              }
+            } as any);
+          }}
         >
-          <Ionicons name="sparkles" size={20} color="white" />
-          <Text className="text-white font-semibold ml-2">Generate Itinerary</Text>
+          <Ionicons name="add-circle" size={20} color="white" />
+          <Text className="text-white font-semibold ml-2">Create Trip</Text>
         </TouchableOpacity>
 
         {/* Discover Sections */}
@@ -245,6 +327,7 @@ export default function DiscoverDetailScreen() {
                 <TouchableOpacity
                   key={placeIndex}
                   className="mr-4"
+                  onPress={() => handleSelectPlace(place)}
                 >
                   <View className="bg-white rounded-xl shadow-sm overflow-hidden w-40">
                     <Image
@@ -267,6 +350,102 @@ export default function DiscoverDetailScreen() {
           </View>
         ))}
       </View>
+
+      <Modal
+        visible={isPlaceModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsPlaceModalVisible(false)}
+      >
+        <View className="flex-1 justify-end bg-black/40">
+          <SafeAreaView className="w-full bg-white rounded-t-3xl shadow-lg" style={{ maxHeight: '85%' }}>
+            <View className="flex-row justify-between items-center mb-4 pt-6 px-6">
+              <Text className="text-lg font-semibold text-gray-900">{selectedPlace?.name ?? 'Place details'}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsPlaceModalVisible(false);
+                  setSelectedPlace(null);
+                  setSelectedPlaceDetails(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView className="px-6 pb-8">
+              {placeDetailsLoading && (
+                <View className="items-center justify-center py-20">
+                  <ActivityIndicator size="large" color="#007AFF" />
+                  <Text className="mt-3 text-gray-600">Loading place information...</Text>
+                </View>
+              )}
+
+              {!placeDetailsLoading && selectedPlaceDetails && (
+                <View className="space-y-4">
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingVertical: 8 }}
+                  >
+                    {(selectedPlaceDetails.photos || [selectedPlaceDetails.image]).map((photo, idx) => (
+                      <Image
+                        key={`${selectedPlaceDetails.placeId}-photo-${idx}`}
+                        source={{ uri: photo }}
+                        className="w-72 h-40 rounded-xl mr-3"
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </ScrollView>
+
+                  <View className="space-y-1">
+                    <Text className="text-base font-semibold text-gray-900">Address</Text>
+                    <Text className="text-sm text-gray-700">{selectedPlaceDetails.formatted_address || selectedPlaceDetails.description || 'Not available'}</Text>
+                  </View>
+
+                  {selectedPlaceDetails.wikiSummary ? (
+                    <View className="space-y-1">
+                      <Text className="text-base font-semibold text-gray-900">About</Text>
+                      <Text className="text-sm text-gray-700">{selectedPlaceDetails.wikiSummary}</Text>
+                    </View>
+                  ) : null}
+
+                  {selectedPlaceDetails.rating ? (
+                    <View className="flex-row items-center space-x-2">
+                      <Ionicons name="star" size={16} color="#FFD700" />
+                      <Text className="text-sm text-gray-700">{selectedPlaceDetails.rating} / 5</Text>
+                    </View>
+                  ) : null}
+
+                  {(selectedPlaceDetails.reviews && selectedPlaceDetails.reviews.length > 0) && (
+                    <View className="space-y-2">
+                      <Text className="text-base font-semibold text-gray-900">Reviews</Text>
+                      {selectedPlaceDetails.reviews.map((review, idx) => (
+                        <View key={`review-${idx}`} className="p-3 border border-gray-200 rounded-lg">
+                          <Text className="text-sm font-medium text-gray-800">{review.author_name} · {review.rating} ⭐</Text>
+                          <Text className="text-xs text-gray-600 mt-1">{review.relative_time_description}</Text>
+                          <Text className="text-sm text-gray-700 mt-2">{review.text}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    className="bg-blue-600 rounded-xl px-4 py-3 items-center"
+                    onPress={handleOpenInMaps}
+                  >
+                    <Text className="text-white font-semibold">Open in Maps</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {!placeDetailsLoading && !selectedPlaceDetails && (
+                <Text className="text-center text-gray-500 py-8">Details not available for this place.</Text>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 }
