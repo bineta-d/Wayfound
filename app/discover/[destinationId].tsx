@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import ImageViewing from 'react-native-image-viewing';
 
 interface DiscoverSection {
   title: string;
@@ -48,6 +49,8 @@ export default function DiscoverDetailScreen() {
   const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<PlaceDetailsInfo | null>(null);
   const [isPlaceModalVisible, setIsPlaceModalVisible] = useState(false);
   const [placeDetailsLoading, setPlaceDetailsLoading] = useState(false);
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
 
   const getCountryFlag = (countryCode: string) => {
     const flagMap: Record<string, string> = {
@@ -388,12 +391,19 @@ export default function DiscoverDetailScreen() {
                     contentContainerStyle={{ paddingVertical: 8 }}
                   >
                     {(selectedPlaceDetails.photos || [selectedPlaceDetails.image]).map((photo, idx) => (
-                      <Image
+                      <TouchableOpacity
                         key={`${selectedPlaceDetails.placeId}-photo-${idx}`}
-                        source={{ uri: photo }}
-                        className="w-72 h-40 rounded-xl mr-3"
-                        resizeMode="cover"
-                      />
+                        onPress={() => {
+                          setImageViewerIndex(idx);
+                          setIsImageViewerOpen(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: photo }}
+                          className="w-72 h-40 rounded-xl mr-3"
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
                     ))}
                   </ScrollView>
 
@@ -419,13 +429,23 @@ export default function DiscoverDetailScreen() {
                   {(selectedPlaceDetails.reviews && selectedPlaceDetails.reviews.length > 0) && (
                     <View className="space-y-2">
                       <Text className="text-base font-semibold text-gray-900">Reviews</Text>
-                      {selectedPlaceDetails.reviews.map((review, idx) => (
-                        <View key={`review-${idx}`} className="p-3 border border-gray-200 rounded-lg">
-                          <Text className="text-sm font-medium text-gray-800">{review.author_name} · {review.rating} ⭐</Text>
-                          <Text className="text-xs text-gray-600 mt-1">{review.relative_time_description}</Text>
-                          <Text className="text-sm text-gray-700 mt-2">{review.text}</Text>
-                        </View>
-                      ))}
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingVertical: 8 }}
+                      >
+                        {selectedPlaceDetails.reviews.map((review, idx) => (
+                          <View key={`review-${idx}`} className="w-60 h-44 bg-white border border-gray-200 rounded-xl p-3 mr-3">
+                            <Text className="text-sm font-semibold text-gray-800">{review.author_name}</Text>
+                            <Text className="text-xs text-gray-500">{review.relative_time_description}</Text>
+                            <View className="flex-row items-center mt-1">
+                              <Ionicons name="star" size={14} color="#FFD700" />
+                              <Text className="text-sm text-gray-700 ml-1">{review.rating}</Text>
+                            </View>
+                            <Text className="text-xs text-gray-700 mt-2" numberOfLines={4}>{review.text}</Text>
+                          </View>
+                        ))}
+                      </ScrollView>
                     </View>
                   )}
 
@@ -445,6 +465,18 @@ export default function DiscoverDetailScreen() {
           </SafeAreaView>
         </View>
       </Modal>
+
+      {selectedPlaceDetails && (
+        <ImageViewing
+          images={(selectedPlaceDetails.photos || [selectedPlaceDetails.image]).map((uri) => ({ uri }))}
+          imageIndex={imageViewerIndex}
+          visible={isImageViewerOpen}
+          onRequestClose={() => setIsImageViewerOpen(false)}
+          presentationStyle="fullScreen"
+          swipeToCloseEnabled
+          doubleTapToZoomEnabled
+        />
+      )}
 
     </ScrollView>
   );
