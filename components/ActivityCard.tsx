@@ -1,19 +1,81 @@
+import GooglePlacesService from "@/lib/googlePlacesService";
 import { Activity } from "@/lib/TripService";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Image, Text, View } from "react-native";
 
 interface Props {
   activity: Activity;
 }
 
+const photoCache = new Map<string, string | null>();
+
 export default function ActivityCard({ activity }: Props) {
+  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(
+    activity.photo ?? null,
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    if (activity.photo) {
+      setResolvedPhoto(activity.photo);
+      return () => {
+        active = false;
+      };
+    }
+
+    const locationName = activity.location_name?.trim();
+    if (!locationName) {
+      setResolvedPhoto(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    const cached = photoCache.get(locationName);
+    if (cached !== undefined) {
+      setResolvedPhoto(cached);
+      return () => {
+        active = false;
+      };
+    }
+
+    setResolvedPhoto(null);
+
+    const loadPhoto = async () => {
+      try {
+        const results = await GooglePlacesService.searchPlaces(locationName);
+        const photoReference = results[0]?.photos?.[0]?.photo_reference;
+        const photoUrl = photoReference
+          ? GooglePlacesService.getPhotoUrl(photoReference, 800)
+          : null;
+
+        photoCache.set(locationName, photoUrl);
+        if (active) {
+          setResolvedPhoto(photoUrl);
+        }
+      } catch {
+        photoCache.set(locationName, null);
+        if (active) {
+          setResolvedPhoto(null);
+        }
+      }
+    };
+
+    loadPhoto();
+
+    return () => {
+      active = false;
+    };
+  }, [activity.location_name, activity.photo]);
+
   return (
     <View className="bg-white rounded-xl border border-neutral-divider overflow-hidden mb-3">
 
       {/* IMAGE */}
-      {activity.photo ? (
+      {resolvedPhoto ? (
         <Image
-          source={{ uri: activity.photo }}
+          source={{ uri: resolvedPhoto }}
           className="w-full h-40"
           resizeMode="cover"
         />

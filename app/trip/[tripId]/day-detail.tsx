@@ -564,7 +564,7 @@ export default function DayDetailScreen() {
                       onLongPress={drag}
                       delayLongPress={120}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      className="absolute top-2 right-2 p-2 z-10"
+                      className="absolute top-2 right-2 p-2 z-10 rounded-lg border border-white/80 bg-white/85"
                     >
                       <Ionicons
                         name="reorder-four"
