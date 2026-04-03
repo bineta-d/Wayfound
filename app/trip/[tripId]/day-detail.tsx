@@ -7,12 +7,14 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import MapView, {
@@ -35,7 +37,6 @@ import {
   updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
-
 
 export default function DayDetailScreen() {
   const { tripId, day, dayDate, itineraryDayId, displayDate } =
@@ -75,6 +76,27 @@ export default function DayDetailScreen() {
   );
   const [editingLat, setEditingLat] = useState<number | null>(null);
   const [editingLng, setEditingLng] = useState<number | null>(null);
+
+  // --- ADDED FOR USER STORY 20: COMMENTS STATE --- //
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
+  const [newCommentText, setNewCommentText] = useState("");
+  // Mock data for the sprint demo!
+  const [dayComments, setDayComments] = useState([
+    { id: "1", user: "Bineta Diatta", text: "Should we do this in the morning instead?", time: "10:14 AM" }
+  ]);
+
+  const handleAddComment = () => {
+    if (!newCommentText.trim()) return;
+    const newComment = {
+      id: Date.now().toString(),
+      user: "Alonso Ochoa", // Automatically uses your name for the demo
+      text: newCommentText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setDayComments([...dayComments, newComment]);
+    setNewCommentText("");
+  };
+  // ----------------------------------------------- //
 
   const parseLocalDate = (dateStr: string) => {
     const [y, m, d] = dateStr.split("-").map(Number);
@@ -424,354 +446,407 @@ export default function DayDetailScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-neutral-background">
-      <View className="bg-neutral-surface px-6 py-6 mb-2">
-        {selectedDayDate && (
-          <Text className="text-2xl font-bold text-neutral-textPrimary mb-2">
-            Day {dayNumber} -{" "}
-            {selectedDayDate.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </Text>
-        )}
-        <View className="flex-row items-center mb-2">
-          <Text className="text-neutral-textSecondary mr-2">📍</Text>
-          <Text className="text-neutral-textPrimary text-lg">
-            {trip ? trip.destination : ""}
-          </Text>
-        </View>
-      </View>
-
-      <View className="bg-neutral-surface px-6 py-6 mb-2">
-        <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
-          Day Map
-        </Text>
-
-        <View className="rounded-lg overflow-hidden border border-neutral-divider bg-neutral-surface">
-          <View className="px-4 py-3 border-b border-neutral-divider">
-            <Text className="text-neutral-textPrimary font-semibold">
-              Pinned activities
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView className="flex-1 bg-neutral-background">
+        <View className="bg-neutral-surface px-6 py-6 mb-2">
+          {selectedDayDate && (
+            <Text className="text-2xl font-bold text-neutral-textPrimary mb-2">
+              Day {dayNumber} -{" "}
+              {selectedDayDate.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
             </Text>
-            <Text className="text-neutral-textSecondary text-xs mt-1">
-              {dayMapActivities.length > 0
-                ? `${dayMapActivities.length} pinned activities`
-                : "No pinned activities yet"}
+          )}
+          <View className="flex-row items-center mb-2">
+            <Text className="text-neutral-textSecondary mr-2">📍</Text>
+            <Text className="text-neutral-textPrimary text-lg">
+              {trip ? trip.destination : ""}
             </Text>
           </View>
+        </View>
 
-          <View style={{ height: 200 }}>
-            {dayMapActivities.length === 0 ? (
-              <View className="flex-1 items-center justify-center">
-                <Text className="text-neutral-textSecondary">
-                  Add a location to pin activities
-                </Text>
-              </View>
-            ) : (
-              <MapView
-                provider={PROVIDER_GOOGLE}
-                style={{ flex: 1 }}
-                initialRegion={computeDayRegion()}
+        <View className="bg-neutral-surface px-6 py-6 mb-2">
+          <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
+            Day Map
+          </Text>
+
+          <View className="rounded-lg overflow-hidden border border-neutral-divider bg-neutral-surface">
+            <View className="px-4 py-3 border-b border-neutral-divider">
+              <Text className="text-neutral-textPrimary font-semibold">
+                Pinned activities
+              </Text>
+              <Text className="text-neutral-textSecondary text-xs mt-1">
+                {dayMapActivities.length > 0
+                  ? `${dayMapActivities.length} pinned activities`
+                  : "No pinned activities yet"}
+              </Text>
+            </View>
+
+            <View style={{ height: 200 }}>
+              {dayMapActivities.length === 0 ? (
+                <View className="flex-1 items-center justify-center">
+                  <Text className="text-neutral-textSecondary">
+                    Add a location to pin activities
+                  </Text>
+                </View>
+              ) : (
+                <MapView
+                  provider={PROVIDER_GOOGLE}
+                  style={{ flex: 1 }}
+                  initialRegion={computeDayRegion()}
+                >
+                  {dayMapActivities.map((a) => (
+                    <Marker
+                      key={a.id}
+                      coordinate={{
+                        latitude: a.latitude as number,
+                        longitude: a.longitude as number,
+                      }}
+                    >
+                      <Callout onPress={() => openEditModal(a)}>
+                        <View style={{ maxWidth: 220 }}>
+                          <Text style={{ fontWeight: "600" }}>
+                            {(a.title?.trim() ||
+                              a.location_name ||
+                              "Activity"
+                            ).split(",")[0]}
+                          </Text>
+                          {formatTimeRange(a.start_time, a.end_time) ? (
+                            <Text style={{ marginTop: 4, color: "#67717B" }}>
+                              {formatTimeRange(a.start_time, a.end_time)}
+                            </Text>
+                          ) : null}
+                          {a.location_name ? (
+                            <Text style={{ marginTop: 4, color: "#67717B" }}>
+                              {a.location_name}
+                            </Text>
+                          ) : null}
+                          <Text
+                            style={{
+                              marginTop: 6,
+                              color: "#3A1FA8",
+                              fontWeight: "600",
+                            }}
+                          >
+                            Edit activity
+                          </Text>
+                        </View>
+                      </Callout>
+                    </Marker>
+                  ))}
+                </MapView>
+              )}
+            </View>
+          </View>
+        </View>
+
+        <View className="bg-neutral-background px-6 py-6 mb-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-xl font-bold text-neutral-textPrimary">
+              Activities
+            </Text>
+            <TouchableOpacity activeOpacity={0.9} onPress={openAddModal}>
+              <LinearGradient
+                colors={["#3A1FA8", "#5B3DF5"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 8 }}
               >
-                {dayMapActivities.map((a) => (
-                  <Marker
-                    key={a.id}
-                    coordinate={{
-                      latitude: a.latitude as number,
-                      longitude: a.longitude as number,
-                    }}
-                  >
-                    <Callout onPress={() => openEditModal(a)}>
-                      <View style={{ maxWidth: 220 }}>
-                        <Text style={{ fontWeight: "600" }}>
-                          {(a.title?.trim() ||
-                            a.location_name ||
-                            "Activity"
-                          ).split(",")[0]}
-                        </Text>
-                        {formatTimeRange(a.start_time, a.end_time) ? (
-                          <Text style={{ marginTop: 4, color: "#67717B" }}>
-                            {formatTimeRange(a.start_time, a.end_time)}
-                          </Text>
-                        ) : null}
-                        {a.location_name ? (
-                          <Text style={{ marginTop: 4, color: "#67717B" }}>
-                            {a.location_name}
-                          </Text>
-                        ) : null}
-                        <Text
-                          style={{
-                            marginTop: 6,
-                            color: "#3A1FA8",
-                            fontWeight: "600",
-                          }}
-                        >
-                          Edit activity
-                        </Text>
-                      </View>
-                    </Callout>
-                  </Marker>
-                ))}
-              </MapView>
-            )}
+                <View className="px-4 py-2 rounded-lg">
+                  <Text className="text-white font-semibold">
+                    + Add Activity
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-        </View>
-      </View>
 
-      <View className="bg-neutral-background px-6 py-6 mb-2">
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-bold text-neutral-textPrimary">
-            Activities
-          </Text>
-          <TouchableOpacity activeOpacity={0.9} onPress={openAddModal}>
+          {loadingActivities ? (
+            <DayDetailSkeleton />
+          ) : activities.length === 0 ? (
+            <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
+              <Text className="text-neutral-textSecondary text-center">
+                No activities added yet
+              </Text>
+            </View>
+          ) : (
+            <DraggableFlatList
+              data={sortActivitiesForDisplay(activities)}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              activationDistance={8}
+              contentContainerStyle={{ gap: 12 }}
+              renderItem={({ item: a, drag, isActive }: RenderItemParams<TripActivity>) => (
+                <View className="gap-3">
+                  <View key={a.id}>
+                    <View className="relative">
+                      {/* DRAG HANDLE */}
+                      <TouchableOpacity
+                        onLongPress={drag}
+                        delayLongPress={120}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        className="absolute top-2 right-2 p-2 z-10"
+                      >
+                        <Ionicons
+                          name="reorder-four"
+                          size={18}
+                          color={isActive ? "#3B82F6" : "#6B7280"}
+                        />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity onPress={() => openEditModal(a)}>
+                        <ActivityCard activity={a} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* REMOVE BUTTON */}
+                    <TouchableOpacity
+                      onPress={async () => {
+                        await deleteTripActivity(a.id);
+                        setActivities((prev) => prev.filter((x) => x.id !== a.id));
+                      }}
+                      className="mt-1 mb-2 self-end px-3 py-1 rounded-lg bg-accent-hotCoral"
+                    >
+                      <Text className="text-white text-xs font-semibold">Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+              onDragEnd={({ data }) => {
+                handleReorderActivities(data);
+              }}
+            />
+          )}
+        </View>
+
+        {/* --- ADDED FOR USER STORY 20: COLLAPSIBLE COMMENTS --- */}
+        <View className="bg-white px-6 py-5 mb-4 mx-4 rounded-xl shadow-sm border border-gray-100">
+          <TouchableOpacity 
+            onPress={() => setIsCommentsExpanded(!isCommentsExpanded)} 
+            className="flex-row justify-between items-center"
+          >
+            <Text className="text-lg font-bold text-gray-800">
+              Discussion & Comments ({dayComments.length})
+            </Text>
+            <Ionicons 
+              name={isCommentsExpanded ? "chevron-up" : "chevron-down"} 
+              size={22} 
+              color="#6B7280" 
+            />
+          </TouchableOpacity>
+
+          {isCommentsExpanded && (
+            <View className="mt-4 border-t border-gray-100 pt-4">
+              {dayComments.map((comment) => (
+                <View key={comment.id} className="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-100">
+                  <View className="flex-row justify-between items-center mb-1">
+                    <Text className="font-semibold text-gray-800 text-sm">{comment.user}</Text>
+                    <Text className="text-xs text-gray-400">{comment.time}</Text>
+                  </View>
+                  <Text className="text-gray-600 text-sm leading-5">{comment.text}</Text>
+                </View>
+              ))}
+
+              <View className="flex-row items-center mt-2 pt-2">
+                <TextInput
+                  value={newCommentText}
+                  onChangeText={setNewCommentText}
+                  placeholder="Suggest a change or idea..."
+                  placeholderTextColor="#9CA3AF"
+                  className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 mr-2 bg-gray-50 text-gray-800"
+                />
+                <TouchableOpacity 
+                  onPress={handleAddComment} 
+                  className="bg-[#3A1FA8] rounded-full w-10 h-10 items-center justify-center"
+                >
+                  <Ionicons name="send" size={16} color="white" style={{ marginLeft: 2 }} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+        {/* ----------------------------------------------------- */}
+
+        <View className="px-6 py-4 mb-8">
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => console.log("Generate itinerary pressed")}
+          >
             <LinearGradient
-              colors={["#3A1FA8", "#5B3DF5"]}
+              colors={["#D81E5B", "#FF4D4D"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ borderRadius: 8 }}
             >
-              <View className="px-4 py-2 rounded-lg">
+              <View className="px-6 py-3 rounded-lg items-center">
                 <Text className="text-white font-semibold">
-                  + Add Activity
+                  Generate Itinerary
                 </Text>
               </View>
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {loadingActivities ? (
-          <DayDetailSkeleton />
-        ) : activities.length === 0 ? (
-          <View className="bg-neutral-background rounded-lg p-4 border border-neutral-divider">
-            <Text className="text-neutral-textSecondary text-center">
-              No activities added yet
-            </Text>
-          </View>
-        ) : (
-          <DraggableFlatList
-            data={sortActivitiesForDisplay(activities)}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            activationDistance={8}
-            contentContainerStyle={{ gap: 12 }}
-            renderItem={({ item: a, drag, isActive }: RenderItemParams<TripActivity>) => (
-              <View className="gap-3">
-                <View key={a.id}>
-                  <View className="relative">
-                    {/* DRAG HANDLE - TOP RIGHT CORNER */}
-                    <TouchableOpacity
-                      onLongPress={drag}
-                      delayLongPress={120}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      className="absolute top-2 right-2 p-2 z-10"
-                    >
-                      <Ionicons
-                        name="reorder-four"
-                        size={18}
-                        color={isActive ? "#3B82F6" : "#6B7280"}
-                      />
-                    </TouchableOpacity>
+        <Modal
+          visible={addModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={closeAddModal}
+        >
+          <View
+            className="flex-1 items-center justify-end"
+            style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
+          >
+            <View className="w-full rounded-t-3xl bg-neutral-surface px-6 pt-6 pb-10">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-xl font-bold text-neutral-textPrimary">
+                  {editingActivityId ? "Edit Activity" : "Add Activity"}
+                </Text>
+                <TouchableOpacity onPress={closeAddModal} className="p-2">
+                  <Ionicons name="close" size={22} color="#67717B" />
+                </TouchableOpacity>
+              </View>
 
-                    <TouchableOpacity onPress={() => openEditModal(a)}>
-                      <ActivityCard activity={a} />
-                    </TouchableOpacity>
-                  </View>
+              <Text className="text-neutral-textSecondary mb-2">
+                Location name *
+              </Text>
+              <TextInput
+                value={activityName}
+                onChangeText={(text) => {
+                  setSelectedPlaceId(null);
+                  setPlacesError("");
+                  setActivityName(text);
+                }}
+                placeholder="e.g., Wynwood Walls"
+                placeholderTextColor="#67717B"
+                className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
+              />
 
-                  {/* REMOVE BUTTON */}
-                  <TouchableOpacity
-                    onPress={async () => {
-                      await deleteTripActivity(a.id);
-                      setActivities((prev) => prev.filter((x) => x.id !== a.id));
-                    }}
-                    className="mt-1 mb-2 self-end px-3 py-1 rounded-lg bg-accent-hotCoral"
-                  >
-                    <Text className="text-white text-xs font-semibold">Remove</Text>
-                  </TouchableOpacity>
+              {loadingPlaces && (
+                <View className="mb-4">
+                  <ActivityIndicator />
+                </View>
+              )}
+
+              {placesError.length > 0 && (
+                <Text className="text-xs text-accent-hotCoral mb-3">
+                  {placesError}
+                </Text>
+              )}
+
+              {placePredictions.length > 0 && (
+                <View className="border border-neutral-divider rounded-xl mb-4 overflow-hidden">
+                  <FlatList
+                    keyboardShouldPersistTaps="handled"
+                    data={placePredictions}
+                    keyExtractor={(item) => item.place_id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        className="px-4 py-3 bg-neutral-surface border-b border-neutral-divider"
+                        onPress={() => {
+                          setSelectedPlaceId(item.place_id);
+                          setActivityName(item.description);
+                          setPlacePredictions([]);
+                        }}
+                      >
+                        <Text className="text-neutral-textPrimary">
+                          {item.description}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              )}
+
+              <Text className="text-neutral-textSecondary mb-2">
+                Title (optional)
+              </Text>
+              <TextInput
+                value={activityTitle}
+                onChangeText={setActivityTitle}
+                placeholder="e.g., Morning walk"
+                placeholderTextColor="#67717B"
+                className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
+              />
+
+              <Text className="text-neutral-textSecondary mb-2">
+                Description (optional)
+              </Text>
+              <TextInput
+                value={activityDescription}
+                onChangeText={setActivityDescription}
+                placeholder="Notes..."
+                placeholderTextColor="#67717B"
+                multiline
+                className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
+                style={{ minHeight: 90, textAlignVertical: "top" }}
+              />
+
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1">
+                  <Text className="text-neutral-textSecondary mb-2">
+                    Start time (optional)
+                  </Text>
+                  <TextInput
+                    value={activityStartTime}
+                    onChangeText={setActivityStartTime}
+                    placeholder="HH:MM"
+                    placeholderTextColor="#67717B"
+                    className="border border-neutral-divider rounded-xl px-4 py-3 text-neutral-textPrimary"
+                  />
+                </View>
+
+                <View className="flex-1">
+                  <Text className="text-neutral-textSecondary mb-2">
+                    End time (optional)
+                  </Text>
+                  <TextInput
+                    value={activityEndTime}
+                    onChangeText={setActivityEndTime}
+                    placeholder="HH:MM"
+                    placeholderTextColor="#67717B"
+                    className="border border-neutral-divider rounded-xl px-4 py-3 text-neutral-textPrimary"
+                  />
                 </View>
               </View>
-            )}
-            onDragEnd={({ data }) => {
-              handleReorderActivities(data);
-            }}
-          />
-        )}
-      </View>
 
-      <View className="px-6 py-4 mb-8">
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => console.log("Generate itinerary pressed")}
-        >
-          <LinearGradient
-            colors={["#D81E5B", "#FF4D4D"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 8 }}
-          >
-            <View className="px-6 py-3 rounded-lg items-center">
-              <Text className="text-white font-semibold">
-                Generate Itinerary
-              </Text>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-
-      <Modal
-        visible={addModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeAddModal}
-      >
-        <View
-          className="flex-1 items-center justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
-        >
-          <View className="w-full rounded-t-3xl bg-neutral-surface px-6 pt-6 pb-10">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-xl font-bold text-neutral-textPrimary">
-                {editingActivityId ? "Edit Activity" : "Add Activity"}
-              </Text>
-              <TouchableOpacity onPress={closeAddModal} className="p-2">
-                <Ionicons name="close" size={22} color="#67717B" />
+              <TouchableOpacity
+                disabled={savingActivity || activityName.trim().length === 0}
+                onPress={saveManualActivity}
+                activeOpacity={0.9}
+                style={{
+                  opacity:
+                    savingActivity || activityName.trim().length === 0 ? 0.7 : 1,
+                }}
+              >
+                <LinearGradient
+                  colors={["#3A1FA8", "#5B3DF5"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ borderRadius: 12 }}
+                >
+                  <View className="items-center rounded-xl py-4">
+                    <Text className="text-white font-semibold">
+                      {editingActivityId
+                        ? savingActivity
+                          ? "Saving..."
+                          : "Save Changes"
+                        : savingActivity
+                          ? "Saving..."
+                          : "Save Activity"}
+                    </Text>
+                  </View>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-
-            <Text className="text-neutral-textSecondary mb-2">
-              Location name *
-            </Text>
-            <TextInput
-              value={activityName}
-              onChangeText={(text) => {
-                setSelectedPlaceId(null);
-                setPlacesError("");
-                setActivityName(text);
-              }}
-              placeholder="e.g., Wynwood Walls"
-              placeholderTextColor="#67717B"
-              className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
-            />
-
-            {loadingPlaces && (
-              <View className="mb-4">
-                <ActivityIndicator />
-              </View>
-            )}
-
-            {placesError.length > 0 && (
-              <Text className="text-xs text-accent-hotCoral mb-3">
-                {placesError}
-              </Text>
-            )}
-
-            {placePredictions.length > 0 && (
-              <View className="border border-neutral-divider rounded-xl mb-4 overflow-hidden">
-                <FlatList
-                  keyboardShouldPersistTaps="handled"
-                  data={placePredictions}
-                  keyExtractor={(item) => item.place_id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      className="px-4 py-3 bg-neutral-surface border-b border-neutral-divider"
-                      onPress={() => {
-                        setSelectedPlaceId(item.place_id);
-                        setActivityName(item.description);
-                        setPlacePredictions([]);
-                      }}
-                    >
-                      <Text className="text-neutral-textPrimary">
-                        {item.description}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            )}
-
-            <Text className="text-neutral-textSecondary mb-2">
-              Title (optional)
-            </Text>
-            <TextInput
-              value={activityTitle}
-              onChangeText={setActivityTitle}
-              placeholder="e.g., Morning walk"
-              placeholderTextColor="#67717B"
-              className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
-            />
-
-            <Text className="text-neutral-textSecondary mb-2">
-              Description (optional)
-            </Text>
-            <TextInput
-              value={activityDescription}
-              onChangeText={setActivityDescription}
-              placeholder="Notes..."
-              placeholderTextColor="#67717B"
-              multiline
-              className="border border-neutral-divider rounded-xl px-4 py-3 mb-4 text-neutral-textPrimary"
-              style={{ minHeight: 90, textAlignVertical: "top" }}
-            />
-
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1">
-                <Text className="text-neutral-textSecondary mb-2">
-                  Start time (optional)
-                </Text>
-                <TextInput
-                  value={activityStartTime}
-                  onChangeText={setActivityStartTime}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#67717B"
-                  className="border border-neutral-divider rounded-xl px-4 py-3 text-neutral-textPrimary"
-                />
-              </View>
-
-              <View className="flex-1">
-                <Text className="text-neutral-textSecondary mb-2">
-                  End time (optional)
-                </Text>
-                <TextInput
-                  value={activityEndTime}
-                  onChangeText={setActivityEndTime}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#67717B"
-                  className="border border-neutral-divider rounded-xl px-4 py-3 text-neutral-textPrimary"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              disabled={savingActivity || activityName.trim().length === 0}
-              onPress={saveManualActivity}
-              activeOpacity={0.9}
-              style={{
-                opacity:
-                  savingActivity || activityName.trim().length === 0 ? 0.7 : 1,
-              }}
-            >
-              <LinearGradient
-                colors={["#3A1FA8", "#5B3DF5"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ borderRadius: 12 }}
-              >
-                <View className="items-center rounded-xl py-4">
-                  <Text className="text-white font-semibold">
-                    {editingActivityId
-                      ? savingActivity
-                        ? "Saving..."
-                        : "Save Changes"
-                      : savingActivity
-                        ? "Saving..."
-                        : "Save Activity"}
-                  </Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
