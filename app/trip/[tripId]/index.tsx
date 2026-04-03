@@ -38,9 +38,13 @@ import ReservationsSection from "./reservations";
 import TargetSpots from "./target-spots";
 import TripMap from "./trip-map";
 
+// --- ADDED FOR USER STORY 19: SHARING --- //
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+// ---------------------------------------- //
+
 export default function TripOverviewScreen() {
   const [activeTab, setActiveTab] = useState(0);
-  // Reservation tab state for icons
   const [reservationTab, setReservationTab] = useState(0);
   const { tripId } = useLocalSearchParams();
   const router = useRouter();
@@ -50,21 +54,14 @@ export default function TripOverviewScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // State for new components
   const [aiItinerary, setAiItinerary] = useState<string[]>([]);
   const [loadingAI, setLoadingAI] = useState(false);
   const [targetSpots, setTargetSpots] = useState<string[]>([]);
-  const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>(
-    {},
-  );
+  const [collapsedDays, setCollapsedDays] = useState<Record<number, boolean>>({});
   const [isItineraryCollapsed, setIsItineraryCollapsed] = useState(false);
   const [dayActivities, setDayActivities] = useState<Record<number, any[]>>({});
-  const [loadingActivities, setLoadingActivities] = useState<
-    Record<number, boolean>
-  >({});
-  const [groupedActivities, setGroupedActivities] = useState<
-    Record<string, any[]>
-  >({});
+  const [loadingActivities, setLoadingActivities] = useState<Record<number, boolean>>({});
+  const [groupedActivities, setGroupedActivities] = useState<Record<string, any[]>>({});
   const [itineraryDays, setItineraryDays] = useState<any[]>([]);
   const [isMapSheetOpen, setIsMapSheetOpen] = useState(false);
   const mapReveal = useRef(new Animated.Value(0)).current;
@@ -100,7 +97,6 @@ export default function TripOverviewScreen() {
     if (itineraryDayId) {
       params.set("itineraryDayId", itineraryDayId);
     }
-
     return params.toString();
   };
 
@@ -116,6 +112,7 @@ export default function TripOverviewScreen() {
     setItineraryDays([]);
     setLoading(true);
   }, [tripId]);
+
   const handleReorderDays = async (reorderedDays: any[]) => {
     if (!tripId) return;
 
@@ -177,7 +174,6 @@ export default function TripOverviewScreen() {
       router.push(`/trip/${tripId}/day-detail?day=${dayNumber}`);
       return;
     }
-
     router.push(
       `/trip/${tripId}/day-detail?${buildDayDetailParams(dayNumber, selectedDay)}`,
     );
@@ -247,22 +243,12 @@ export default function TripOverviewScreen() {
   const loadGroupedActivities = async () => {
     if (!tripId) return;
     try {
-      console.log("🔍 Loading grouped activities for trip:", tripId);
       const grouped = await getTripActivitiesGroupedByDay(tripId as string);
-      console.log("📍 Grouped activities loaded:", grouped);
       setGroupedActivities(grouped);
-
-      // Log activities with coordinates
       const allActivities = Object.values(grouped).flat();
       const activitiesWithCoords = allActivities.filter(
-        (a) =>
-          typeof a.latitude === "number" && typeof a.longitude === "number",
+        (a) => typeof a.latitude === "number" && typeof a.longitude === "number",
       );
-      console.log(
-        "🗺️ Activities with coordinates:",
-        activitiesWithCoords.length,
-      );
-      console.log("📊 Total activities:", allActivities.length);
     } catch (e) {
       console.log("Error loading grouped activities:", e);
     }
@@ -298,10 +284,7 @@ export default function TripOverviewScreen() {
             return toLocalDateString(dayDate);
           })();
 
-      const activities = await getTripActivitiesForDay(
-        tripId as string,
-        dateStr,
-      );
+      const activities = await getTripActivitiesForDay(tripId as string, dateStr);
 
       const sorted = [...activities].sort((a, b) => {
         const aTime = a.start_time?.slice(0, 5) ?? null;
@@ -310,14 +293,10 @@ export default function TripOverviewScreen() {
         if (!aTime && !bTime) return 0;
         if (!aTime) return 1;
         if (!bTime) return -1;
-
         return aTime.localeCompare(bTime);
       });
 
       setDayActivities((prev) => ({ ...prev, [dayNumber]: sorted }));
-      console.log(
-        `📅 Loaded ${activities.length} activities for day ${dayNumber}`,
-      );
     } catch (e) {
       console.log(`Error loading day ${dayNumber} activities:`, e);
     } finally {
@@ -339,7 +318,6 @@ export default function TripOverviewScreen() {
       });
       current.setDate(current.getDate() + 1);
     }
-
     return days;
   };
 
@@ -381,7 +359,7 @@ export default function TripOverviewScreen() {
         loadGroupedActivities();
       }
     }, [tripId])
-  )
+  );
 
   useEffect(() => {
     if (!trip || String(trip.id) !== String(tripId)) return;
@@ -398,32 +376,65 @@ export default function TripOverviewScreen() {
   }, [trip, tripId, itineraryDays]);
 
   const removeActivity = async (activityId: string) => {
-    console.log('🗑️ Removing activity:', activityId);
     try {
-      // Delete from database first
       await deleteTripActivity(activityId);
-      console.log('✅ Activity deleted from database');
-
-      // Then update local state
       setGroupedActivities((prev) => {
         const newGrouped = { ...prev };
-
-        // Remove activity from all days
         Object.keys(newGrouped).forEach(dayKey => {
           newGrouped[dayKey] = newGrouped[dayKey].filter(
             (activity: any) => activity.id !== activityId
           );
         });
-
         return newGrouped;
       });
-
-      console.log('✅ Activity removed from local state');
     } catch (error) {
       console.error('❌ Error deleting activity:', error);
       Alert.alert('Error', 'Failed to delete activity. Please try again.');
     }
   };
+
+  // --- ADDED FOR USER STORY 19: SHARING FUNCTION --- //
+  const handleShareTrip = async () => {
+    if (!trip) return;
+
+    try {
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Error', 'Sharing is not available on this device');
+        return;
+      }
+
+      // Generate a nice text string containing the trip details
+      let shareText = `🌍 My Trip to ${trip.destination}\n`;
+      shareText += `📅 ${trip.start_date} to ${trip.end_date}\n\n`;
+      
+      // Let's add the activities to make it a real itinerary share
+      if (allPinnedActivities.length > 0) {
+        shareText += `📍 Target Spots:\n`;
+        allPinnedActivities.forEach((activity, index) => {
+          shareText += `${index + 1}. ${activity.title || activity.name}\n`;
+        });
+      } else {
+        shareText += `We are still planning the details!`;
+      }
+
+      // Save the string to a temporary text file on the phone
+      const fileName = `Trip_To_${trip.destination.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, shareText);
+
+      // Trigger the iOS/Android share menu!
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/plain',
+        dialogTitle: `Share your trip to ${trip.destination}`,
+      });
+
+    } catch (error) {
+      console.error("Error sharing trip:", error);
+      Alert.alert("Error", "Could not share the trip at this time.");
+    }
+  };
+  // ------------------------------------------------- //
 
   const handleDeleteTrip = () => {
     Alert.alert(
@@ -450,20 +461,14 @@ export default function TripOverviewScreen() {
   };
 
   if (loading) {
-    return (
-      <>
-        <TripDetailSkeleton />
-      </>
-    );
+    return <TripDetailSkeleton />;
   }
 
   if (!trip) {
     return (
-      <>
-        <View className="flex-1 items-center justify-center bg-white">
-          <Text className="text-gray-600">Trip not found</Text>
-        </View>
-      </>
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-gray-600">Trip not found</Text>
+      </View>
     );
   }
 
@@ -473,12 +478,8 @@ export default function TripOverviewScreen() {
       {activeTab === 1 ? (
         <View className="flex-1 bg-gray-50">
           <View className="bg-white mb-2 flex-1">
-            {/* Trip Header */}
             <HeaderSection title={trip.title} trip={trip} />
-
-            {/* tabs Section */}
             <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
             {refreshing ? (
               <ItinerarySkeleton />
             ) : (
@@ -508,25 +509,17 @@ export default function TripOverviewScreen() {
           className="flex-1 bg-gray-50"
           horizontal={false}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={{ paddingBottom: 120 }}
         >
           {/* Overview Tab */}
           {activeTab === 0 && (
             <>
-              {/* Trip Header */}
               <HeaderSection title={trip.title} trip={trip} />
-
-              {/* Tabs Section */}
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-              {/* Reservations Section */}
               <View className="bg-white px-6 mb-1 pt-4">
                 <ReservationsSection />
               </View>
-              {/* Generate Itinerary Section */}
               <View className="bg-white px-6 mb-2">
                 {!isMapSheetOpen && (
                   <GenerateItinerary
@@ -547,7 +540,6 @@ export default function TripOverviewScreen() {
                   />
                 )}
               </View>
-              {/* Target Spots Section */}
               <View className="bg-white px-6 mb-2">
                 {refreshing ? (
                   <TargetSpotsSkeleton />
@@ -566,35 +558,40 @@ export default function TripOverviewScreen() {
                   />
                 )}
               </View>
-              {/* Collaborators Section */}
               {refreshing ? (
                 <CollaboratorsSkeleton />
               ) : (
                 <CollaboratorsScreen members={members} />
               )}
-              {/* Delete Button - Only for trip owners */}
-              {user?.id === trip.owner_id && (
-                <View className="px-6 py-4 mb-8">
+              
+              {/* --- ADDED FOR USER STORY 19: SHARE BUTTON UI --- */}
+              <View className="px-6 py-4 pt-8">
+                <TouchableOpacity
+                  onPress={handleShareTrip}
+                  className="bg-[#3A1FA8] px-6 py-3 rounded-lg items-center mb-4 flex-row justify-center"
+                >
+                  <Ionicons name="share-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                  <Text className="text-white font-semibold">Share Trip Itinerary</Text>
+                </TouchableOpacity>
+              {/* ------------------------------------------------ */}
+
+                {/* Delete Button - Only for trip owners */}
+                {user?.id === trip.owner_id && (
                   <TouchableOpacity
                     onPress={handleDeleteTrip}
                     className="bg-red-500 px-6 py-3 rounded-lg items-center"
                   >
                     <Text className="text-white font-semibold">Delete Trip</Text>
                   </TouchableOpacity>
-                </View>
-              )}
+                )}
+              </View>
             </>
           )}
           {/* Reservations Tab */}
           {activeTab === 2 && (
             <View className="bg-white mb-2">
-              {/* Trip Header */}
               <HeaderSection title={trip.title} trip={trip} />
-
-              {/* Tabs Section  */}
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
-
-              {/* Reservation Icons Scroll*/}
               <View className="px-6 pt-2 flex-row justify-between border-b border-neutral-divider pb-2">
                 {[
                   { label: "Accommodation", icon: "bed" },
@@ -612,8 +609,7 @@ export default function TripOverviewScreen() {
                   >
                     <View
                       style={{
-                        backgroundColor:
-                          reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
+                        backgroundColor: reservationTab === idx ? "#FDE7EF" : "#F3F4F6",
                         borderRadius: 999,
                         padding: 12,
                         marginBottom: 4,
@@ -639,8 +635,6 @@ export default function TripOverviewScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
-              {/* Active tab content: */}
               <View
                 className="bg-neutral-background border border-neutral-divider rounded-xl mx-6 my-6 flex-1 justify-center items-center"
                 style={{ minHeight: 200 }}
@@ -663,9 +657,7 @@ export default function TripOverviewScreen() {
           {/* Budget Tab */}
           {activeTab === 3 && (
             <View className="bg-white mb-2">
-              {/* Trip Header */}
               <HeaderSection title={trip.title} trip={trip} />
-
               <TabsSection activeTab={activeTab} setActiveTab={setActiveTab} />
               <BudgetScreen/>
             </View>
