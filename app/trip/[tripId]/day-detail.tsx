@@ -14,7 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
+import DraggableFlatList, {
+  RenderItemParams,
+} from "react-native-draggable-flatlist";
 import MapView, {
   Callout,
   Marker,
@@ -35,7 +37,6 @@ import {
   updateTripActivityPositions,
 } from "../../../lib/TripService";
 import { Trip } from "../../../lib/types";
-
 
 export default function DayDetailScreen() {
   const { tripId, day, dayDate, itineraryDayId, displayDate } =
@@ -334,9 +335,7 @@ export default function DayDetailScreen() {
     setActivityStartTime(
       activity.start_time ? activity.start_time.slice(0, 5) : "",
     );
-    setActivityEndTime(
-      activity.end_time ? activity.end_time.slice(0, 5) : "",
-    );
+    setActivityEndTime(activity.end_time ? activity.end_time.slice(0, 5) : "");
 
     setPlacePredictions([]);
     setLoadingPlaces(false);
@@ -485,10 +484,13 @@ export default function DayDetailScreen() {
                     <Callout onPress={() => openEditModal(a)}>
                       <View style={{ maxWidth: 220 }}>
                         <Text style={{ fontWeight: "600" }}>
-                          {(a.title?.trim() ||
-                            a.location_name ||
-                            "Activity"
-                          ).split(",")[0]}
+                          {
+                            (
+                              a.title?.trim() ||
+                              a.location_name ||
+                              "Activity"
+                            ).split(",")[0]
+                          }
                         </Text>
                         {formatTimeRange(a.start_time, a.end_time) ? (
                           <Text style={{ marginTop: 4, color: "#67717B" }}>
@@ -532,9 +534,7 @@ export default function DayDetailScreen() {
               style={{ borderRadius: 8 }}
             >
               <View className="px-4 py-2 rounded-lg">
-                <Text className="text-white font-semibold">
-                  + Add Activity
-                </Text>
+                <Text className="text-white font-semibold">+ Add Activity</Text>
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -555,7 +555,11 @@ export default function DayDetailScreen() {
             scrollEnabled={false}
             activationDistance={8}
             contentContainerStyle={{ gap: 12 }}
-            renderItem={({ item: a, drag, isActive }: RenderItemParams<TripActivity>) => (
+            renderItem={({
+              item: a,
+              drag,
+              isActive,
+            }: RenderItemParams<TripActivity>) => (
               <View className="gap-3">
                 <View key={a.id}>
                   <View className="relative">
@@ -564,7 +568,7 @@ export default function DayDetailScreen() {
                       onLongPress={drag}
                       delayLongPress={120}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      className="absolute top-2 right-2 p-2 z-10"
+                      className="absolute top-2 right-2 p-2 z-10 rounded-lg border border-white/80 bg-white/85"
                     >
                       <Ionicons
                         name="reorder-four"
@@ -582,11 +586,15 @@ export default function DayDetailScreen() {
                   <TouchableOpacity
                     onPress={async () => {
                       await deleteTripActivity(a.id);
-                      setActivities((prev) => prev.filter((x) => x.id !== a.id));
+                      setActivities((prev) =>
+                        prev.filter((x) => x.id !== a.id),
+                      );
                     }}
                     className="mt-1 mb-2 self-end px-3 py-1 rounded-lg bg-accent-hotCoral"
                   >
-                    <Text className="text-white text-xs font-semibold">Remove</Text>
+                    <Text className="text-white text-xs font-semibold">
+                      Remove
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>

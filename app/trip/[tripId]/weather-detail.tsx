@@ -1,8 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-const { fetchWeatherApi } = require('openmeteo');
+import Skeleton from "@/components/Skeleton";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+const { fetchWeatherApi } = require("openmeteo");
 
 interface WeatherDetailProps {
   day: number;
@@ -24,9 +25,12 @@ interface WeatherDetailProps {
 }
 
 export default function WeatherDetail() {
-  const { day, date, temp, description, icon, destination } = useLocalSearchParams();
+  const { day, date, temp, description, icon, destination } =
+    useLocalSearchParams();
   const router = useRouter();
-  const [weatherData, setWeatherData] = useState<WeatherDetailProps | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherDetailProps | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,8 +39,13 @@ export default function WeatherDetail() {
 
   const fetchWeatherDetail = async () => {
     try {
-      console.log('🌤️ Fetching weather detail with params:', {
-        day, date, temp, description, icon, destination
+      console.log("🌤️ Fetching weather detail with params:", {
+        day,
+        date,
+        temp,
+        description,
+        icon,
+        destination,
       });
 
       // Parse the passed parameters
@@ -49,7 +58,7 @@ export default function WeatherDetail() {
         destination: destination as string,
       };
 
-      console.log('📊 Base weather info from card:', weatherInfo);
+      console.log("📊 Base weather info from card:", weatherInfo);
 
       // Get coordinates for the destination using Open-Meteo geocoding
       const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(weatherInfo.destination)}&count=1&language=en`;
@@ -57,11 +66,15 @@ export default function WeatherDetail() {
       const geocodingData = await geocodingResponse.json();
 
       if (!geocodingData.results || geocodingData.results.length === 0) {
-        throw new Error('Location not found');
+        throw new Error("Location not found");
       }
 
       const { latitude, longitude } = geocodingData.results[0];
-      console.log('📍 Location coordinates:', { latitude, longitude, location: weatherInfo.destination });
+      console.log("📍 Location coordinates:", {
+        latitude,
+        longitude,
+        location: weatherInfo.destination,
+      });
 
       // Calculate the specific date for this day using current date + offset
       const currentDate = new Date();
@@ -69,23 +82,30 @@ export default function WeatherDetail() {
       const targetDate = new Date(currentDate);
       targetDate.setDate(currentDate.getDate() + (weatherInfo.day - 1));
 
-      console.log('📅 Target date for weather detail:', targetDate.toISOString());
+      console.log(
+        "📅 Target date for weather detail:",
+        targetDate.toISOString(),
+      );
 
       // Check if target date is within 16 days (Open-Meteo forecast limit)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       targetDate.setHours(0, 0, 0, 0);
-      const daysDifference = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysDifference = Math.ceil(
+        (targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
 
       if (daysDifference > 16 || daysDifference < 0) {
-        console.log(`⚠️ Target date ${daysDifference} days away, showing pending status`);
+        console.log(
+          `⚠️ Target date ${daysDifference} days away, showing pending status`,
+        );
         // Show pending status for dates outside forecast range
         const detailData: WeatherDetailProps = {
           day: weatherInfo.day,
           date: weatherInfo.date,
           temp: 0,
-          description: daysDifference < 0 ? 'no data' : 'data pending',
-          icon: daysDifference < 0 ? 'help' : 'time',
+          description: daysDifference < 0 ? "no data" : "data pending",
+          icon: daysDifference < 0 ? "help" : "time",
           location: weatherInfo.destination,
           destination: weatherInfo.destination,
           hourlyData: [],
@@ -95,7 +115,7 @@ export default function WeatherDetail() {
           feelsLike: 0,
         };
 
-        console.log('✅ Final weather detail data (pending):', detailData);
+        console.log("✅ Final weather detail data (pending):", detailData);
         setWeatherData(detailData);
         setLoading(false);
         return;
@@ -111,22 +131,25 @@ export default function WeatherDetail() {
           "precipitation_probability",
           "weathercode",
           "windspeed_10m",
-          "apparent_temperature"
+          "apparent_temperature",
         ],
         daily: [
           "temperature_2m_max",
           "temperature_2m_min",
           "weathercode",
-          "precipitation_probability_max"
+          "precipitation_probability_max",
         ],
         forecast_days: Math.min(16, daysDifference + 1), // Extended forecast up to 16 days
-        timezone: "auto"
+        timezone: "auto",
       };
 
-      console.log('🔍 Fetching weather detail with params:', weatherParams);
+      console.log("🔍 Fetching weather detail with params:", weatherParams);
 
       // Fetch weather data from Open-Meteo
-      const responses = await fetchWeatherApi("https://api.open-meteo.com/v1/forecast", weatherParams);
+      const responses = await fetchWeatherApi(
+        "https://api.open-meteo.com/v1/forecast",
+        weatherParams,
+      );
       const response = responses[0];
 
       // Process the response
@@ -134,7 +157,7 @@ export default function WeatherDetail() {
       const daily = response.daily()!;
       const hourly = response.hourly()!;
 
-      console.log('📊 Raw Open-Meteo detail response processed');
+      console.log("📊 Raw Open-Meteo detail response processed");
 
       // Convert weather codes to descriptions
       const getWeatherDescription = (code: number) => {
@@ -166,7 +189,7 @@ export default function WeatherDetail() {
           86: "snow showers",
           95: "thunderstorm",
           96: "thunderstorm",
-          99: "severe thunderstorm"
+          99: "severe thunderstorm",
         };
         return weatherCodes[code] || "unknown";
       };
@@ -201,7 +224,7 @@ export default function WeatherDetail() {
           86: { day: "snow", night: "snow" },
           95: { day: "thunderstorm", night: "thunderstorm" },
           96: { day: "thunderstorm", night: "thunderstorm" },
-          99: { day: "thunderstorm", night: "thunderstorm" }
+          99: { day: "thunderstorm", night: "thunderstorm" },
         };
         const iconData = iconMap[code];
         return iconData ? (isDay ? iconData.day : iconData.night) : "help";
@@ -219,8 +242,16 @@ export default function WeatherDetail() {
 
       // Get hourly data
       const hourlyTime = Array.from(
-        { length: (Number(hourly.timeEnd()) - Number(hourly.time())) / hourly.interval() },
-        (_, i) => new Date((Number(hourly.time()) + i * hourly.interval() + utcOffsetSeconds) * 1000)
+        {
+          length:
+            (Number(hourly.timeEnd()) - Number(hourly.time())) /
+            hourly.interval(),
+        },
+        (_, i) =>
+          new Date(
+            (Number(hourly.time()) + i * hourly.interval() + utcOffsetSeconds) *
+              1000,
+          ),
       );
 
       const hourlyTemp = hourly.variables(0)!.valuesArray()!;
@@ -232,31 +263,55 @@ export default function WeatherDetail() {
 
       // Process hourly data - ensure proper chronological order
       const hourlyData = [];
-      for (let i = 0; i < hourlyTime.length; i += 3) { // Every 3 hours
+      for (let i = 0; i < hourlyTime.length; i += 3) {
+        // Every 3 hours
         const time = hourlyTime[i];
         hourlyData.push({
-          time: time.toLocaleTimeString('en-US', {
-            hour: 'numeric',
+          time: time.toLocaleTimeString("en-US", {
+            hour: "numeric",
             hour12: true,
-            minute: '2-digit'
+            minute: "2-digit",
           }),
           temp: Math.round(celsiusToFahrenheit(hourlyTemp[i])),
-          icon: getWeatherIcon(hourlyWeatherCode[i], time.getHours() >= 6 && time.getHours() < 18)
+          icon: getWeatherIcon(
+            hourlyWeatherCode[i],
+            time.getHours() >= 6 && time.getHours() < 18,
+          ),
         });
       }
 
       // Calculate rain chance (average precipitation probability)
-      const rainChance = Math.round(Array.from(hourlyPrecipProb).reduce((sum: number, prob: any) => sum + (prob as number), 0) / hourlyPrecipProb.length);
+      const rainChance = Math.round(
+        Array.from(hourlyPrecipProb).reduce(
+          (sum: number, prob: any) => sum + (prob as number),
+          0,
+        ) / hourlyPrecipProb.length,
+      );
 
       // Calculate wind speed (average) - convert from km/h to mph
-      const windSpeedKmh = Math.round(Array.from(hourlyWindSpeed).reduce((sum: number, speed: any) => sum + (speed as number), 0) / hourlyWindSpeed.length);
+      const windSpeedKmh = Math.round(
+        Array.from(hourlyWindSpeed).reduce(
+          (sum: number, speed: any) => sum + (speed as number),
+          0,
+        ) / hourlyWindSpeed.length,
+      );
       const windSpeed = Math.round(windSpeedKmh * 0.621371); // Convert km/h to mph
 
       // Calculate humidity (average)
-      const humidity = Math.round(Array.from(hourlyHumidity).reduce((sum: number, hum: any) => sum + (hum as number), 0) / hourlyHumidity.length);
+      const humidity = Math.round(
+        Array.from(hourlyHumidity).reduce(
+          (sum: number, hum: any) => sum + (hum as number),
+          0,
+        ) / hourlyHumidity.length,
+      );
 
       // Calculate "feels like" temperature (average)
-      const feelsLike = Math.round(Array.from(hourlyFeelsLike).reduce((sum: number, feel: any) => sum + (feel as number), 0) / hourlyFeelsLike.length);
+      const feelsLike = Math.round(
+        Array.from(hourlyFeelsLike).reduce(
+          (sum: number, feel: any) => sum + (feel as number),
+          0,
+        ) / hourlyFeelsLike.length,
+      );
 
       const detailData: WeatherDetailProps = {
         day: weatherInfo.day,
@@ -273,17 +328,17 @@ export default function WeatherDetail() {
         feelsLike: Math.round(celsiusToFahrenheit(feelsLike)),
       };
 
-      console.log('✅ Final weather detail data:', detailData);
+      console.log("✅ Final weather detail data:", detailData);
       setWeatherData(detailData);
       setLoading(false);
     } catch (err) {
-      console.error('❌ Error fetching weather detail:', err);
+      console.error("❌ Error fetching weather detail:", err);
       setLoading(false);
     }
   };
 
   const celsiusToFahrenheit = (celsius: number) => {
-    return Math.round((celsius * 9 / 5) + 32);
+    return Math.round((celsius * 9) / 5 + 32);
   };
 
   if (loading) {
@@ -291,13 +346,98 @@ export default function WeatherDetail() {
       <>
         <Stack.Screen
           options={{
-            title: 'Loading Weather...',
+            title: "Loading Weather...",
           }}
         />
-        <View className="flex-1 bg-white justify-center items-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text className="mt-4 text-gray-600">Loading weather details...</Text>
-        </View>
+        <ScrollView className="flex-1 bg-white">
+          <View className="bg-blue-500 px-6 py-4">
+            <Skeleton
+              width={170}
+              height={24}
+              borderRadius={6}
+              className="self-center"
+            />
+          </View>
+
+          <View className="px-6 py-6">
+            <Skeleton
+              width={160}
+              height={16}
+              borderRadius={6}
+              className="self-center mb-4"
+            />
+
+            <View className="items-center mb-6">
+              <Skeleton
+                width={112}
+                height={112}
+                borderRadius={56}
+                className="mb-4"
+              />
+              <Skeleton
+                width={110}
+                height={36}
+                borderRadius={8}
+                className="mb-2"
+              />
+              <Skeleton width={140} height={20} borderRadius={8} />
+            </View>
+
+            <View className="bg-gray-50 rounded-lg p-4 mb-4">
+              <Skeleton
+                width={170}
+                height={24}
+                borderRadius={8}
+                className="mb-4"
+              />
+              {[1, 2, 3, 4].map((row) => (
+                <View key={row} className="flex-row justify-between mb-3">
+                  <Skeleton width={100} height={16} borderRadius={6} />
+                  <Skeleton width={70} height={16} borderRadius={6} />
+                </View>
+              ))}
+            </View>
+
+            <View className="bg-gray-50 rounded-lg p-4">
+              <Skeleton
+                width={200}
+                height={24}
+                borderRadius={8}
+                className="mb-4"
+              />
+              <View className="bg-white rounded-lg p-4 mb-4">
+                <Skeleton width="100%" height={128} borderRadius={8} />
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 20 }}
+              >
+                {[1, 2, 3, 4, 5].map((idx) => (
+                  <View
+                    key={idx}
+                    className="bg-white rounded-lg p-3 mr-3 min-w-[80px] items-center"
+                  >
+                    <Skeleton
+                      width={46}
+                      height={12}
+                      borderRadius={6}
+                      className="mb-2"
+                    />
+                    <Skeleton
+                      width={32}
+                      height={32}
+                      borderRadius={16}
+                      className="mb-2"
+                    />
+                    <Skeleton width={42} height={12} borderRadius={6} />
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </ScrollView>
       </>
     );
   }
@@ -307,11 +447,13 @@ export default function WeatherDetail() {
       <>
         <Stack.Screen
           options={{
-            title: 'Weather Error',
+            title: "Weather Error",
           }}
         />
         <View className="flex-1 bg-white justify-center items-center">
-          <Text className="text-red-500 text-center">Failed to load weather details</Text>
+          <Text className="text-red-500 text-center">
+            Failed to load weather details
+          </Text>
         </View>
       </>
     );
@@ -321,61 +463,85 @@ export default function WeatherDetail() {
     <>
       <Stack.Screen
         options={{
-          title: `Day ${weatherData?.day || ''} Weather`,
+          title: `Day ${weatherData?.day || ""} Weather`,
         }}
       />
       <ScrollView className="flex-1 bg-white">
         {/* Header - Title Only */}
         <View className="bg-blue-500 px-6 py-4">
-          <Text className="text-white text-lg font-semibold text-center">Day {weatherData.day} Weather</Text>
+          <Text className="text-white text-lg font-semibold text-center">
+            Day {weatherData.day} Weather
+          </Text>
         </View>
 
         {/* Location and Main Weather */}
         <View className="px-6 py-6">
-          <Text className="text-gray-600 text-center mb-2">{weatherData.location}</Text>
+          <Text className="text-gray-600 text-center mb-2">
+            {weatherData.location}
+          </Text>
 
           <View className="items-center mb-6">
             <View className="bg-blue-100 rounded-full p-6 mb-4">
               <Ionicons
                 name={weatherData.icon as any}
                 size={64}
-                color={weatherData.description.includes('clear') ? '#FCD34D' : '#3B82F6'}
+                color={
+                  weatherData.description.includes("clear")
+                    ? "#FCD34D"
+                    : "#3B82F6"
+                }
               />
             </View>
-            <Text className="text-3xl font-bold text-gray-800">{weatherData.temp}°F</Text>
-            <Text className="text-lg text-gray-600">{weatherData.description}</Text>
+            <Text className="text-3xl font-bold text-gray-800">
+              {weatherData.temp}°F
+            </Text>
+            <Text className="text-lg text-gray-600">
+              {weatherData.description}
+            </Text>
           </View>
 
           {/* Weather Metrics */}
           <View className="bg-gray-50 rounded-lg p-4 mb-4">
-            <Text className="text-lg font-semibold text-gray-800 mb-3">Weather Details</Text>
+            <Text className="text-lg font-semibold text-gray-800 mb-3">
+              Weather Details
+            </Text>
 
             <View className="space-y-3">
               <View className="flex-row justify-between">
                 <Text className="text-gray-600">Feels Like</Text>
-                <Text className="font-semibold text-gray-800">{weatherData.feelsLike}°F</Text>
+                <Text className="font-semibold text-gray-800">
+                  {weatherData.feelsLike}°F
+                </Text>
               </View>
 
               <View className="flex-row justify-between">
                 <Text className="text-gray-600">Rain Chance</Text>
-                <Text className="font-semibold text-blue-600">{weatherData.rainChance}%</Text>
+                <Text className="font-semibold text-blue-600">
+                  {weatherData.rainChance}%
+                </Text>
               </View>
 
               <View className="flex-row justify-between">
                 <Text className="text-gray-600">Wind Speed</Text>
-                <Text className="font-semibold text-gray-800">{weatherData.windSpeed} mph</Text>
+                <Text className="font-semibold text-gray-800">
+                  {weatherData.windSpeed} mph
+                </Text>
               </View>
 
               <View className="flex-row justify-between">
                 <Text className="text-gray-600">Humidity</Text>
-                <Text className="font-semibold text-gray-800">{weatherData.humidity}%</Text>
+                <Text className="font-semibold text-gray-800">
+                  {weatherData.humidity}%
+                </Text>
               </View>
             </View>
           </View>
 
           {/* Temperature Timeline */}
           <View className="bg-gray-50 rounded-lg p-4">
-            <Text className="text-lg font-semibold text-gray-800 mb-3">Temperature Timeline</Text>
+            <Text className="text-lg font-semibold text-gray-800 mb-3">
+              Temperature Timeline
+            </Text>
 
             {/* Temperature Graph */}
             <View className="bg-white rounded-lg p-4 mb-4">
@@ -383,7 +549,8 @@ export default function WeatherDetail() {
                 {/* Temperature Line Graph */}
                 <View className="absolute inset-0">
                   {(() => {
-                    const temps = weatherData.hourlyData?.map(h => h.temp) || [];
+                    const temps =
+                      weatherData.hourlyData?.map((h) => h.temp) || [];
                     const minTemp = Math.min(...temps);
                     const maxTemp = Math.max(...temps);
                     const tempRange = maxTemp - minTemp || 1;
@@ -395,16 +562,23 @@ export default function WeatherDetail() {
                           {weatherData.hourlyData?.map((hour, index) => {
                             if (index === 0) return null;
 
-                            const prevHour = weatherData.hourlyData?.[index - 1];
-                            const prevTempPosition = prevHour ? ((prevHour.temp - minTemp) / tempRange) * 80 : 0;
-                            const currTempPosition = ((hour.temp - minTemp) / tempRange) * 80;
+                            const prevHour =
+                              weatherData.hourlyData?.[index - 1];
+                            const prevTempPosition = prevHour
+                              ? ((prevHour.temp - minTemp) / tempRange) * 80
+                              : 0;
+                            const currTempPosition =
+                              ((hour.temp - minTemp) / tempRange) * 80;
 
-                            const prevLeft = 10 + ((index - 1) * 10);
-                            const currLeft = 10 + (index * 10);
+                            const prevLeft = 10 + (index - 1) * 10;
+                            const currLeft = 10 + index * 10;
 
                             // Calculate control points for curve
                             const midLeft = (prevLeft + currLeft) / 2;
-                            const midTop = 50 + ((prevTempPosition + currTempPosition) / 2) - 40; // Adjust for centering
+                            const midTop =
+                              50 +
+                              (prevTempPosition + currTempPosition) / 2 -
+                              40; // Adjust for centering
 
                             return (
                               <View key={index} className="absolute">
@@ -416,12 +590,14 @@ export default function WeatherDetail() {
                                     top: `${50 + prevTempPosition - 40}%`,
                                     width: `${currLeft - prevLeft}%`,
                                     height: 2,
-                                    backgroundColor: '#10B981',
+                                    backgroundColor: "#10B981",
                                     transform: [
-                                      { rotate: `${Math.atan2((currTempPosition - prevTempPosition) * 0.8, (currLeft - prevLeft) * 0.8) * 180 / Math.PI}deg` },
+                                      {
+                                        rotate: `${(Math.atan2((currTempPosition - prevTempPosition) * 0.8, (currLeft - prevLeft) * 0.8) * 180) / Math.PI}deg`,
+                                      },
                                       { translateX: 0 },
-                                      { translateY: -1 }
-                                    ]
+                                      { translateY: -1 },
+                                    ],
                                   }}
                                 />
                               </View>
@@ -431,10 +607,15 @@ export default function WeatherDetail() {
 
                         {/* Temperature points */}
                         {weatherData.hourlyData?.map((hour, index) => {
-                          const tempPosition = ((hour.temp - minTemp) / tempRange) * 80; // 80% of height
+                          const tempPosition =
+                            ((hour.temp - minTemp) / tempRange) * 80; // 80% of height
                           const isMax = hour.temp === maxTemp;
                           const isMin = hour.temp === minTemp;
-                          const pointColor = isMax ? '#EF4444' : isMin ? '#3B82F6' : '#10B981';
+                          const pointColor = isMax
+                            ? "#EF4444"
+                            : isMin
+                              ? "#3B82F6"
+                              : "#10B981";
 
                           return (
                             <View
@@ -442,10 +623,13 @@ export default function WeatherDetail() {
                               className="absolute w-3 h-3 rounded-full border-2 border-white shadow-sm"
                               style={{
                                 backgroundColor: pointColor,
-                                left: `${10 + (index * 10)}%`,
+                                left: `${10 + index * 10}%`,
                                 bottom: `${10 + tempPosition}%`,
-                                transform: [{ translateX: -6 }, { translateY: 6 }],
-                                zIndex: 10
+                                transform: [
+                                  { translateX: -6 },
+                                  { translateY: 6 },
+                                ],
+                                zIndex: 10,
                               }}
                             />
                           );
@@ -461,9 +645,9 @@ export default function WeatherDetail() {
                     <Text
                       key={index}
                       className="text-xs text-gray-500"
-                      style={{ width: '10%', textAlign: 'center' }}
+                      style={{ width: "10%", textAlign: "center" }}
                     >
-                      {hour.time.split(':')[0]}
+                      {hour.time.split(":")[0]}
                     </Text>
                   ))}
                 </View>
@@ -476,16 +660,25 @@ export default function WeatherDetail() {
               contentContainerStyle={{ paddingRight: 20 }}
             >
               {weatherData.hourlyData?.map((hour, index) => (
-                <View key={index} className="bg-white rounded-lg p-3 mr-3 min-w-[80px] items-center">
-                  <Text className="text-gray-600 text-xs font-medium mb-2">{hour.time}</Text>
+                <View
+                  key={index}
+                  className="bg-white rounded-lg p-3 mr-3 min-w-[80px] items-center"
+                >
+                  <Text className="text-gray-600 text-xs font-medium mb-2">
+                    {hour.time}
+                  </Text>
                   <View className="bg-blue-100 rounded-full p-2 mb-2">
                     <Ionicons
                       name={hour.icon as any}
                       size={16}
-                      color={hour.icon.includes('sunny') ? '#FCD34D' : '#3B82F6'}
+                      color={
+                        hour.icon.includes("sunny") ? "#FCD34D" : "#3B82F6"
+                      }
                     />
                   </View>
-                  <Text className="font-semibold text-gray-800 text-sm">{hour.temp}°F</Text>
+                  <Text className="font-semibold text-gray-800 text-sm">
+                    {hour.temp}°F
+                  </Text>
                 </View>
               ))}
             </ScrollView>
