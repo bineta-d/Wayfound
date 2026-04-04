@@ -7,9 +7,10 @@ import ScannerScreen from "../../screens/ScannerScreen";
 
 interface Props {
   tripId: string;
+  tripDestination: string;
 }
 
-export default function ReservationsSection({ tripId }: Props) {
+export default function ReservationsSection({ tripId, tripDestination }: Props) {
   // 2. These states remember which tab the user clicked
   const [selectedType, setSelectedType] = useState("Accommodation");
   const [selectedBucket, setSelectedBucket] = useState("accommodations");
@@ -95,7 +96,7 @@ export default function ReservationsSection({ tripId }: Props) {
 
       {/* 3. THE EMBEDDED UPLOAD BOX! */}
       <View className="flex-1 mt-2">
-        <ScannerScreen bucket={selectedBucket} type={selectedType}  tripId={tripId}/>
+        <ScannerScreen bucket={selectedBucket} type={selectedType} tripId={tripId} tripDestination={tripDestination}/>
       </View>
       
     </View>

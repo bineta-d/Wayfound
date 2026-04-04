@@ -12,10 +12,11 @@ interface ScannerProps {
   bucket: string;
   type: string;
   tripId: string;
+  tripDestination: string;
 }
 
 
-export default function ScannerScreen({ bucket, type, tripId }: ScannerProps) {
+export default function ScannerScreen({ bucket, type, tripId, tripDestination }: ScannerProps) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string>('');
   const [extractedText, setExtractedText] = useState<string>('');
@@ -92,31 +93,105 @@ export default function ScannerScreen({ bucket, type, tripId }: ScannerProps) {
   };
 
   const extractAndSaveData = async (rawText: string) => {
-    setStatusText('Saving details to database...');
-    try {
-      const isHotel = rawText.toLowerCase().includes('hotel') || rawText.toLowerCase().includes('resort');
-      const finalName = isHotel ? "Scanned Hotel Booking" : `Home in Destination`;
+    setStatusText('Parsing and saving details...');
 
+    try {
+      const lower = rawText.toLowerCase();
+
+      // Detect if it's likely an activity
+      const isActivity =
+        lower.includes('tour') ||
+        lower.includes('ticket') ||
+        lower.includes('activity') ||
+        lower.includes('experience');
+
+      // =========================
+      // ACCOMMODATIONS
+      // =========================
       if (bucket === 'accommodations') {
+        const name = rawText.split('\n')[0] || "Scanned Hotel";
+
+        const addressMatch = rawText.match(/address[:\-]?\s*(.*)/i);
+        const address = addressMatch ? addressMatch[1] : "Unknown address";
+
         const { error } = await supabase.from('accommodations').insert([{
-          name: finalName,
-          address: "Address extracted from scan", 
+          name,
+          address,
           check_in_time: new Date().toISOString(),
           check_out_time: new Date().toISOString(),
         }]);
+
         if (error) console.log("DB Insert Notice:", error);
-        
-      } else if (bucket === 'transport') {
+
+        setStatusText('✅ Accommodation saved!');
+      }
+
+      // =========================
+      // TRANSPORT
+      // =========================
+      else if (bucket === 'transport') {
+        const flightMatch = rawText.match(/flight\s+([A-Z0-9]+)/i);
+
         const { error } = await supabase.from('transport').insert([{
           type: type || 'Flight',
-          details: "Details extracted from scan",
+          details: flightMatch ? flightMatch[0] : rawText.slice(0, 100),
         }]);
+
         if (error) console.log("DB Insert Notice:", error);
+
+        setStatusText('✅ Transport saved!');
       }
-      setStatusText('✅ Saved to Database!');
+
+      // =========================
+      // ACTIVITIES
+      // =========================
+      else if (bucket === 'activities' || isActivity) {
+
+        // Try to detect known cities
+        const knownCitiesRegex = /(Barcelona|Madrid|Paris|London|Tokyo|Rome|Miami|New York)/i;
+        const locationMatch = rawText.match(knownCitiesRegex);
+
+        // Fallback to trip destination
+        const location = locationMatch
+          ? locationMatch[0]
+          : tripDestination;
+
+        // DATE
+        const dateMatch = rawText.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/);
+        const activityDate = dateMatch ? dateMatch[0] : null;
+
+        // TIME
+        const timeMatch = rawText.match(/\b\d{1,2}:\d{2}\b/);
+        const startTime = timeMatch ? timeMatch[0] : null;
+
+        // TITLE
+        const title = rawText.split('\n')[0] || "Scanned Activity";
+
+        const { error } = await supabase.from('activity_bookings').insert([{
+          trip_id: tripId,
+          activity_name: title,
+          location,
+          activity_date: activityDate,
+          start_time: startTime,
+          end_time: null,
+          notes: rawText,
+        }]);
+
+        if (error) console.log("DB Insert Error:", error);
+
+        setStatusText('✅ Activity saved!');
+      }
+
+      // =========================
+      // FALLBACK
+      // =========================
+      else {
+        setStatusText('✅ Document processed');
+      }
+
     } catch (error) {
       console.error("DB Save Error:", error);
-      setStatusText('✅ Analysis Complete');
+      setStatusText('Error saving data');
     }
   };
 
