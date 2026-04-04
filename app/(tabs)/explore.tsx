@@ -31,6 +31,13 @@ interface ContinentSection {
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const locationCardShadowStyle = {
+    shadowColor: "#111827",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+  };
   const [loading, setLoading] = useState(true);
   const [featuredDestination, setFeaturedDestination] =
     useState<Destination | null>(null);
@@ -587,7 +594,10 @@ export default function ExploreScreen() {
             >
               {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
                 <View key={index} className="mr-4">
-                  <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                  <View
+                    className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                    style={locationCardShadowStyle}
+                  >
                     <Skeleton height={96} width={160} />
                     <View className="p-3">
                       <Skeleton height={16} width={120} />
@@ -620,7 +630,10 @@ export default function ExploreScreen() {
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
                     <View key={`${rowIndex}-${index}`} className="mr-4">
-                      <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                      <View
+                        className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                        style={locationCardShadowStyle}
+                      >
                         <Skeleton height={96} width={160} />
                         <View className="p-3">
                           <Skeleton height={16} width={120} />
@@ -655,7 +668,10 @@ export default function ExploreScreen() {
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
                     <View key={`${rowIndex}-${index}`} className="mr-4">
-                      <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                      <View
+                        className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                        style={locationCardShadowStyle}
+                      >
                         <Skeleton height={96} width={160} />
                         <View className="p-3">
                           <Skeleton height={16} width={120} />
@@ -710,7 +726,10 @@ export default function ExploreScreen() {
                 onPress={() => handleDestinationPress(destination)}
                 className="mr-4"
               >
-                <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                <View
+                  className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                  style={locationCardShadowStyle}
+                >
                   <Image
                     source={{ uri: destination.image }}
                     className="w-full h-24"
@@ -758,7 +777,10 @@ export default function ExploreScreen() {
                   onPress={() => handleDestinationPress(destination)}
                   className="mr-4"
                 >
-                  <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                  <View
+                    className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                    style={locationCardShadowStyle}
+                  >
                     <Image
                       source={{ uri: destination.image }}
                       className="w-full h-24"
@@ -802,7 +824,10 @@ export default function ExploreScreen() {
                   onPress={() => handleDestinationPress(destination)}
                   className="mr-4"
                 >
-                  <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                  <View
+                    className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                    style={locationCardShadowStyle}
+                  >
                     <Image
                       source={{ uri: destination.image }}
                       className="w-full h-24"
@@ -846,7 +871,10 @@ export default function ExploreScreen() {
                   onPress={() => handleDestinationPress(destination)}
                   className="mr-4"
                 >
-                  <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                  <View
+                    className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                    style={locationCardShadowStyle}
+                  >
                     <Image
                       source={{ uri: destination.image }}
                       className="w-full h-24"
@@ -890,7 +918,10 @@ export default function ExploreScreen() {
                   onPress={() => handleDestinationPress(destination)}
                   className="mr-4"
                 >
-                  <View className="bg-white rounded-xl shadow-md overflow-hidden w-40">
+                  <View
+                    className="bg-white rounded-xl shadow-md overflow-hidden w-40 border border-purple-200"
+                    style={locationCardShadowStyle}
+                  >
                     <Image
                       source={{ uri: destination.image }}
                       className="w-full h-24"

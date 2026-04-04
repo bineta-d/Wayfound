@@ -1,8 +1,16 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import ReservationUploadPanel from "@/components/ReservationUploadPanel";
+import {
+  PendingReservationUpload,
+  ReservationUploadTypeKey,
+  uploadPendingReservationFilesForTrip,
+} from "@/lib/reservationUploads";
+import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   SafeAreaView,
   ScrollView,
@@ -25,12 +33,20 @@ export default function CreateTripScreen() {
     start_date: "",
     end_date: "",
   });
-
   const [members, setMembers] = useState<{ name: string; email: string }[]>([]);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [selectedReservationTypeKey, setSelectedReservationTypeKey] =
+    useState<ReservationUploadTypeKey | null>(null);
+  const [pendingUploadsByType, setPendingUploadsByType] = useState<
+    Partial<Record<ReservationUploadTypeKey, PendingReservationUpload[]>>
+  >({});
+
+  const hasPendingUploads = Object.values(pendingUploadsByType).some(
+    (uploads) => (uploads?.length || 0) > 0,
+  );
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -59,6 +75,120 @@ export default function CreateTripScreen() {
     setMembers((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const buildPendingUpload = (
+    typeKey: ReservationUploadTypeKey,
+    file: {
+      uri: string;
+      name?: string | null;
+      mimeType?: string | null;
+      size?: number;
+    },
+  ): PendingReservationUpload => ({
+    id: `${typeKey}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    typeKey,
+    uri: file.uri,
+    name:
+      file.name ||
+      file.uri.split("/").pop() ||
+      `${typeKey}-${Date.now()}`,
+    mimeType: file.mimeType || "application/octet-stream",
+    size: file.size,
+    kind: (file.mimeType || "").startsWith("image/") ? "image" : "document",
+    status: "pending",
+  });
+
+  const addUploadsForType = (
+    typeKey: ReservationUploadTypeKey,
+    uploads: PendingReservationUpload[],
+  ) => {
+    if (!uploads.length) {
+      return;
+    }
+
+    setPendingUploadsByType((prev) => ({
+      ...prev,
+      [typeKey]: [...(prev[typeKey] || []), ...uploads],
+    }));
+  };
+
+  const handleToggleReservationType = (typeKey: ReservationUploadTypeKey) => {
+    setSelectedReservationTypeKey((prev) =>
+      prev === typeKey ? null : typeKey,
+    );
+  };
+
+  const handlePickReservationImage = async (
+    typeKey: ReservationUploadTypeKey,
+  ) => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission Needed",
+        "Please allow photo library access to upload reservation screenshots.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.7,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    addUploadsForType(
+      typeKey,
+      result.assets.map((asset) =>
+        buildPendingUpload(typeKey, {
+          uri: asset.uri,
+          name: asset.fileName,
+          mimeType: asset.mimeType,
+          size: asset.fileSize,
+        }),
+      ),
+    );
+  };
+
+  const handlePickReservationDocument = async (
+    typeKey: ReservationUploadTypeKey,
+  ) => {
+    const result = await DocumentPicker.getDocumentAsync({
+      multiple: true,
+      type: ["image/*", "application/pdf", "text/plain", "application/*"],
+      copyToCacheDirectory: true,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    addUploadsForType(
+      typeKey,
+      result.assets.map((asset) =>
+        buildPendingUpload(typeKey, {
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+          size: asset.size,
+        }),
+      ),
+    );
+  };
+
+  const handleRemoveReservationUpload = (
+    typeKey: ReservationUploadTypeKey,
+    uploadId: string,
+  ) => {
+    setPendingUploadsByType((prev) => ({
+      ...prev,
+      [typeKey]: (prev[typeKey] || []).filter((upload) => upload.id !== uploadId),
+    }));
+  };
+
   const handleDateChange = (
     event: any,
     selectedDate: Date | undefined,
@@ -84,15 +214,6 @@ export default function CreateTripScreen() {
       return;
     }
 
-    console.log("🔍 Creating trip with user ID:", user.id);
-    console.log("🔍 User email:", user.email);
-    console.log("🔍 Trip data:", {
-      title: formData.title,
-      destination: formData.destination,
-      start_date: formData.start_date,
-      end_date: formData.end_date
-    });
-
     if (
       !formData.title ||
       !formData.destination ||
@@ -114,14 +235,36 @@ export default function CreateTripScreen() {
         user.id,
       );
 
-      // Add members if any are provided
-      const validMembers = members.filter((m) => m.name && m.email);
-      if (validMembers.length > 0 && tripData && tripData[0]) {
-        await createTripMembers(tripData[0].id, validMembers);
-        console.log(`Added ${validMembers.length} members to trip`);
+      const tripId = tripData?.[0]?.id;
+      if (!tripId) {
+        throw new Error("Trip creation did not return a valid trip id");
       }
 
-      Alert.alert("Success", "Trip created successfully");
+      const validMembers = members.filter((member) => member.name && member.email);
+      if (validMembers.length > 0) {
+        await createTripMembers(tripId, validMembers);
+      }
+
+      let uploadMessage = "";
+      if (hasPendingUploads) {
+        try {
+          const { failed } = await uploadPendingReservationFilesForTrip(
+            tripId,
+            user.id,
+            pendingUploadsByType,
+          );
+
+          if (failed.length > 0) {
+            uploadMessage = ` ${failed.length} reservation file(s) could not be uploaded.`;
+          }
+        } catch (uploadError) {
+          console.error("Error linking reservation uploads:", uploadError);
+          uploadMessage =
+            " Reservation files were selected, but some could not be linked to the trip.";
+        }
+      }
+
+      Alert.alert("Success", `Trip created successfully.${uploadMessage}`);
       router.push("/(tabs)/home");
     } catch (error: any) {
       console.error("Error creating trip:", error);
@@ -129,17 +272,19 @@ export default function CreateTripScreen() {
         message: error?.message,
         code: error?.code,
         details: error?.details,
-        hint: error?.hint
+        hint: error?.hint,
       });
 
-      // Show more specific error message for RLS issues
       if (error?.code === "42501") {
         Alert.alert(
           "Permission Error",
-          "You don't have permission to create trips. Please make sure you're properly logged in or contact support."
+          "You don't have permission to create trips. Please make sure you're properly logged in or contact support.",
         );
       } else {
-        Alert.alert("Error", `Failed to create trip: ${error?.message || "Unknown error"}`);
+        Alert.alert(
+          "Error",
+          `Failed to create trip: ${error?.message || "Unknown error"}`,
+        );
       }
     } finally {
       setLoading(false);
@@ -148,209 +293,180 @@ export default function CreateTripScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="bg-white px-6 pt-12 pb-6">
-        <Text className="text-2xl font-bold text-gray-800">
-          Create New Trip
-        </Text>
-        <Text className="text-gray-600 mt-2">Plan your next adventure</Text>
-      </View>
-
-      <View className="bg-white px-6 py-4">
-        <Text className="text-gray-700 text-base font-semibold mb-2">
-          Trip Title
-        </Text>
-        <TextInput
-          className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-          placeholder="Enter trip title"
-          value={formData.title}
-          onChangeText={(value) => handleInputChange("title", value)}
-        />
-
-        <Text className="text-gray-700 text-base font-semibold mb-2">
-          Destination
-        </Text>
-        <GooglePlacesAutocomplete
-          placeholder="Search for a city or destination"
-          onPress={(data, details = null) => {
-            handleInputChange("destination", data.description);
-          }}
-          query={{
-            key: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
-            language: "en",
-            types: "(cities)",
-          }}
-          styles={{
-            textInput: {
-              height: 48,
-              borderWidth: 1,
-              borderColor: "#d1d5db",
-              borderRadius: 8,
-              paddingHorizontal: 16,
-              marginBottom: 16,
-              fontSize: 16,
-            },
-            container: {
-              flex: 0,
-            },
-          }}
-          textInputProps={{
-            placeholderTextColor: "#9ca3af",
-          }}
-          fetchDetails={true}
-          onTimeout={() => console.log("Google Places timeout")}
-          onFail={(error) => console.error("Google Places error:", error)}
-          minLength={2}
-          debounce={300}
-        />
-
-        <Text className="text-gray-700 text-base font-semibold mb-2">
-          Start Date
-        </Text>
-        <TouchableOpacity
-          className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-          onPress={() => setShowStartDatePicker(true)}
-        >
-          <Text className="text-gray-800">
-            {formData.start_date || "Select start date"}
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+        <View className="bg-white px-6 pt-12 pb-6">
+          <Text className="text-2xl font-bold text-gray-800">
+            Create New Trip
           </Text>
-        </TouchableOpacity>
+          <Text className="text-gray-600 mt-2">Plan your next adventure</Text>
+        </View>
 
-        {showStartDatePicker && (
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="default"
-            onChange={(event, date) => handleDateChange(event, date, "start")}
+        <View className="bg-white px-6 py-4">
+          <Text className="text-gray-700 text-base font-semibold mb-2">
+            Trip Title
+          </Text>
+          <TextInput
+            className="w-full border border-gray-300 rounded-lg p-4 mb-4"
+            placeholder="Enter trip title"
+            value={formData.title}
+            onChangeText={(value) => handleInputChange("title", value)}
           />
-        )}
 
-        <Text className="text-gray-700 text-base font-semibold mb-2">
-          End Date
-        </Text>
-        <TouchableOpacity
-          className="w-full border border-gray-300 rounded-lg p-4 mb-6"
-          onPress={() => setShowEndDatePicker(true)}
-        >
-          <Text className="text-gray-800">
-            {formData.end_date || "Select end date"}
+          <Text className="text-gray-700 text-base font-semibold mb-2">
+            Destination
           </Text>
-        </TouchableOpacity>
-
-        {showEndDatePicker && (
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="default"
-            onChange={(event, date) => handleDateChange(event, date, "end")}
+          <GooglePlacesAutocomplete
+            placeholder="Search for a city or destination"
+            onPress={(data) => {
+              handleInputChange("destination", data.description);
+            }}
+            query={{
+              key: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
+              language: "en",
+              types: "(cities)",
+            }}
+            styles={{
+              textInput: {
+                height: 48,
+                borderWidth: 1,
+                borderColor: "#d1d5db",
+                borderRadius: 8,
+                paddingHorizontal: 16,
+                marginBottom: 16,
+                fontSize: 16,
+              },
+              container: {
+                flex: 0,
+              },
+            }}
+            textInputProps={{
+              placeholderTextColor: "#9ca3af",
+            }}
+            fetchDetails={true}
+            onTimeout={() => console.log("Google Places timeout")}
+            onFail={(error) => console.error("Google Places error:", error)}
+            minLength={2}
+            debounce={300}
           />
-        )}
-        <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
-          Reservations
-        </Text>
 
-        {/* Reservation Icons */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mb-4"
-        >
-          <TouchableOpacity className="items-center mr-6">
-            <View className="bg-blue-100 p-3 rounded-full mb-1">
-              <Ionicons name="bed" size={20} color="#3B82F6" />
-            </View>
-            <Text className="text-xs text-neutral-textSecondary">
-              Accommodation
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center mr-6">
-            <View className="bg-green-100 p-3 rounded-full mb-1">
-              <Ionicons name="airplane" size={20} color="#10B981" />
-            </View>
-            <Text className="text-xs text-neutral-textSecondary">Flight</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center mr-6">
-            <View className="bg-purple-100 p-3 rounded-full mb-1">
-              <Ionicons name="train" size={20} color="#8B5CF6" />
-            </View>
-            <Text className="text-xs text-neutral-textSecondary">Train</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center mr-6">
-            <View className="bg-yellow-100 p-3 rounded-full mb-1">
-              <Ionicons name="bus" size={20} color="#F59E0B" />
-            </View>
-            <Text className="text-xs text-neutral-textSecondary">Bus</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center mr-6">
-            <View className="bg-red-100 p-3 rounded-full mb-1">
-              <Ionicons name="car" size={20} color="#EF4444" />
-            </View>
-            <Text className="text-xs text-neutral-textSecondary">
-              Car Rental
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center mr-6">
-            <View className="bg-pink-100 p-3 rounded-full mb-1">
-              <Ionicons name="ticket" size={20} color="#EC4899" />
-            </View>
-            <Text className="text-xs text-neutral-textSecondary">
-              Activities
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        <TouchableOpacity
-          onPress={handleCreateTrip}
-          className="bg-blue-500 py-3 rounded-lg items-center mb-4"
-          disabled={loading}
-        >
-          <Text className="text-white font-semibold text-base">
-            {loading ? "Creating..." : "Create Trip"}
+          <Text className="text-gray-700 text-base font-semibold mb-2">
+            Start Date
           </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            className="w-full border border-gray-300 rounded-lg p-4 mb-4"
+            onPress={() => setShowStartDatePicker(true)}
+          >
+            <Text className="text-gray-800">
+              {formData.start_date || "Select start date"}
+            </Text>
+          </TouchableOpacity>
 
-        <View className="border-t border-gray-200 pt-4">
-          <Text className="text-gray-700 text-base font-semibold mb-3">
-            Trip Members (Optional)
+          {showStartDatePicker && (
+            <DateTimePicker
+              value={startDate}
+              mode="date"
+              display="default"
+              onChange={(event, date) => handleDateChange(event, date, "start")}
+            />
+          )}
+
+          <Text className="text-gray-700 text-base font-semibold mb-2">
+            End Date
+          </Text>
+          <TouchableOpacity
+            className="w-full border border-gray-300 rounded-lg p-4 mb-6"
+            onPress={() => setShowEndDatePicker(true)}
+          >
+            <Text className="text-gray-800">
+              {formData.end_date || "Select end date"}
+            </Text>
+          </TouchableOpacity>
+
+          {showEndDatePicker && (
+            <DateTimePicker
+              value={endDate}
+              mode="date"
+              display="default"
+              onChange={(event, date) => handleDateChange(event, date, "end")}
+            />
+          )}
+
+          <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
+            Reservations
           </Text>
 
-          <ScrollView className="max-h-48">
-            {members.map((member, index) => (
-              <View key={index} className="flex-row mb-3">
-                <TextInput
-                  className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
-                  placeholder="Name"
-                  value={member.name}
-                  onChangeText={(value) =>
-                    handleMemberChange(index, "name", value)
-                  }
-                />
-                <TextInput
-                  className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
-                  placeholder="Email"
-                  value={member.email}
-                  onChangeText={(value) =>
-                    handleMemberChange(index, "email", value)
-                  }
-                />
-                <TouchableOpacity
-                  onPress={() => removeMemberField(index)}
-                  className="bg-red-500 px-3 py-2 rounded-lg justify-center"
-                >
-                  <Text className="text-white text-sm">Remove</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
+          <ReservationUploadPanel
+            selectedTypeKey={selectedReservationTypeKey}
+            uploadsByType={pendingUploadsByType}
+            disabled={loading}
+            onToggleType={handleToggleReservationType}
+            onPickImage={handlePickReservationImage}
+            onPickDocument={handlePickReservationDocument}
+            onRemoveUpload={handleRemoveReservationUpload}
+          />
 
           <TouchableOpacity
-            onPress={addMemberField}
-            className="bg-green-500 py-2 rounded-lg items-center mt-2"
+            onPress={handleCreateTrip}
+            className="bg-blue-500 py-3 rounded-lg items-center mb-4"
+            disabled={loading}
           >
-            <Text className="text-white font-semibold">+ Add Member</Text>
+            <View className="flex-row items-center justify-center">
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : null}
+              <Text className="text-white font-semibold text-base ml-2">
+                {loading
+                  ? hasPendingUploads
+                    ? "Creating Trip & Uploading Files..."
+                    : "Creating..."
+                  : "Create Trip"}
+              </Text>
+            </View>
           </TouchableOpacity>
+
+          <View className="border-t border-gray-200 pt-4">
+            <Text className="text-gray-700 text-base font-semibold mb-3">
+              Trip Members (Optional)
+            </Text>
+
+            <ScrollView className="max-h-48">
+              {members.map((member, index) => (
+                <View key={index} className="flex-row mb-3">
+                  <TextInput
+                    className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
+                    placeholder="Name"
+                    value={member.name}
+                    onChangeText={(value) =>
+                      handleMemberChange(index, "name", value)
+                    }
+                  />
+                  <TextInput
+                    className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
+                    placeholder="Email"
+                    value={member.email}
+                    onChangeText={(value) =>
+                      handleMemberChange(index, "email", value)
+                    }
+                  />
+                  <TouchableOpacity
+                    onPress={() => removeMemberField(index)}
+                    className="bg-red-500 px-3 py-2 rounded-lg justify-center"
+                  >
+                    <Text className="text-white text-sm">Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              onPress={addMemberField}
+              className="bg-green-500 py-2 rounded-lg items-center mt-2"
+            >
+              <Text className="text-white font-semibold">+ Add Member</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
