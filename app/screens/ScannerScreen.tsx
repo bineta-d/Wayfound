@@ -5,18 +5,33 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 import PrimaryButton from '../../components/PrimaryButton';
 import { supabase } from '../../lib/supabase';
+import { useLocalSearchParams } from 'expo-router';
 
 // 1. Tell the component to accept instructions from the Reservations page!
 interface ScannerProps {
   bucket: string;
   type: string;
+  tripId: string;
+  tripDestination: string;
 }
 
-export default function ScannerScreen({ bucket, type }: ScannerProps) {
+
+export default function ScannerScreen({ bucket, type, tripId, tripDestination }: ScannerProps) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string>('');
   const [extractedText, setExtractedText] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const categoryMap: Record<string, string> = {
+    Accommodation: "accommodation",
+    Flight: "flight",
+    Train: "train",
+    Bus: "bus",
+    "Car Rental": "car",
+    Activities: "activities",
+  };
+
+  const category = categoryMap[type] || "other";
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -42,8 +57,7 @@ export default function ScannerScreen({ bucket, type }: ScannerProps) {
     setStatusText('Uploading secure file...');
     setExtractedText(''); 
 
-    const targetBucket = bucket || 'trip-uploads';
-    await uploadToSupabase(base64Data, targetBucket);
+    await uploadToSupabase(base64Data);
     
     setStatusText('Analyzing with AI...');
     await analyzeWithGoogleVision(base64Data);
@@ -51,43 +65,157 @@ export default function ScannerScreen({ bucket, type }: ScannerProps) {
     setLoading(false);
   };
 
-  const uploadToSupabase = async (base64Data: string, targetBucket: string) => {
+  const uploadToSupabase = async (base64Data: string) => {
     try {
-      const fileName = `scan_${Date.now()}.jpg`;
-      await supabase.storage
-        .from(targetBucket)
-        .upload(fileName, decode(base64Data), { contentType: 'image/jpeg' });
+      if (!tripId) {
+        console.error("No tripId found");
+        return;
+      }
+
+      const fileName = `${Date.now()}.jpg`;
+
+      const filePath = `${tripId}/${category}/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("trip-uploads")
+        .upload(filePath, decode(base64Data), {
+          contentType: "image/jpeg",
+        });
+
+      if (error) {
+        console.error("Upload Error:", error);
+      } else {
+        console.log("✅ File uploaded to:", filePath);
+      }
     } catch (error) {
       console.error("Upload Error:", error);
     }
   };
 
   const extractAndSaveData = async (rawText: string) => {
-    setStatusText('Saving details to database...');
-    try {
-      const isHotel = rawText.toLowerCase().includes('hotel') || rawText.toLowerCase().includes('resort');
-      const finalName = isHotel ? "Scanned Hotel Booking" : `Home in Destination`;
+    setStatusText('Parsing and saving details...');
 
+    try {
+      const lower = rawText.toLowerCase();
+
+      // Detect if it's likely an activity
+      const isActivity =
+        lower.includes('tour') ||
+        lower.includes('ticket') ||
+        lower.includes('activity') ||
+        lower.includes('experience');
+
+      // =========================
+      // ACCOMMODATIONS
+      // =========================
       if (bucket === 'accommodations') {
+        const name = rawText.split('\n')[0] || "Scanned Hotel";
+
+        const addressMatch = rawText.match(/address[:\-]?\s*(.*)/i);
+        const address = addressMatch ? addressMatch[1] : "Unknown address";
+
         const { error } = await supabase.from('accommodations').insert([{
-          name: finalName,
-          address: "Address extracted from scan", 
-          check_in_time: "15:00", 
-          check_out_time: "11:00",
+          name,
+          address,
+          check_in_time: new Date().toISOString(),
+          check_out_time: new Date().toISOString(),
         }]);
+
         if (error) console.log("DB Insert Notice:", error);
-        
-      } else if (bucket === 'transport') {
-        const { error } = await supabase.from('transport').insert([{
-          type: type || 'Flight',
-          details: "Details extracted from scan",
-        }]);
-        if (error) console.log("DB Insert Notice:", error);
+
+        setStatusText('✅ Accommodation saved!');
       }
-      setStatusText('✅ Saved to Database!');
+
+      // =========================
+      // TRANSPORT
+      // =========================
+      else if (bucket === 'transport') {
+        const cityRegex = /(Barcelona|Madrid|Paris|London|Tokyo|Rome|Miami|New York)/gi;
+        const cities = rawText.match(cityRegex) || [];
+
+        const departureLocation = cities[0] || tripDestination;
+        const arrivalLocation = cities[1] || tripDestination;
+
+        const dateMatch = rawText.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/);
+        const departureDate = dateMatch ? dateMatch[0] : null;
+
+        const timeMatches = rawText.match(/\b\d{1,2}:\d{2}\b/g) || [];
+
+        const departureTime = timeMatches[0] || null;
+        const arrivalTime = timeMatches[1] || null;
+
+        let transportType = type || 'Flight';
+
+        if(lower.includes('train')) transportType = 'Train';
+        if(lower.includes('bus')) transportType = 'Bus';
+        if(lower.includes('car')) transportType = 'Car Rental';
+
+
+        const { error } = await supabase.from('travel_transportation').insert([{
+          trip_id: tripId,
+          transport_type: transportType,
+          departure_location: departureLocation,
+          arrival_location: arrivalLocation,
+          departure_time: departureTime,
+          arrival_time: arrivalTime,
+          departure_date: departureDate,
+          notes: rawText,
+        }])
+
+        if (error) console.log("DB Insert Error:", error);
+
+        setStatusText('✅ Transport saved!');
+      }
+
+      // =========================
+      // ACTIVITIES
+      // =========================
+      else if (bucket === 'activities' || isActivity) {
+
+        // Try to detect known cities
+        const knownCitiesRegex = /(Barcelona|Madrid|Paris|London|Tokyo|Rome|Miami|New York)/i;
+        const locationMatch = rawText.match(knownCitiesRegex);
+
+        // Fallback to trip destination
+        const location = locationMatch
+          ? locationMatch[0]
+          : tripDestination;
+
+        // DATE
+        const dateMatch = rawText.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/);
+        const activityDate = dateMatch ? dateMatch[0] : null;
+
+        // TIME
+        const timeMatch = rawText.match(/\b\d{1,2}:\d{2}\b/);
+        const startTime = timeMatch ? timeMatch[0] : null;
+
+        // TITLE
+        const title = rawText.split('\n')[0] || "Scanned Activity";
+
+        const { error } = await supabase.from('activities').insert([{
+          trip_id: tripId,
+          title: title,
+          location_name: location,
+          start_time: startTime,
+          end_time: null,
+          notes: rawText,
+        }]);
+
+        if (error) console.log("DB Insert Error:", error);
+
+        setStatusText('✅ Activity saved!');
+      }
+
+      // =========================
+      // FALLBACK
+      // =========================
+      else {
+        setStatusText('✅ Document processed');
+      }
+
     } catch (error) {
       console.error("DB Save Error:", error);
-      setStatusText('✅ Analysis Complete');
+      setStatusText('Error saving data');
     }
   };
 

@@ -5,7 +5,12 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 // 1. Import your Scanner file!
 import ScannerScreen from "../../screens/ScannerScreen";
 
-export default function ReservationsSection() {
+interface Props {
+  tripId: string;
+  tripDestination: string;
+}
+
+export default function ReservationsSection({ tripId, tripDestination }: Props) {
   // 2. These states remember which tab the user clicked
   const [selectedType, setSelectedType] = useState("Accommodation");
   const [selectedBucket, setSelectedBucket] = useState("accommodations");
@@ -91,7 +96,7 @@ export default function ReservationsSection() {
 
       {/* 3. THE EMBEDDED UPLOAD BOX! */}
       <View className="flex-1 mt-2">
-        <ScannerScreen bucket={selectedBucket} type={selectedType} />
+        <ScannerScreen bucket={selectedBucket} type={selectedType} tripId={tripId} tripDestination={tripDestination}/>
       </View>
       
     </View>
