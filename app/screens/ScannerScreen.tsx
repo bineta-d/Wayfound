@@ -192,11 +192,10 @@ export default function ScannerScreen({ bucket, type, tripId, tripDestination }:
         // TITLE
         const title = rawText.split('\n')[0] || "Scanned Activity";
 
-        const { error } = await supabase.from('activity_bookings').insert([{
+        const { error } = await supabase.from('activities').insert([{
           trip_id: tripId,
-          activity_name: title,
-          location,
-          activity_date: activityDate,
+          title: title,
+          location_name: location,
           start_time: startTime,
           end_time: null,
           notes: rawText,

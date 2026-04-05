@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
 export async function buildTripContext(tripId: string) {
+
   // 1. Get accommodations
   const { data: accommodations } = await supabase
     .from("accommodations")
@@ -19,38 +20,61 @@ export async function buildTripContext(tripId: string) {
     .select("*")
     .eq("trip_id", tripId);
 
-
   // 4. Get documents
-  const { data: files, error } = await 
-  supabase.storage
+  const { data: files } = await supabase.storage
     .from("trip-uploads")
-    .list(tripId, { limit: 20});
+    .list(tripId, { limit: 20 });
 
-
-  const documentsText = 
+  const documentsText =
     files && files.length > 0
-      ? files.map(files => `- ${files.name}
-      `).join("\n")
-        : "None";
+      ? files.map(file => `- ${file.name}`).join("\n")
+      : "None";
 
-    
+  // 5. Format context (🔥 MEJORADO)
 
-  // 5. Format context
+  const formattedAccommodations =
+    accommodations?.map(a =>
+      `Stay at ${a.name ?? "Unknown"} 
+      Address: ${a.address ?? "Unknown"} 
+      Check-in: ${a.check_in_time ?? "unknown"} 
+      Check-out: ${a.check_out_time ?? "unknown"}`
+    ).join("\n\n") || "None";
+
+  const formattedTransport =
+    transport?.map(t =>
+      `${t.transport_type ?? "Transport"} 
+      From: ${t.departure_location ?? "unknown"} 
+      To: ${t.arrival_location ?? "unknown"} 
+      Departure: ${t.departure_time ?? "unknown"} 
+      Arrival: ${t.arrival_time ?? "unknown"}`
+    ).join("\n\n") || "None";
+
+  const formattedActivities =
+    activities?.map(a =>
+      `${a.title ?? a.title ?? "Activity"} 
+      Location: ${a.location_name ?? "unknown"} 
+      Start: ${a.start_time ?? "unknown"} 
+      End: ${a.end_time ?? "unknown"}`
+    ).join("\n\n") || "None";
+
   return {
-    accommodation: accommodations?.map(a =>
-      `${a.name} at ${a.address} (check-in: ${a.check_in_time})`
-    ).join("\n") || "None",
+    accommodation: formattedAccommodations,
+    transport: formattedTransport,
+    activities: formattedActivities,
 
-    transport: transport?.map(t =>
-      `${t.transport_type} from ${t.departure_location} to ${t.arrival_location} at ${t.departure_time}`
-    ).join("\n") || "None",
-
-    activities: activities?.map(a =>
-      `${a.title} at ${a.start_time}`
-    ).join("\n") || "None",
-
+    // OCR raw (files)
     documents: documentsText,
 
-    bookings: documentsText,
+    // Structured bookings
+    bookings: `
+    ACCOMMODATIONS:
+    ${formattedAccommodations}
+
+    TRANSPORT:
+    ${formattedTransport}
+
+    ACTIVITIES:
+    ${formattedActivities}
+    `.trim(),
   };
 }
