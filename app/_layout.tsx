@@ -117,6 +117,10 @@ function AuthStack() {
 
         {/* Other screens */}
         <Stack.Screen
+          name="screens/createTrip"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="screens/editProfile"
           options={{
             title: "Edit Profile",
