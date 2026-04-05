@@ -1,13 +1,13 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
 import ReservationUploadPanel from "@/components/ReservationUploadPanel";
 import {
   PendingReservationUpload,
   ReservationUploadTypeKey,
   uploadPendingReservationFilesForTrip,
 } from "@/lib/reservationUploads";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as DocumentPicker from "expo-document-picker";
-import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -90,10 +90,7 @@ export default function CreateTripScreen() {
     id: `${typeKey}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     typeKey,
     uri: file.uri,
-    name:
-      file.name ||
-      file.uri.split("/").pop() ||
-      `${typeKey}-${Date.now()}`,
+    name: file.name || file.uri.split("/").pop() || `${typeKey}-${Date.now()}`,
     mimeType: file.mimeType || "application/octet-stream",
     size: file.size,
     kind: (file.mimeType || "").startsWith("image/") ? "image" : "document",
@@ -188,7 +185,9 @@ export default function CreateTripScreen() {
   ) => {
     setPendingUploadsByType((prev) => ({
       ...prev,
-      [typeKey]: (prev[typeKey] || []).filter((upload) => upload.id !== uploadId),
+      [typeKey]: (prev[typeKey] || []).filter(
+        (upload) => upload.id !== uploadId,
+      ),
     }));
   };
 
@@ -235,7 +234,9 @@ export default function CreateTripScreen() {
       return;
     }
 
-    if (new Date(normalizedData.start_date) > new Date(normalizedData.end_date)) {
+    if (
+      new Date(normalizedData.start_date) > new Date(normalizedData.end_date)
+    ) {
       Alert.alert("Error", "End Date must be on or after Start Date");
       return;
     }
@@ -256,7 +257,9 @@ export default function CreateTripScreen() {
         throw new Error("Trip creation did not return a valid trip id");
       }
 
-      const validMembers = members.filter((member) => member.name && member.email);
+      const validMembers = members.filter(
+        (member) => member.name && member.email,
+      );
       if (validMembers.length > 0) {
         await createTripMembers(tripId, validMembers);
       }
@@ -313,190 +316,195 @@ export default function CreateTripScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="bg-white px-6 pt-12 pb-6">
-          <Text className="text-2xl font-bold text-gray-800">
-            Create New Trip
-          </Text>
-          <Text className="text-gray-600 mt-2">Plan your next adventure</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="bg-white px-6 pt-12 pb-6">
+            <Text className="text-2xl font-bold text-gray-800">
+              Create New Trip
+            </Text>
+            <Text className="text-gray-600 mt-2">Plan your next adventure</Text>
+          </View>
 
-        <View className="bg-white px-6 py-4">
-          <Text className="text-gray-700 text-base font-semibold mb-2">
-            Trip Title
-          </Text>
-          <TextInput
-            className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-            placeholder="Enter trip title"
-            value={formData.title}
-            onChangeText={(value) => handleInputChange("title", value)}
-          />
+          <View className="bg-white px-6 py-4">
+            <Text className="text-gray-700 text-base font-semibold mb-2">
+              Trip Title
+            </Text>
+            <TextInput
+              className="w-full border border-gray-300 rounded-lg p-4 mb-4"
+              placeholder="Enter trip title"
+              value={formData.title}
+              onChangeText={(value) => handleInputChange("title", value)}
+            />
 
-          <Text className="text-gray-700 text-base font-semibold mb-2">
-            Destination
-          </Text>
-          <GooglePlacesAutocomplete
-            placeholder="Search for a city or destination"
-            onPress={(data) => {
-              const value = data.description || "";
-              setDestinationInput(value);
-              handleInputChange("destination", value);
-            }}
-            query={{
-              key: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
-              language: "en",
-              types: "(cities)",
-            }}
-            styles={{
-              textInput: {
-                height: 48,
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 8,
-                paddingHorizontal: 16,
-                marginBottom: 16,
-                fontSize: 16,
-              },
-              container: {
-                flex: 0,
-              },
-            }}
-            textInputProps={{
-              placeholderTextColor: "#9ca3af",
-              value: destinationInput,
-              onChangeText: (value: string) => {
+            <Text className="text-gray-700 text-base font-semibold mb-2">
+              Destination
+            </Text>
+            <GooglePlacesAutocomplete
+              placeholder="Search for a city or destination"
+              onPress={(data) => {
+                const value = data.description || "";
                 setDestinationInput(value);
                 handleInputChange("destination", value);
-              },
-            }}
-            fetchDetails={true}
-            onTimeout={() => console.log("Google Places timeout")}
-            onFail={(error) => console.error("Google Places error:", error)}
-            minLength={2}
-            debounce={300}
-          />
-
-          <Text className="text-gray-700 text-base font-semibold mb-2">
-            Start Date
-          </Text>
-          <TouchableOpacity
-            className="w-full border border-gray-300 rounded-lg p-4 mb-4"
-            onPress={() => setShowStartDatePicker(true)}
-          >
-            <Text className="text-gray-800">
-              {formData.start_date || "Select start date"}
-            </Text>
-          </TouchableOpacity>
-
-          {showStartDatePicker && (
-            <DateTimePicker
-              value={startDate}
-              mode="date"
-              display="default"
-              onChange={(event, date) => handleDateChange(event, date, "start")}
+              }}
+              query={{
+                key: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
+                language: "en",
+                types: "(cities)",
+              }}
+              styles={{
+                textInput: {
+                  height: 48,
+                  borderWidth: 1,
+                  borderColor: "#d1d5db",
+                  borderRadius: 8,
+                  paddingHorizontal: 16,
+                  marginBottom: 16,
+                  fontSize: 16,
+                },
+                container: {
+                  flex: 0,
+                },
+              }}
+              textInputProps={{
+                placeholderTextColor: "#9ca3af",
+                value: destinationInput,
+                onChangeText: (value: string) => {
+                  setDestinationInput(value);
+                  handleInputChange("destination", value);
+                },
+              }}
+              fetchDetails={true}
+              onTimeout={() => console.log("Google Places timeout")}
+              onFail={(error) => console.error("Google Places error:", error)}
+              minLength={2}
+              debounce={300}
             />
-          )}
 
-          <Text className="text-gray-700 text-base font-semibold mb-2">
-            End Date
-          </Text>
-          <TouchableOpacity
-            className="w-full border border-gray-300 rounded-lg p-4 mb-6"
-            onPress={() => setShowEndDatePicker(true)}
-          >
-            <Text className="text-gray-800">
-              {formData.end_date || "Select end date"}
+            <Text className="text-gray-700 text-base font-semibold mb-2">
+              Start Date
             </Text>
-          </TouchableOpacity>
-
-          {showEndDatePicker && (
-            <DateTimePicker
-              value={endDate}
-              mode="date"
-              display="default"
-              onChange={(event, date) => handleDateChange(event, date, "end")}
-            />
-          )}
-
-          <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
-            Reservations
-          </Text>
-
-          <ReservationUploadPanel
-            selectedTypeKey={selectedReservationTypeKey}
-            uploadsByType={pendingUploadsByType}
-            disabled={loading}
-            onToggleType={handleToggleReservationType}
-            onPickImage={handlePickReservationImage}
-            onPickDocument={handlePickReservationDocument}
-            onRemoveUpload={handleRemoveReservationUpload}
-          />
-
-          <TouchableOpacity
-            onPress={handleCreateTrip}
-            className="bg-blue-500 py-3 rounded-lg items-center mb-4"
-            disabled={loading}
-          >
-            <View className="flex-row items-center justify-center">
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : null}
-              <Text className="text-white font-semibold text-base ml-2">
-                {loading
-                  ? hasPendingUploads
-                    ? "Creating Trip & Uploading Files..."
-                    : "Creating..."
-                  : "Create Trip"}
+            <TouchableOpacity
+              className="w-full border border-gray-300 rounded-lg p-4 mb-4"
+              onPress={() => setShowStartDatePicker(true)}
+            >
+              <Text className="text-gray-800">
+                {formData.start_date || "Select start date"}
               </Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          <View className="border-t border-gray-200 pt-4">
-            <Text className="text-gray-700 text-base font-semibold mb-3">
-              Trip Members (Optional)
+            {showStartDatePicker && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) =>
+                  handleDateChange(event, date, "start")
+                }
+              />
+            )}
+
+            <Text className="text-gray-700 text-base font-semibold mb-2">
+              End Date
+            </Text>
+            <TouchableOpacity
+              className="w-full border border-gray-300 rounded-lg p-4 mb-6"
+              onPress={() => setShowEndDatePicker(true)}
+            >
+              <Text className="text-gray-800">
+                {formData.end_date || "Select end date"}
+              </Text>
+            </TouchableOpacity>
+
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={endDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) => handleDateChange(event, date, "end")}
+              />
+            )}
+
+            <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
+              Reservations
             </Text>
 
-            <ScrollView className="max-h-48" keyboardShouldPersistTaps="handled">
-              {members.map((member, index) => (
-                <View key={index} className="flex-row mb-3">
-                  <TextInput
-                    className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
-                    placeholder="Name"
-                    value={member.name}
-                    onChangeText={(value) =>
-                      handleMemberChange(index, "name", value)
-                    }
-                  />
-                  <TextInput
-                    className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
-                    placeholder="Email"
-                    value={member.email}
-                    onChangeText={(value) =>
-                      handleMemberChange(index, "email", value)
-                    }
-                  />
-                  <TouchableOpacity
-                    onPress={() => removeMemberField(index)}
-                    className="bg-red-500 px-3 py-2 rounded-lg justify-center"
-                  >
-                    <Text className="text-white text-sm">Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
+            <ReservationUploadPanel
+              selectedTypeKey={selectedReservationTypeKey}
+              uploadsByType={pendingUploadsByType}
+              disabled={loading}
+              onToggleType={handleToggleReservationType}
+              onPickImage={handlePickReservationImage}
+              onPickDocument={handlePickReservationDocument}
+              onRemoveUpload={handleRemoveReservationUpload}
+            />
 
             <TouchableOpacity
-              onPress={addMemberField}
-              className="bg-green-500 py-2 rounded-lg items-center mt-2"
+              onPress={handleCreateTrip}
+              className="bg-blue-500 py-3 rounded-lg items-center mb-4"
+              disabled={loading}
             >
-              <Text className="text-white font-semibold">+ Add Member</Text>
+              <View className="flex-row items-center justify-center">
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : null}
+                <Text className="text-white font-semibold text-base ml-2">
+                  {loading
+                    ? hasPendingUploads
+                      ? "Creating Trip & Uploading Files..."
+                      : "Creating..."
+                    : "Create Trip"}
+                </Text>
+              </View>
             </TouchableOpacity>
+
+            <View className="border-t border-gray-200 pt-4">
+              <Text className="text-gray-700 text-base font-semibold mb-3">
+                Trip Members (Optional)
+              </Text>
+
+              <ScrollView
+                className="max-h-48"
+                keyboardShouldPersistTaps="handled"
+              >
+                {members.map((member, index) => (
+                  <View key={index} className="flex-row mb-3">
+                    <TextInput
+                      className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
+                      placeholder="Name"
+                      value={member.name}
+                      onChangeText={(value) =>
+                        handleMemberChange(index, "name", value)
+                      }
+                    />
+                    <TextInput
+                      className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
+                      placeholder="Email"
+                      value={member.email}
+                      onChangeText={(value) =>
+                        handleMemberChange(index, "email", value)
+                      }
+                    />
+                    <TouchableOpacity
+                      onPress={() => removeMemberField(index)}
+                      className="bg-red-500 px-3 py-2 rounded-lg justify-center"
+                    >
+                      <Text className="text-white text-sm">Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={addMemberField}
+                className="bg-green-500 py-2 rounded-lg items-center mt-2"
+              >
+                <Text className="text-white font-semibold">+ Add Member</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

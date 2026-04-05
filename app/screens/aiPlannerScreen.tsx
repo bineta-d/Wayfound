@@ -1,14 +1,13 @@
-import { supabase } from "@/lib/supabase";
-import { Alert } from "react-native";
 import { generateTripPlan } from "@/lib/ai";
 import { enrichActivities } from "@/lib/enrichActivities";
 import { saveItinerary } from "@/lib/itineraryService";
-import { getTripContext } from "@/lib/tripContextService";
+import { supabase } from "@/lib/supabase";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -40,29 +39,29 @@ export default function AIPlannerScreen() {
 
   // Input Validation
   const validateInputs = () => {
-    if (!params.destination){
+    if (!params.destination) {
       alert("Destination is missing");
       return false;
     }
 
-    if (!params.startDate || !params.endDate){
+    if (!params.startDate || !params.endDate) {
       alert("Trip dates are missing");
       return false;
     }
-    
-    if (!budget || Number(budget) <= 0){
+
+    if (!budget || Number(budget) <= 0) {
       alert("Please enter a valid budget");
       return false;
     }
 
     const extra = customInterests
       .split(",")
-      .map(i => i.trim())
-      .filter(i => i.length > 0);
+      .map((i) => i.trim())
+      .filter((i) => i.length > 0);
 
     const finalInterests = [...interests, ...extra];
 
-    if (finalInterests.length === 0){
+    if (finalInterests.length === 0) {
       alert("Please select at least one interest");
       return false;
     }
@@ -118,7 +117,7 @@ export default function AIPlannerScreen() {
           description: activity.description,
           start_time: activity.start_time,
           end_time: activity.end_time,
-        }))
+        })),
       );
 
       //  Step 2 — enrich with Google Places
@@ -140,10 +139,10 @@ export default function AIPlannerScreen() {
         router.back();
       }, 700);
     } catch (err) {
-        console.log("AI ERROR:", err);
-        alert("Failed to generate itinerary");
+      console.log("AI ERROR:", err);
+      alert("Failed to generate itinerary");
     } finally {
-          setLoadingAI(false);
+      setLoadingAI(false);
     }
   };
 
@@ -161,63 +160,69 @@ export default function AIPlannerScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <View className="flex-row items-center mb-4">
-          <MaterialIcons name="auto-awesome" size={26} color="black" />
-          <Text className="text-2xl font-bold ml-2">Create Itinerary</Text>
-        </View>
+          <View className="flex-row items-center mb-4">
+            <MaterialIcons name="auto-awesome" size={26} color="black" />
+            <Text className="text-2xl font-bold ml-2">Create Itinerary</Text>
+          </View>
 
-        <Text className="text-lg text-gray-500">Destination</Text>
-        <Text className="text-2xl font-bold mb-4">{params.destination}</Text>
+          <Text className="text-lg text-gray-500">Destination</Text>
+          <Text className="text-2xl font-bold mb-4">{params.destination}</Text>
 
-        <Text className="text-lg text-gray-500">Dates</Text>
-        <Text className="text-xl font-bold mb-6">
-          {params.startDate} → {params.endDate}
-        </Text>
+          <Text className="text-lg text-gray-500">Dates</Text>
+          <Text className="text-xl font-bold mb-6">
+            {params.startDate} → {params.endDate}
+          </Text>
 
-        {/* Prompt */}
-        <View className="flex-row items-center mb-2">
-          <Ionicons name="document-text-outline" size={18} color="black" />
-          <Text className="font-semibold ml-2">Preferences</Text>
-        </View>
+          {/* Prompt */}
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="document-text-outline" size={18} color="black" />
+            <Text className="font-semibold ml-2">Preferences</Text>
+          </View>
 
-        <TextInput
-          placeholder="I want food spots, hidden gems, rooftop bars..."
-          value={prompt}
-          onChangeText={setPrompt}
-          multiline
-          className="border border-gray-300 rounded-xl p-4 h-28 mb-6"
-        />
-
-        {/* Budget */}
-        <View className="flex-row items-center mb-2">
-          <MaterialIcons name="attach-money" size={20} color="black" />
-          <Text className="font-semibold ml-1">Budget</Text>
-        </View>
-
-        <View className="flex-row mb-6">
           <TextInput
-            placeholder="Enter total budget"
-            value={budget}
-            onChangeText={(text) => {
-                const numeric = text.replace(/[^0-9]/g, "");
-                setBudget(numeric);
-            }}
-            keyboardType="numeric"
-            className="border border-gray-300 rounded-xl p-4 flex-1"
+            placeholder="I want food spots, hidden gems, rooftop bars..."
+            value={prompt}
+            onChangeText={setPrompt}
+            multiline
+            className="border border-gray-300 rounded-xl p-4 h-28 mb-6"
           />
 
-          {/* placeholder currency (temporal) */}
-          <View className="ml-2 px-4 justify-center border border-gray-300 rounded-xl bg-gray-100">
-            <Text className="font-semibold">USD</Text>
+          {/* Budget */}
+          <View className="flex-row items-center mb-2">
+            <MaterialIcons name="attach-money" size={20} color="black" />
+            <Text className="font-semibold ml-1">Budget</Text>
           </View>
-        </View>
 
-        {/* Interests */}
-        <Text className="font-semibold mb-2 text-gray-800">Interests</Text>
+          <View className="flex-row mb-6">
+            <TextInput
+              placeholder="Enter total budget"
+              value={budget}
+              onChangeText={(text) => {
+                const numeric = text.replace(/[^0-9]/g, "");
+                setBudget(numeric);
+              }}
+              keyboardType="numeric"
+              className="border border-gray-300 rounded-xl p-4 flex-1"
+            />
 
-        <View className="flex-row flex-wrap mb-6">
-          {["food", "culture", "nature", "nightlife", "shopping", "relax"].map(
-            (i) => {
+            {/* placeholder currency (temporal) */}
+            <View className="ml-2 px-4 justify-center border border-gray-300 rounded-xl bg-gray-100">
+              <Text className="font-semibold">USD</Text>
+            </View>
+          </View>
+
+          {/* Interests */}
+          <Text className="font-semibold mb-2 text-gray-800">Interests</Text>
+
+          <View className="flex-row flex-wrap mb-6">
+            {[
+              "food",
+              "culture",
+              "nature",
+              "nightlife",
+              "shopping",
+              "relax",
+            ].map((i) => {
               const selected = interests.includes(i);
 
               return (
@@ -239,58 +244,57 @@ export default function AIPlannerScreen() {
                   </Text>
                 </TouchableOpacity>
               );
-            },
-          )}
-        </View>
-
-        {/* Other interests */}
-        <Text className="font-semibold mb-2">Other interests</Text>
-
-        <TextInput
-          placeholder="anime, photography, rooftop bars..."
-          value={customInterests}
-          onChangeText={setCustomInterests}
-          className="border border-gray-300 rounded-xl p-4 mb-8"
-        />
-
-        {/* Generate button */}
-        <TouchableOpacity
-          className={`py-4 rounded-xl items-center justify-center w-full ${
-            loadingAI ? "bg-gray-400" : "bg-black"
-          }`}
-          disabled = {loadingAI}
-          onPress={async () => {
-            if (loadingAI) return;
-
-            if (!validateInputs()) return;
-
-            const hasItinerary = await checkExistingItinerary();
-            
-            if (hasItinerary) {
-              Alert.alert(
-                "Replace itinerary?",
-                "This trip already has an itinerary. Generating a new one will replace it.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Replace",
-                    style: "destructive",
-                    onPress: () => runGeneration()
-                  }
-                ]
-              );
-              return;
-            }
-            runGeneration();
-          }}
-        >
-          <View className="flex-row items-center">
-            <MaterialIcons name="auto-awesome" size={20} color="white" />
-            <Text className="text-white font-bold text-lg ml-2">
-              {loadingAI ? "Generating..." : "Generate"}
-            </Text>
+            })}
           </View>
-        </TouchableOpacity>
+
+          {/* Other interests */}
+          <Text className="font-semibold mb-2">Other interests</Text>
+
+          <TextInput
+            placeholder="anime, photography, rooftop bars..."
+            value={customInterests}
+            onChangeText={setCustomInterests}
+            className="border border-gray-300 rounded-xl p-4 mb-8"
+          />
+
+          {/* Generate button */}
+          <TouchableOpacity
+            className={`py-4 rounded-xl items-center justify-center w-full ${
+              loadingAI ? "bg-gray-400" : "bg-black"
+            }`}
+            disabled={loadingAI}
+            onPress={async () => {
+              if (loadingAI) return;
+
+              if (!validateInputs()) return;
+
+              const hasItinerary = await checkExistingItinerary();
+
+              if (hasItinerary) {
+                Alert.alert(
+                  "Replace itinerary?",
+                  "This trip already has an itinerary. Generating a new one will replace it.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Replace",
+                      style: "destructive",
+                      onPress: () => runGeneration(),
+                    },
+                  ],
+                );
+                return;
+              }
+              runGeneration();
+            }}
+          >
+            <View className="flex-row items-center">
+              <MaterialIcons name="auto-awesome" size={20} color="white" />
+              <Text className="text-white font-bold text-lg ml-2">
+                {loadingAI ? "Generating..." : "Generate"}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </KeyboardAwareScrollView>
 
         {loadingAI && (
