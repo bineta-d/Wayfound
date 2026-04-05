@@ -8,7 +8,14 @@ export default function ScreensLayout() {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="createTrip" />
+      <Stack.Screen
+        name="createTrip"
+        options={{
+          headerShown: true,
+          title: "Create Trip",
+          headerBackTitle: "",
+        }}
+      />
       <Stack.Screen name="Newtrip" />
       <Stack.Screen
         name="editProfile"

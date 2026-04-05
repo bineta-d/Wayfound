@@ -57,10 +57,16 @@ export default function NewTripScreen() {
       return;
     }
 
-    setDestinationInput(params.destination);
+    const destination = params.destination;
+    const year = new Date().getFullYear();
+    const suggestedTitle = `${destination} ${year}`;
+
+    setDestinationInput(destination);
     setFormData((prev) => ({
       ...prev,
-      destination: params.destination || "",
+      destination,
+      // Only prefill title when empty so user edits are preserved.
+      title: prev.title.trim() ? prev.title : suggestedTitle,
     }));
   }, [params.destination]);
 
