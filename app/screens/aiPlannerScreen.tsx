@@ -9,6 +9,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -145,15 +148,19 @@ export default function AIPlannerScreen() {
   };
 
   return (
-    <View className="flex-1">
-      <KeyboardAwareScrollView
-        className="flex-1 bg-white"
-        contentContainerStyle={{ padding: 24, paddingBottom: 140 }}
-        enableOnAndroid={true}
-        extraScrollHeight={120}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView className="flex-1 bg-white">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        <KeyboardAwareScrollView
+          className="flex-1 bg-white"
+          contentContainerStyle={{ padding: 24, paddingBottom: 140 }}
+          enableOnAndroid={true}
+          extraScrollHeight={120}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View className="flex-row items-center mb-4">
           <MaterialIcons name="auto-awesome" size={26} color="black" />
           <Text className="text-2xl font-bold ml-2">Create Itinerary</Text>
@@ -284,26 +291,27 @@ export default function AIPlannerScreen() {
             </Text>
           </View>
         </TouchableOpacity>
-      </KeyboardAwareScrollView>
+        </KeyboardAwareScrollView>
 
-      {loadingAI && (
-        <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/40 items-center justify-center">
-          <View className="bg-white px-8 py-8 rounded-2xl items-center shadow-lg">
-            <View className="flex-row items-center mb-4">
-              <MaterialIcons name="auto-awesome" size={22} color="black" />
-              <Text className="text-xl font-bold ml-2">
-                Generating itinerary...
+        {loadingAI && (
+          <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/40 items-center justify-center">
+            <View className="bg-white px-8 py-8 rounded-2xl items-center shadow-lg">
+              <View className="flex-row items-center mb-4">
+                <MaterialIcons name="auto-awesome" size={22} color="black" />
+                <Text className="text-xl font-bold ml-2">
+                  Generating itinerary...
+                </Text>
+              </View>
+
+              <Text className="text-gray-500 mb-6 text-center">
+                Please wait a few seconds
               </Text>
+
+              <ActivityIndicator size="large" color="#000" />
             </View>
-
-            <Text className="text-gray-500 mb-6 text-center">
-              Please wait a few seconds
-            </Text>
-
-            <ActivityIndicator size="large" color="#000" />
           </View>
-        </View>
-      )}
-    </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

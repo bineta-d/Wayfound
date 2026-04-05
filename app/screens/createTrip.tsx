@@ -12,6 +12,8 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   Text,
@@ -33,6 +35,7 @@ export default function CreateTripScreen() {
     start_date: "",
     end_date: "",
   });
+  const [destinationInput, setDestinationInput] = useState("");
   const [members, setMembers] = useState<{ name: string; email: string }[]>([]);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -48,7 +51,7 @@ export default function CreateTripScreen() {
     (uploads) => (uploads?.length || 0) > 0,
   );
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -214,13 +217,26 @@ export default function CreateTripScreen() {
       return;
     }
 
-    if (
-      !formData.title ||
-      !formData.destination ||
-      !formData.start_date ||
-      !formData.end_date
-    ) {
-      Alert.alert("Error", "Please fill in all fields");
+    const normalizedData = {
+      title: formData.title.trim(),
+      destination: destinationInput.trim(),
+      start_date: formData.start_date.trim(),
+      end_date: formData.end_date.trim(),
+    };
+
+    const missingFields: string[] = [];
+    if (!normalizedData.title) missingFields.push("Trip Title");
+    if (!normalizedData.destination) missingFields.push("Destination");
+    if (!normalizedData.start_date) missingFields.push("Start Date");
+    if (!normalizedData.end_date) missingFields.push("End Date");
+
+    if (missingFields.length > 0) {
+      Alert.alert("Error", `Please fill in: ${missingFields.join(", ")}`);
+      return;
+    }
+
+    if (new Date(normalizedData.start_date) > new Date(normalizedData.end_date)) {
+      Alert.alert("Error", "End Date must be on or after Start Date");
       return;
     }
 
@@ -228,10 +244,10 @@ export default function CreateTripScreen() {
 
     try {
       const tripData = await createTrip(
-        formData.title,
-        formData.destination,
-        formData.start_date,
-        formData.end_date,
+        normalizedData.title,
+        normalizedData.destination,
+        normalizedData.start_date,
+        normalizedData.end_date,
         user.id,
       );
 
@@ -293,7 +309,14 @@ export default function CreateTripScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+      >
         <View className="bg-white px-6 pt-12 pb-6">
           <Text className="text-2xl font-bold text-gray-800">
             Create New Trip
@@ -318,7 +341,9 @@ export default function CreateTripScreen() {
           <GooglePlacesAutocomplete
             placeholder="Search for a city or destination"
             onPress={(data) => {
-              handleInputChange("destination", data.description);
+              const value = data.description || "";
+              setDestinationInput(value);
+              handleInputChange("destination", value);
             }}
             query={{
               key: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
@@ -341,6 +366,11 @@ export default function CreateTripScreen() {
             }}
             textInputProps={{
               placeholderTextColor: "#9ca3af",
+              value: destinationInput,
+              onChangeText: (value: string) => {
+                setDestinationInput(value);
+                handleInputChange("destination", value);
+              },
             }}
             fetchDetails={true}
             onTimeout={() => console.log("Google Places timeout")}
@@ -429,7 +459,7 @@ export default function CreateTripScreen() {
               Trip Members (Optional)
             </Text>
 
-            <ScrollView className="max-h-48">
+            <ScrollView className="max-h-48" keyboardShouldPersistTaps="handled">
               {members.map((member, index) => (
                 <View key={index} className="flex-row mb-3">
                   <TextInput
@@ -467,6 +497,7 @@ export default function CreateTripScreen() {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

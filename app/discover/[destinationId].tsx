@@ -49,6 +49,13 @@ interface PlaceDetailsInfo extends PlaceSummary {
 
 export default function DiscoverDetailScreen() {
   const router = useRouter();
+  const locationCardShadowStyle = {
+    shadowColor: "#111827",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+  };
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [destination, setDestination] = useState({
@@ -498,23 +505,30 @@ export default function DiscoverDetailScreen() {
                     className="mr-4"
                     onPress={() => handleSelectPlace(place)}
                   >
-                    <View className="bg-white rounded-xl shadow-sm overflow-hidden w-40">
+                    <View
+                      className="bg-white rounded-xl shadow-md overflow-hidden w-40 h-56 border border-purple-200"
+                      style={locationCardShadowStyle}
+                    >
                       <Image
                         source={{ uri: place.image }}
                         className="w-full h-24"
                         resizeMode="cover"
                       />
-                      <View className="p-3">
-                        <Text className="font-semibold text-gray-800 text-sm mb-1">
+                      <View className="p-3 flex-1">
+                        <Text
+                          className="font-semibold text-gray-800 text-sm mb-1"
+                          numberOfLines={2}
+                        >
                           {place.name}
                         </Text>
                         <Text
                           className="text-gray-600 text-xs mb-2"
                           numberOfLines={2}
+                          ellipsizeMode="tail"
                         >
                           {place.description}
                         </Text>
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-center mt-auto">
                           <Ionicons name="star" size={12} color="#FFD700" />
                           <Text className="text-gray-600 text-xs ml-1">
                             {place.rating}
