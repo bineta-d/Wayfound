@@ -116,18 +116,7 @@ function AuthStack() {
         />
 
         {/* Other screens */}
-        <Stack.Screen
-          name="screens/createTrip"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="screens/editProfile"
-          options={{
-            title: "Edit Profile",
-            headerShown: true,
-            headerBackTitle: "",
-          }}
-        />
+        <Stack.Screen name="screens" options={{ headerShown: false }} />
       </Stack>
     </GestureHandlerRootView>
   );

@@ -9,6 +9,15 @@ export default function ScreensLayout() {
       }}
     >
       <Stack.Screen name="createTrip" />
+      <Stack.Screen name="Newtrip" />
+      <Stack.Screen
+        name="editProfile"
+        options={{
+          headerShown: true,
+          title: "Edit Profile",
+          headerBackTitle: "",
+        }}
+      />
     </Stack>
   );
 }

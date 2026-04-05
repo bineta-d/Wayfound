@@ -8,26 +8,31 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { createTrip, createTripMembers } from "../../lib/TripService";
 
-export default function NewtripScreen() {
-  const { user } = useAuth();
+export default function NewTripScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    destination?: string;
+    country?: string;
+    countryCode?: string;
+  }>();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -46,6 +51,18 @@ export default function NewtripScreen() {
   const [pendingUploadsByType, setPendingUploadsByType] = useState<
     Partial<Record<ReservationUploadTypeKey, PendingReservationUpload[]>>
   >({});
+
+  useEffect(() => {
+    if (!params.destination || Array.isArray(params.destination)) {
+      return;
+    }
+
+    setDestinationInput(params.destination);
+    setFormData((prev) => ({
+      ...prev,
+      destination: params.destination || "",
+    }));
+  }, [params.destination]);
 
   const hasPendingUploads = Object.values(pendingUploadsByType).some(
     (uploads) => (uploads?.length || 0) > 0,
@@ -75,7 +92,7 @@ export default function NewtripScreen() {
   };
 
   const removeMemberField = (index: number) => {
-    setMembers((prev) => prev.filter((_, i) => i !== index));
+    setMembers((prev) => prev.filter((_, memberIndex) => memberIndex !== index));
   };
 
   const buildPendingUpload = (
@@ -112,9 +129,7 @@ export default function NewtripScreen() {
   };
 
   const handleToggleReservationType = (typeKey: ReservationUploadTypeKey) => {
-    setSelectedReservationTypeKey((prev) =>
-      prev === typeKey ? null : typeKey,
-    );
+    setSelectedReservationTypeKey((prev) => (prev === typeKey ? null : typeKey));
   };
 
   const handlePickReservationImage = async (
@@ -192,7 +207,7 @@ export default function NewtripScreen() {
   };
 
   const handleDateChange = (
-    event: any,
+    event: { type?: string },
     selectedDate: Date | undefined,
     type: "start" | "end",
   ) => {
@@ -206,6 +221,7 @@ export default function NewtripScreen() {
         handleInputChange("end_date", dateString);
       }
     }
+
     setShowStartDatePicker(false);
     setShowEndDatePicker(false);
   };
@@ -258,7 +274,7 @@ export default function NewtripScreen() {
       }
 
       const validMembers = members.filter(
-        (member) => member.name && member.email,
+        (member) => member.name.trim() && member.email.trim(),
       );
       if (validMembers.length > 0) {
         await createTripMembers(tripId, validMembers);
@@ -311,34 +327,36 @@ export default function NewtripScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 32 }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View className="bg-white px-6 pt-12 pb-6">
+          <View className="bg-white px-6 pt-6 pb-6">
             <Text className="text-2xl font-bold text-gray-800">
               Create New Trip
             </Text>
-            <Text className="text-gray-600 mt-2">Plan your next adventure</Text>
+            <Text className="mt-2 text-gray-600">Plan your next adventure</Text>
           </View>
 
           <View className="bg-white px-6 py-4">
-            <Text className="text-gray-700 text-base font-semibold mb-2">
+            <Text className="mb-2 text-base font-semibold text-gray-700">
               Trip Title
             </Text>
             <TextInput
-              className="w-full border border-gray-300 rounded-lg p-4 mb-4"
+              className="mb-4 w-full rounded-lg border border-gray-300 p-4"
               placeholder="Enter trip title"
               value={formData.title}
               onChangeText={(value) => handleInputChange("title", value)}
             />
 
-            <Text className="text-gray-700 text-base font-semibold mb-2">
+            <Text className="mb-2 text-base font-semibold text-gray-700">
               Destination
             </Text>
             <GooglePlacesAutocomplete
@@ -366,6 +384,10 @@ export default function NewtripScreen() {
                 container: {
                   flex: 0,
                 },
+                listView: {
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                },
               }}
               textInputProps={{
                 placeholderTextColor: "#9ca3af",
@@ -375,18 +397,19 @@ export default function NewtripScreen() {
                   handleInputChange("destination", value);
                 },
               }}
-              fetchDetails={true}
-              onTimeout={() => console.log("Google Places timeout")}
-              onFail={(error) => console.error("Google Places error:", error)}
+              fetchDetails
               minLength={2}
               debounce={300}
+              enablePoweredByContainer={false}
+              onTimeout={() => console.log("Google Places timeout")}
+              onFail={(error) => console.error("Google Places error:", error)}
             />
 
-            <Text className="text-gray-700 text-base font-semibold mb-2">
+            <Text className="mb-2 text-base font-semibold text-gray-700">
               Start Date
             </Text>
             <TouchableOpacity
-              className="w-full border border-gray-300 rounded-lg p-4 mb-4"
+              className="mb-4 w-full rounded-lg border border-gray-300 p-4"
               onPress={() => setShowStartDatePicker(true)}
             >
               <Text className="text-gray-800">
@@ -399,17 +422,15 @@ export default function NewtripScreen() {
                 value={startDate}
                 mode="date"
                 display="default"
-                onChange={(event, date) =>
-                  handleDateChange(event, date, "start")
-                }
+                onChange={(event, date) => handleDateChange(event, date, "start")}
               />
             )}
 
-            <Text className="text-gray-700 text-base font-semibold mb-2">
+            <Text className="mb-2 text-base font-semibold text-gray-700">
               End Date
             </Text>
             <TouchableOpacity
-              className="w-full border border-gray-300 rounded-lg p-4 mb-6"
+              className="mb-6 w-full rounded-lg border border-gray-300 p-4"
               onPress={() => setShowEndDatePicker(true)}
             >
               <Text className="text-gray-800">
@@ -426,7 +447,7 @@ export default function NewtripScreen() {
               />
             )}
 
-            <Text className="text-xl font-bold text-neutral-textPrimary mb-4">
+            <Text className="mb-4 text-xl font-bold text-neutral-textPrimary">
               Reservations
             </Text>
 
@@ -442,14 +463,14 @@ export default function NewtripScreen() {
 
             <TouchableOpacity
               onPress={handleCreateTrip}
-              className="bg-blue-500 py-3 rounded-lg items-center mb-4"
+              className="mb-4 items-center rounded-lg bg-blue-500 py-3"
               disabled={loading}
             >
               <View className="flex-row items-center justify-center">
                 {loading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : null}
-                <Text className="text-white font-semibold text-base ml-2">
+                <Text className="ml-2 text-base font-semibold text-white">
                   {loading
                     ? hasPendingUploads
                       ? "Creating Trip & Uploading Files..."
@@ -460,7 +481,7 @@ export default function NewtripScreen() {
             </TouchableOpacity>
 
             <View className="border-t border-gray-200 pt-4">
-              <Text className="text-gray-700 text-base font-semibold mb-3">
+              <Text className="mb-3 text-base font-semibold text-gray-700">
                 Trip Members (Optional)
               </Text>
 
@@ -469,9 +490,9 @@ export default function NewtripScreen() {
                 keyboardShouldPersistTaps="handled"
               >
                 {members.map((member, index) => (
-                  <View key={index} className="flex-row mb-3">
+                  <View key={index} className="mb-3 flex-row">
                     <TextInput
-                      className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
+                      className="mr-2 flex-1 rounded-lg border border-gray-300 p-3"
                       placeholder="Name"
                       value={member.name}
                       onChangeText={(value) =>
@@ -479,7 +500,7 @@ export default function NewtripScreen() {
                       }
                     />
                     <TextInput
-                      className="flex-1 border border-gray-300 rounded-lg p-3 mr-2"
+                      className="mr-2 flex-1 rounded-lg border border-gray-300 p-3"
                       placeholder="Email"
                       value={member.email}
                       onChangeText={(value) =>
@@ -488,9 +509,9 @@ export default function NewtripScreen() {
                     />
                     <TouchableOpacity
                       onPress={() => removeMemberField(index)}
-                      className="bg-red-500 px-3 py-2 rounded-lg justify-center"
+                      className="justify-center rounded-lg bg-red-500 px-3 py-2"
                     >
-                      <Text className="text-white text-sm">Remove</Text>
+                      <Text className="text-sm text-white">Remove</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -498,9 +519,9 @@ export default function NewtripScreen() {
 
               <TouchableOpacity
                 onPress={addMemberField}
-                className="bg-green-500 py-2 rounded-lg items-center mt-2"
+                className="mt-2 items-center rounded-lg bg-green-500 py-2"
               >
-                <Text className="text-white font-semibold">+ Add Member</Text>
+                <Text className="font-semibold text-white">+ Add Member</Text>
               </TouchableOpacity>
             </View>
           </View>

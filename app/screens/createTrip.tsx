@@ -1,3 +1,3 @@
-import NewtripScreen from "./Newtrip";
+import NewTripScreen from "./Newtrip";
 
-export default NewtripScreen;
+export default NewTripScreen;
