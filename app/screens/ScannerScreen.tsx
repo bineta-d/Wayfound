@@ -130,14 +130,39 @@ export default function ScannerScreen({ bucket, type, tripId, tripDestination }:
       // TRANSPORT
       // =========================
       else if (bucket === 'transport') {
-        const flightMatch = rawText.match(/flight\s+([A-Z0-9]+)/i);
+        const cityRegex = /(Barcelona|Madrid|Paris|London|Tokyo|Rome|Miami|New York)/gi;
+        const cities = rawText.match(cityRegex) || [];
 
-        const { error } = await supabase.from('transport').insert([{
-          type: type || 'Flight',
-          details: flightMatch ? flightMatch[0] : rawText.slice(0, 100),
-        }]);
+        const departureLocation = cities[0] || tripDestination;
+        const arrivalLocation = cities[1] || tripDestination;
 
-        if (error) console.log("DB Insert Notice:", error);
+        const dateMatch = rawText.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/);
+        const departureDate = dateMatch ? dateMatch[0] : null;
+
+        const timeMatches = rawText.match(/\b\d{1,2}:\d{2}\b/g) || [];
+
+        const departureTime = timeMatches[0] || null;
+        const arrivalTime = timeMatches[1] || null;
+
+        let transportType = type || 'Flight';
+
+        if(lower.includes('train')) transportType = 'Train';
+        if(lower.includes('bus')) transportType = 'Bus';
+        if(lower.includes('car')) transportType = 'Car Rental';
+
+
+        const { error } = await supabase.from('travel_transportation').insert([{
+          trip_id: tripId,
+          transport_type: transportType,
+          departure_location: departureLocation,
+          arrival_location: arrivalLocation,
+          departure_time: departureTime,
+          arrival_time: arrivalTime,
+          departure_date: departureDate,
+          notes: rawText,
+        }])
+
+        if (error) console.log("DB Insert Error:", error);
 
         setStatusText('✅ Transport saved!');
       }
